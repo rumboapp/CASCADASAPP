@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Cascadas Hotel App</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ===== PALETA CASCADAS =====
+       Los nombres de variables se conservan (el HTML/JS los usa). Los estados
+       mantienen color propio (son funcionales) pero apagados y elegantes:
+       nada neón, ni dorado brillante, ni beige sucio. */
+    :root {
+      --verde: #4E6B54;      /* limpia */
+      --rojo: #8B3A3A;       /* sucia */
+      --naranja: #B06A2C;    /* se va hoy */
+      --amarillo: #2E6E6E;   /* aseo diario (teal apagado, para no usar dorado) */
+      --celeste: #43607F;    /* no aseo */
+      --morado: #6E5A7A;     /* mantención */
+      --gris: #C9C6C2; --dark: #3A3A3C; --navy: #414143;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Oswald', 'Segoe UI', sans-serif; font-weight: 300; margin: 0; padding: 10px;
+      background-color: #F4F4F5;
+      background-image:
+        radial-gradient(ellipse at 50% -20%, rgba(255,255,255,.7), transparent 55%),
+        repeating-linear-gradient(0deg, rgba(65,65,67,.02) 0 1px, transparent 1px 4px),
+        repeating-linear-gradient(90deg, rgba(65,65,67,.02) 0 1px, transparent 1px 4px);
+      color: var(--dark); overflow-x: hidden; -webkit-tap-highlight-color: transparent;
+    }
+
+    .header {
+      display: flex; justify-content: space-between; align-items: center; padding: 12px 16px;
+      background: repeating-linear-gradient(90deg, rgba(255,255,255,.03) 0 1px, transparent 1px 3px), linear-gradient(180deg, #4C4C4F, #414143 60%, #38383A);
+      border-radius: 15px; margin-bottom: 12px; border: 1px solid #2A2A2C;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 3px 10px rgba(0,0,0,.28);
+    }
+    .header h2 { color: #E9E7E5; font-family: 'Bebas Neue', sans-serif; font-weight: 400; letter-spacing: 1.5px; text-shadow: 0 -1px 0 rgba(0,0,0,.5); }
+
+    .progress-container { background: #E0DDD9; height: 8px; border-radius: 4px; margin-bottom: 15px; overflow: hidden; display: flex; box-shadow: inset 0 1px 2px rgba(0,0,0,.12); }
+    #progress-bar { background: var(--verde); width: 0%; transition: width 0.8s ease; }
+
+    .summary-panel { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 15px; }
+    .stat-card { background: #FFFFFF; padding: 9px 4px; border-radius: 10px; text-align: center; box-shadow: inset 0 1px 0 #fff, 0 1px 3px rgba(0,0,0,0.06); border-bottom: 4px solid var(--gris); border-top: 1px solid #E4E1DD; }
+    .stat-num { font-size: 1.2rem; font-weight: 600; display: block; color: var(--dark); }
+    .stat-label { font-size: 0.55rem; color: #8A8783; text-transform: uppercase; font-weight: 600; letter-spacing: .5px; }
+
+    .room-list { display: flex; flex-direction: column; gap: 10px; max-width: 500px; margin: 0 auto; }
+    .room-card {
+      background: #FFFFFF; display: flex; flex-direction: column; padding: 15px; border-radius: 12px;
+      border-left: 12px solid var(--gris); box-shadow: inset 0 1px 0 #fff, 0 2px 5px rgba(0,0,0,0.06); cursor: pointer;
+      transition: 0.2s; border-top: 1px solid #EDEBE8; border-right: 1px solid #EDEBE8; border-bottom: 1px solid #EDEBE8;
+    }
+    .room-card:active { transform: scale(0.96); opacity: 0.85; }
+
+    /* ANIMACIONES DE COLOR (FLASHES) — tintes suaves de cada estado */
+    @keyframes flashVerde { 0% { background: #fff; } 30% { background: #DCE6DE; } 100% { background: #fff; } }
+    @keyframes flashRojo { 0% { background: #fff; } 30% { background: #EFDAD7; } 100% { background: #fff; } }
+    @keyframes flashNaranja { 0% { background: #fff; } 30% { background: #EDE0D2; } 100% { background: #fff; } }
+    @keyframes flashAzul { 0% { background: #fff; } 30% { background: #DEE5EC; } 100% { background: #fff; } }
+    @keyframes flashMorado { 0% { background: #fff; } 30% { background: #E6E0EC; } 100% { background: #fff; } }
+    @keyframes flashAmarillo { 0% { background: #fff; } 30% { background: #DCE8E8; } 100% { background: #fff; } }
+
+    .sweep-Lista { animation: flashVerde 0.6s ease-out; }
+    .sweep-Sucia { animation: flashRojo 0.6s ease-out; }
+    .sweep-SeVaHoy { animation: flashNaranja 0.6s ease-out; }
+    .sweep-NoAseo { animation: flashAzul 0.6s ease-out; }
+    .sweep-Mantencion { animation: flashMorado 0.6s ease-out; }
+    .sweep-Diario { animation: flashAmarillo 0.6s ease-out; }
+
+    /* BORDES DE COLOR */
+    .Lista { border-left-color: var(--verde); }
+    .Sucia, .Checkout { border-left-color: var(--rojo); }
+    .SeVaHoy { border-left-color: var(--naranja); }
+    .Diario { border-left-color: var(--amarillo); }
+    .NoAseo { border-left-color: var(--celeste); }
+    .Mantencion { border-left-color: var(--morado); }
+
+    .room-header { display: flex; justify-content: space-between; align-items: flex-start; }
+    .room-num { font-size: 1.5rem; font-weight: 600; font-family: 'Oswald', sans-serif; }
+    .obs-bubble { background: #EEF0F1; border: 1px solid #C9C6C2; padding: 8px; border-radius: 8px; margin-top: 8px; font-size: 0.85rem; border-left: 4px solid var(--naranja); color: #55534F; box-shadow: inset 0 1px 2px rgba(0,0,0,.05); }
+
+    .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(38,38,40,0.6); align-items:center; justify-content:center; z-index: 1000; backdrop-filter: blur(5px); }
+    .modal-content { background:#FBFAF9; width:95%; max-width:400px; border-radius:25px; padding:20px; box-sizing: border-box; border: 1px solid #C5C2BD; box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 30px 70px -10px rgba(0,0,0,.5); }
+    .modal-content h3 { font-family: 'Bebas Neue', sans-serif; font-weight: 400; letter-spacing: 1px; font-size: 1.6rem; }
+
+    .btn {
+      width:100%; padding: 16px; margin: 6px 0; border:none; border-radius:14px; font-weight:600;
+      font-family: 'Oswald', sans-serif; color: white; cursor: pointer; text-transform: uppercase; font-size: 0.9rem; letter-spacing: .05em;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 3px 0 rgba(0,0,0,.18), 0 5px 10px -4px rgba(0,0,0,.3);
+      transition: transform .1s ease, box-shadow .12s ease;
+    }
+    .btn:active { transform: translateY(3px); box-shadow: inset 0 2px 6px rgba(0,0,0,.35); }
+    .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #EFEDEA; padding: 15px; border-radius: 15px; margin: 12px 0; box-shadow: inset 0 2px 5px rgba(0,0,0,.07); }
+    .check-item { display: flex; align-items: center; font-size: 0.8rem; font-weight: 600; }
+    .check-item input { width: 24px; height: 24px; margin-right: 8px; accent-color: #414143; }
+    textarea { width:100%; height:60px; border-radius:12px; border:1px solid #BFBCB7; padding:10px; box-sizing: border-box; text-transform: uppercase; font-family: 'Oswald', sans-serif; background: linear-gradient(180deg, #EFEDEA, #F7F6F4 30%); box-shadow: inset 0 2px 4px rgba(0,0,0,.08); color: var(--dark); }
+    textarea:focus { outline: none; border-color: #414143; }
+
+    #printArea { display: none; }
+    @media print {
+      body > *:not(#printArea) { display: none !important; }
+      #printArea { display: block !important; width: 100%; background: white; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h2 style="margin:0; font-size: 1.4rem;">CASCADAS HOTEL</h2>
+  <button onclick="generateReport()" style="background:var(--navy); color:#F2F0EE; border:1px solid #2A2A2C; padding:10px 18px; border-radius:12px; font-weight:600; font-family:'Oswald',sans-serif; letter-spacing:.04em; cursor:pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 2px 0 #242426;">🖨️ REPORTE</button>
+</div>
+
+<div class="progress-container"><div id="progress-bar"></div></div>
+
+<div class="summary-panel" id="summary">
+  <div class="stat-card" style="border-color:var(--verde)"><span class="stat-num" id="count-lista">0</span><span class="stat-label">LIMPIAS</span></div>
+  <div class="stat-card" style="border-color:var(--rojo)"><span class="stat-num" id="count-sucia">0</span><span class="stat-label">SUCIAS</span></div>
+  <div class="stat-card" style="border-color:var(--naranja)"><span class="stat-num" id="count-sevahoy">0</span><span class="stat-label">SE VA HOY</span></div>
+  <div class="stat-card" style="border-color:var(--amarillo)"><span class="stat-num" id="count-diario">0</span><span class="stat-label">ASEO DIARIO</span></div>
+  <div class="stat-card" style="border-color:var(--celeste)"><span class="stat-num" id="count-noaseo">0</span><span class="stat-label">NO ASEO</span></div>
+  <div class="stat-card" style="border-color:var(--morado)"><span class="stat-num" id="count-manten">0</span><span class="stat-label">MANTEN.</span></div>
+</div>
+
+<div class="room-list" id="mainList">CARGANDO...</div>
+<div id="printArea"></div>
+
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <h3 id="mTitle" style="margin:0 0 15px 0; text-align:center;"></h3>
+    <button class="btn" style="background:var(--verde)" onclick="save('Lista')">LIMPIA</button>
+    <button class="btn" style="background:var(--rojo)" onclick="save('Sucia')">SUCIA</button>
+    <button class="btn" style="background:var(--naranja)" onclick="save('SeVaHoy')">SE VA HOY</button>
+    <button class="btn" style="background:var(--amarillo);color:white" onclick="save('Diario')">ASEO DIARIO</button>
+    <button class="btn" style="background:var(--celeste)" onclick="save('NoAseo')">NO ASEO</button>
+    <button class="btn" style="background:var(--morado)" onclick="save('Mantencion')">MANTENCION</button>
+
+    <div class="check-grid">
+      <label class="check-item"><input type="checkbox" id="f_cafe"> CAFÉ ☕</label>
+      <label class="check-item"><input type="checkbox" id="f_agua"> AGUA 💧</label>
+      <label class="check-item"><input type="checkbox" id="f_toalla"> TOALLAS 🚿</label>
+      <label class="check-item"><input type="checkbox" id="f_bata"> BATAS 👘</label>
+      <label class="check-item" style="color:var(--naranja)"><input type="checkbox" id="f_encasa"> 🏠 EN CASA</label>
+      <label class="check-item" style="color:var(--rojo)"><input type="checkbox" id="f_llegada"> ❗ LLEGADA</label>
+    </div>
+    <textarea id="f_obs" placeholder="NOTAS..."></textarea>
+    <button class="btn" style="background:var(--navy);margin-top:10px" onclick="save('Pendiente')">GUARDAR CAMBIOS</button>
+    <button onclick="document.getElementById('modal').style.display='none'" style="width:100%;background:none;border:none;padding:15px;color:#8A8783;font-weight:600;font-family:'Oswald',sans-serif;cursor:pointer;">CERRAR</button>
+  </div>
+</div>
+
+<script>
+  let currentRoom = null;
+  let lastData = [];
+  const types = {101:"TWIN", 102:"MATRIMONIAL", 103:"TWIN", 104:"TWIN", 105:"TWIN", 106:"SUITE", 107:"MATRIMONIAL", 108:"TWIN", 109:"MATRIMONIAL", 110:"TWIN", 201:"MATRIMONIAL", 202:"MATRIMONIAL", 203:"MATRIMONIAL", 204:"TWIN", 205:"MATRIMONIAL", 206:"MATRIMONIAL", 207:"MATRIMONIAL", 208:"MATRIMONIAL", 209:"MATRIMONIAL", 210:"TWIN"};
+
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  function playSound() {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'sine'; osc.frequency.setValueAtTime(500, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+  }
+
+  // FUNCIÓN PARA TRADUCIR ESTADOS A TEXTO AMIGABLE
+  function translateStatus(s) {
+    const map = {
+      'Lista': 'LIMPIA',
+      'Sucia': 'SUCIA',
+      'Checkout': 'SUCIA',
+      'SeVaHoy': 'SE VA HOY',
+      'Diario': 'ASEO DIARIO',
+      'NoAseo': 'NO REQUIERE ASEO',
+      'Mantencion': 'MANTENCIÓN'
+    };
+    return map[s] || (s ? s.toUpperCase() : 'SIN ESTADO');
+  }
+
+  function refresh() {
+    google.script.run.withSuccessHandler(data => {
+      lastData = data;
+      const list = document.getElementById('mainList');
+      list.innerHTML = '';
+      let counts = {Lista:0, Sucia:0, SeVaHoy:0, Diario:0, NoAseo:0, Mantencion:0};
+
+      for(let i=1; i<data.length; i++) {
+        let [num, t, estado, cafe, toalla, bata, agua, llegada, encasa, obs] = data[i];
+        if(estado === 'Checkout' || estado === 'Sucia') estado = 'Sucia';
+        if(counts[estado] !== undefined) counts[estado]++;
+
+        const div = document.createElement('div');
+        div.className = `room-card ${estado || ''}`;
+        div.id = "room-" + num;
+        div.onclick = () => {
+          playSound();
+          currentRoom = num;
+          document.getElementById('mTitle').innerText = 'HAB ' + num;
+          document.getElementById('f_cafe').checked = (cafe === true || cafe === "TRUE");
+          document.getElementById('f_agua').checked = (agua === true || agua === "TRUE");
+          document.getElementById('f_toalla').checked = (toalla === true || toalla === "TRUE");
+          document.getElementById('f_bata').checked = (bata === true || bata === "TRUE");
+          document.getElementById('f_llegada').checked = (llegada === true || llegada === "TRUE");
+          document.getElementById('f_encasa').checked = (encasa === true || encasa === "TRUE");
+          document.getElementById('f_obs').value = (obs || "").toUpperCase();
+          document.getElementById('modal').style.display = 'flex';
+        };
+
+        div.innerHTML = `
+          <div class="room-header">
+            <div>
+              <span class="room-num">${num}</span>
+              <span style="font-size:0.7rem; color:#999">${types[num]}</span>
+              <div style="font-size:0.85rem; font-weight:bold; color:#555; margin-top:2px;">${translateStatus(estado)}</div>
+            </div>
+            <div style="font-size:1.1rem">${llegada?'❗':''} ${encasa?'🏠':''} ${cafe?'☕':''} ${agua?'💧':''} ${toalla?'🚿':''} ${bata?'👘':''}</div>
+          </div>
+          ${obs ? `<div class="obs-bubble">${obs.toUpperCase()}</div>` : ''}
+        `;
+        list.appendChild(div);
+      }
+      let percent = (counts.Lista / (data.length - 1)) * 100;
+      document.getElementById('progress-bar').style.width = percent + "%";
+      Object.keys(counts).forEach(k => { if(document.getElementById('count-' + k.toLowerCase())) document.getElementById('count-' + k.toLowerCase()).innerText = counts[k]; });
+    }).getRoomData();
+  }
+
+  function save(status) {
+    playSound();
+    let cafe = document.getElementById('f_cafe').checked;
+    let agua = document.getElementById('f_agua').checked;
+    let toalla = document.getElementById('f_toalla').checked;
+    let bata = document.getElementById('f_bata').checked;
+    const llegada = document.getElementById('f_llegada').checked;
+    const encasa = document.getElementById('f_encasa').checked;
+    const obs = document.getElementById('f_obs').value.toUpperCase();
+
+    const card = document.getElementById('room-' + currentRoom);
+    if(card && status !== 'Pendiente') {
+      card.className = card.className.replace(/sweep-\w+/g, '');
+      void card.offsetWidth;
+      card.classList.add('sweep-' + status);
+    }
+
+    if(status === 'Sucia') { cafe=false; agua=false; toalla=false; bata=false; }
+    document.getElementById('modal').style.display = 'none';
+    google.script.run.withSuccessHandler(refresh).updateRoomStatus(currentRoom, status, cafe, toalla, bata, agua, llegada, encasa, obs);
+  }
+
+  function generateReport() {
+    const area = document.getElementById('printArea');
+    area.style.display = 'block';
+    let enCasa = lastData.filter((r,i) => i>0 && (r[8] === true || r[8] === "TRUE"));
+
+    let html = `
+      <div style="padding:20px; font-family: sans-serif; color: #000;">
+        <div style="text-align:center; border-bottom: 2px solid #000; padding-bottom:10px; margin-bottom:20px;">
+          <h1 style="margin:0; font-size: 24pt;">CASCADAS HOTEL</h1>
+          <p style="font-size: 12pt; font-weight: bold;">REPORTE DE CONTROL - ${new Date().toLocaleDateString()}</p>
+        </div>
+
+        <div style="margin-bottom:30px;">
+          <div style="background:#000; color:#fff; padding:10px; font-weight:bold; border-radius:5px 5px 0 0; text-align:center;">
+             🍳 CONTROL DE DESAYUNO (HUÉSPEDES EN CASA)
+          </div>
+          <div style="border:2px solid #000; padding:15px; border-radius:0 0 5px 5px; display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; background:#f9f9f9;">
+            ${enCasa.length ? enCasa.map(r => `
+              <div style="border:1.5px solid #000; padding:10px; display:flex; justify-content:space-between; align-items:center; background:#fff;">
+                <span style="font-size:1.8rem; font-weight:bold;">${r[0]}</span>
+                <div style="width:35px; height:35px; border:2px solid #000;"></div>
+              </div>`).join('') : '<p style="grid-column:span 3;text-align:center">Sin huéspedes "En Casa"</p>'}
+          </div>
+        </div>
+    `;
+
+    const sections = [
+      {id: "Sucia", label: "🧹 HABITACIONES POR LIMPIAR", color: "#8B3A3A"},
+      {id: "SeVaHoy", label: "⚠️ SALIDAS DEL DÍA", color: "#B06A2C"},
+      {id: "Diario", label: "✨ SOLICITAN ASEO DIARIO", color: "#2E6E6E"},
+      {id: "Lista", label: "✅ HABITACIONES LIMPIAS", color: "#4E6B54"},
+      {id: "Mantencion", label: "🔧 EN MANTENCIÓN", color: "#6E5A7A"}
+    ];
+
+    sections.forEach(sec => {
+      let rooms = lastData.filter((r,i) => i>0 && (r[2] === sec.id || (sec.id==='Sucia' && r[2]==='Checkout')));
+      if(rooms.length > 0) {
+        html += `
+          <div style="margin-bottom:15px;">
+            <div style="background:${sec.color}; color:#fff; padding:8px; font-weight:bold; border-radius:5px 5px 0 0; font-size:10pt;">${sec.label}</div>
+            <div style="border:1px solid #ccc; border-top:none; padding:12px; display:flex; flex-wrap:wrap; gap:10px; background:#fff;">
+              ${rooms.map(r => {
+                const llegaHoy = (r[7] === true || r[7] === "TRUE");
+                return `<div style="padding:8px 15px; border-radius:4px; font-size:1.1rem; border:1px solid #000; ${llegaHoy?'background:#ffdada;border-color:red;':''}">${r[0]}${llegaHoy?' <small style="color:red">Llega</small>':''}</div>`;
+              }).join('')}
+            </div>
+          </div>`;
+      }
+    });
+
+    html += `<div style="margin-top:40px; border-top:1px dashed #ccc; padding-top:10px; font-size:9pt; text-align:right;">Generado: ${new Date().toLocaleString()}</div></div>`;
+    area.innerHTML = html;
+    setTimeout(() => { window.print(); area.style.display = 'none'; }, 500);
+  }
+
+  setInterval(refresh, 10000); refresh();
+</script>
+</body>
+</html>
