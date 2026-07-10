@@ -67,11 +67,11 @@
 
     .container {
       position: relative; z-index: 1;
-      width: 100%; max-width: 520px; text-align: center;
+      width: 100%; max-width: 680px; text-align: center;
     }
 
     .brand {
-      margin-bottom: 48px;
+      margin-bottom: 40px;
       animation: fadeInDown 0.6s ease both;
     }
     .brand-logo {
@@ -94,16 +94,17 @@
       font-weight: 400; text-transform: uppercase; letter-spacing: 1.5px;
     }
 
-    .cards { display: flex; flex-direction: column; gap: 16px; }
+    /* ===== CUADRÍCULA 2 × 2 ===== */
+    .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
     .card {
-      display: flex; align-items: center; gap: 20px;
+      display: flex; flex-direction: column; align-items: flex-start; gap: 14px;
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: 18px; padding: 24px;
+      border-radius: 18px; padding: 24px 20px;
       text-align: left; text-decoration: none; color: inherit; cursor: pointer;
       transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
       box-shadow: var(--shadow); position: relative; overflow: hidden;
-      animation: fadeInUp 0.6s ease both;
+      animation: fadeInUp 0.6s ease both; min-height: 100%;
     }
     .card:nth-child(1) { animation-delay: 0.08s; }
     .card:nth-child(2) { animation-delay: 0.16s; }
@@ -120,9 +121,9 @@
     }
     .card:active { transform: translateY(-1px) scale(0.995); }
 
-    /* Medallón metálico grafito (igual espíritu que los íconos de servicio) */
+    /* Medallón metálico grafito */
     .card-icon {
-      width: 56px; height: 56px; border-radius: 50%;
+      width: 54px; height: 54px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
       font-size: 22px; flex-shrink: 0; color: #E9E7E5;
       background: radial-gradient(circle at 32% 26%, #6B6B6F, #414143 62%, #313133);
@@ -134,20 +135,22 @@
 
     .card-body h2 {
       font-family: 'Oswald', sans-serif;
-      font-size: 19px; font-weight: 600; color: var(--text);
-      margin-bottom: 4px; letter-spacing: 0.2px;
+      font-size: 18px; font-weight: 600; color: var(--text);
+      margin-bottom: 5px; letter-spacing: 0.2px;
     }
     .card-body span {
-      font-size: 13px; color: var(--text-sec); line-height: 1.45; display: block; font-weight: 300;
+      font-size: 12.5px; color: var(--text-sec); line-height: 1.45; display: block; font-weight: 300;
     }
 
+    /* Flecha en la esquina superior derecha */
     .card-arrow {
-      margin-left: auto; color: #B7B4AF; font-size: 18px; transition: all 0.25s;
+      position: absolute; top: 20px; right: 18px;
+      color: #B7B4AF; font-size: 15px; transition: all 0.25s;
     }
-    .card:hover .card-arrow { color: var(--accent); transform: translateX(4px); }
+    .card:hover .card-arrow { color: var(--accent); transform: translateX(3px); }
 
     .footer {
-      margin-top: 40px; font-size: 12px; color: #A8A5A0; font-weight: 500;
+      margin-top: 36px; font-size: 12px; color: #A8A5A0; font-weight: 500;
       text-transform: uppercase; letter-spacing: 1px;
       animation: fadeIn 0.8s ease both; animation-delay: 0.5s;
     }
@@ -159,9 +162,9 @@
     @media (min-width: 640px) {
       .brand h1 { font-size: 52px; }
       .brand-logo { width: 100px; height: 100px; }
-      .card { padding: 28px 32px; }
-      .card-body h2 { font-size: 21px; }
-      .card-icon { width: 64px; height: 64px; font-size: 26px; }
+      .card { padding: 30px 26px; }
+      .card-body h2 { font-size: 20px; }
+      .card-icon { width: 60px; height: 60px; font-size: 25px; }
     }
   </style>
 <base target="_blank">
@@ -179,7 +182,7 @@
 
       <div class="cards">
         <!-- Cotizador -->
-        <a class="card" href="https://script.google.com/macros/s/AKfycbz3Zw8OqgOT-PcBBBjRCaeZtK0ggxMORzM3DtG6nJvIH9uoR9x1q8k6z__dWUtC_sn4SA/exec" target="_blank">
+        <a class="card" href="https://script.google.com/macros/s/AKfycbxfXqNKpt7ZO6HCPD4zpLkr-VbZFsHkFtp4ibqLMif3NGr8HWyWwGx1sxQolzyuFCA_GA/exec" target="_blank">
           <div class="card-icon">
             <i class="fa-solid fa-file-invoice-dollar"></i>
           </div>
@@ -193,7 +196,7 @@
         </a>
 
         <!-- Registro Huéspedes -->
-        <a class="card" href="https://script.google.com/macros/s/AKfycbwcPrzdJTXrECIdm7KEzoCHTT_WTUMhlUvLtp1FDrx0vkmFgDX8_iGaheYA35vtev7k/exec" target="_blank">
+        <a class="card" href="https://script.google.com/macros/s/AKfycbwK95js0d9uj29MvD5qT0VsAZr0DLgvFl18GCKnEaFM5RezYBrj-zaG5Fyp7gLRKzmX/exec" target="_blank">
           <div class="card-icon">
             <i class="fa-solid fa-bed"></i>
           </div>
@@ -220,8 +223,8 @@
           </div>
         </a>
 
-        <!-- Concierge (REEMPLAZA el link de ejemplo por el real) -->
-        <a class="card" href="https://script.google.com/macros/s/REEMPLAZA_CON_TU_LINK_DE_CONCIERGE/exec" target="_blank">
+        <!-- Concierge -->
+        <a class="card" href="https://script.google.com/macros/s/AKfycbx1xItfNjnjvBhkSBx5s2eRewx5triak-3o3IC_eLSuNrCohUzGAR4bo7QW8LpuqA7z/exec" target="_blank">
           <div class="card-icon">
             <i class="fa-solid fa-bell-concierge"></i>
           </div>
