@@ -13,12 +13,12 @@
        mantienen color propio (son funcionales) pero apagados y elegantes:
        nada neón, ni dorado brillante, ni beige sucio. */
     :root {
-      --verde: #4E6B54;      /* limpia */
-      --rojo: #8B3A3A;       /* sucia */
-      --naranja: #B06A2C;    /* se va hoy */
-      --amarillo: #2E6E6E;   /* aseo diario (teal apagado, para no usar dorado) */
-      --celeste: #43607F;    /* no aseo */
-      --morado: #6E5A7A;     /* mantención */
+      --verde: #27AE60;      /* limpia */
+      --rojo: #E74C3C;       /* sucia */
+      --naranja: #E67E22;    /* se va hoy */
+      --amarillo: #F1C40F;   /* aseo diario */
+      --celeste: #2980B9;    /* no aseo */
+      --morado: #8E44AD;     /* mantención */
       --gris: #C9C6C2; --dark: #3A3A3C; --navy: #414143;
     }
     * { box-sizing: border-box; }
@@ -57,12 +57,12 @@
     .room-card:active { transform: scale(0.96); opacity: 0.85; }
 
     /* ANIMACIONES DE COLOR (FLASHES) — tintes suaves de cada estado */
-    @keyframes flashVerde { 0% { background: #fff; } 30% { background: #DCE6DE; } 100% { background: #fff; } }
-    @keyframes flashRojo { 0% { background: #fff; } 30% { background: #EFDAD7; } 100% { background: #fff; } }
-    @keyframes flashNaranja { 0% { background: #fff; } 30% { background: #EDE0D2; } 100% { background: #fff; } }
-    @keyframes flashAzul { 0% { background: #fff; } 30% { background: #DEE5EC; } 100% { background: #fff; } }
-    @keyframes flashMorado { 0% { background: #fff; } 30% { background: #E6E0EC; } 100% { background: #fff; } }
-    @keyframes flashAmarillo { 0% { background: #fff; } 30% { background: #DCE8E8; } 100% { background: #fff; } }
+    @keyframes flashVerde { 0% { background: #fff; } 30% { background: #C9F0D8; } 100% { background: #fff; } }
+    @keyframes flashRojo { 0% { background: #fff; } 30% { background: #FADBD8; } 100% { background: #fff; } }
+    @keyframes flashNaranja { 0% { background: #fff; } 30% { background: #FBE3CC; } 100% { background: #fff; } }
+    @keyframes flashAzul { 0% { background: #fff; } 30% { background: #D6EAF8; } 100% { background: #fff; } }
+    @keyframes flashMorado { 0% { background: #fff; } 30% { background: #EBDEF0; } 100% { background: #fff; } }
+    @keyframes flashAmarillo { 0% { background: #fff; } 30% { background: #FCF3CF; } 100% { background: #fff; } }
 
     .sweep-Lista { animation: flashVerde 0.6s ease-out; }
     .sweep-Sucia { animation: flashRojo 0.6s ease-out; }
@@ -134,7 +134,7 @@
     <button class="btn" style="background:var(--verde)" onclick="save('Lista')">LIMPIA</button>
     <button class="btn" style="background:var(--rojo)" onclick="save('Sucia')">SUCIA</button>
     <button class="btn" style="background:var(--naranja)" onclick="save('SeVaHoy')">SE VA HOY</button>
-    <button class="btn" style="background:var(--amarillo);color:white" onclick="save('Diario')">ASEO DIARIO</button>
+    <button class="btn" style="background:var(--amarillo);color:#3A3A3C;text-shadow:none" onclick="save('Diario')">ASEO DIARIO</button>
     <button class="btn" style="background:var(--celeste)" onclick="save('NoAseo')">NO ASEO</button>
     <button class="btn" style="background:var(--morado)" onclick="save('Mantencion')">MANTENCION</button>
 
@@ -280,11 +280,11 @@
     `;
 
     const sections = [
-      {id: "Sucia", label: "🧹 HABITACIONES POR LIMPIAR", color: "#8B3A3A"},
-      {id: "SeVaHoy", label: "⚠️ SALIDAS DEL DÍA", color: "#B06A2C"},
-      {id: "Diario", label: "✨ SOLICITAN ASEO DIARIO", color: "#2E6E6E"},
-      {id: "Lista", label: "✅ HABITACIONES LIMPIAS", color: "#4E6B54"},
-      {id: "Mantencion", label: "🔧 EN MANTENCIÓN", color: "#6E5A7A"}
+      {id: "Sucia", label: "🧹 HABITACIONES POR LIMPIAR", color: "#E74C3C"},
+      {id: "SeVaHoy", label: "⚠️ SALIDAS DEL DÍA", color: "#E67E22"},
+      {id: "Diario", label: "✨ SOLICITAN ASEO DIARIO", color: "#F1C40F"},
+      {id: "Lista", label: "✅ HABITACIONES LIMPIAS", color: "#27AE60"},
+      {id: "Mantencion", label: "🔧 EN MANTENCIÓN", color: "#8E44AD"}
     ];
 
     sections.forEach(sec => {
@@ -292,7 +292,7 @@
       if(rooms.length > 0) {
         html += `
           <div style="margin-bottom:15px;">
-            <div style="background:${sec.color}; color:#fff; padding:8px; font-weight:bold; border-radius:5px 5px 0 0; font-size:10pt;">${sec.label}</div>
+            <div style="background:${sec.color}; color:${sec.id==='Diario'?'#000':'#fff'}; padding:8px; font-weight:bold; border-radius:5px 5px 0 0; font-size:10pt;">${sec.label}</div>
             <div style="border:1px solid #ccc; border-top:none; padding:12px; display:flex; flex-wrap:wrap; gap:10px; background:#fff;">
               ${rooms.map(r => {
                 const llegaHoy = (r[7] === true || r[7] === "TRUE");
