@@ -1,5 +1,0 @@
-function doGet() {
-  return HtmlService.createHtmlOutputFromFile("index")
-    .setTitle("Cascadas Hotel - Housekeeping")
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-}
