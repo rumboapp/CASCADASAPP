@@ -22,7 +22,7 @@
       --text-sec: #6E6C69;
       --accent: #414143;          /* grafito (reemplaza el índigo) */
       --accent-light: #ECECEE;    /* gris neutro claro */
-      --brass: #A6906B;           /* latón: acento fino */
+      --brass: #6E6C69;           /* (antes latón) ahora gris para no ensuciar */
       --success: #4E6B54;
       --danger: #8B3A3A;
       --border: #C9C6C2;
@@ -225,7 +225,7 @@
     .msg { margin-top: 8px; padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; display: none; text-align: center; }
     .msg.ok { display: block; background: #E0E9DD; color: #3C5A40; }
     .msg.error { display: block; background: #ECDAD7; color: #793A33; }
-    .msg.info { display: block; background: #EFE9DB; color: #6b5b30; }
+    .msg.info { display: block; background: #ECECEE; color: #4A4A4D; }
     @media (min-width: 900px) { .msg { font-size: 15px; padding: 12px 18px; } }
 
     /* ===== MODAL ===== */
@@ -294,7 +294,7 @@
     @media (max-width: 400px) { .r-kpi { grid-template-columns: repeat(2, 1fr); } }
     .r-kpi-box { background: var(--input-bg); border-radius: 12px; padding: 10px 4px; text-align: center; box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.04); }
     .r-kpi-box b { display: block; font-size: 17px; font-weight: 600; color: var(--accent); line-height: 1; margin-bottom: 2px; font-family: 'Oswald', sans-serif; }
-    .r-kpi-box.brass b { color: #8F7A54; }
+    .r-kpi-box.brass b { color: #3A3A3C; }
     .r-kpi-box span { font-size: 9px; font-weight: 600; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.5px; }
 
     .r-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
@@ -315,7 +315,7 @@
 
     .loader { display: none; text-align: center; padding: 20px; }
     .loader.active { display: block; }
-    .loader-spin { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--brass); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 6px; }
+    .loader-spin { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 6px; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ===== Air Datepicker Custom (Cascadas) ===== */
@@ -323,7 +323,7 @@
       --adp-font-family: 'Oswald', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       --adp-border-radius: 14px; --adp-day-cell-height: 34px; --adp-width: 260px;
       --adp-background-color: #ffffff; --adp-background-color-hover: #ECECEE;
-      --adp-background-color-active: #414143; --adp-color-current-date: #A6906B;
+      --adp-background-color-active: #414143; --adp-color-current-date: #414143;
       --adp-color: #3A3A3C; --adp-btn-height: 30px; --adp-btn-border-radius: 8px;
       --adp-btn-color: #414143; --adp-btn-color-hover: #ffffff;
       --adp-btn-background-color-hover: #414143; --adp-cell-border-radius: 8px;
@@ -337,7 +337,7 @@
     .air-datepicker-cell.-year-, .air-datepicker-cell.-month- { border-radius: 10px; font-weight: 600; height: 40px; }
     .air-datepicker-cell.-year-.-selected-, .air-datepicker-cell.-month-.-selected- { background: #414143; color: #fff; }
     .air-datepicker-cell.-day-.-selected- { background: #414143; color: #fff; border-radius: 8px; }
-    .air-datepicker-cell.-day-.-current- { color: #A6906B; font-weight: 700; }
+    .air-datepicker-cell.-day-.-current- { color: #414143; font-weight: 700; }
     .air-datepicker-cell.-day-.-focus- { background: #ECECEE; color: #414143; }
 
     /* ===== DESKTOP GRID ===== */
@@ -693,7 +693,7 @@
     google.charts.load('current', {'packages':['corechart', 'bar']});
 
     /* Paleta de gráficos Cascadas */
-    const CHART_COLORS = ['#414143', '#A6906B', '#8B3A3A', '#4E6B54', '#6E6C69', '#B99C6B', '#5A5A5D', '#7A6A4A'];
+    const CHART_COLORS = ['#414143', '#6E6C69', '#8B3A3A', '#4E6B54', '#9C9995', '#5A5A5D', '#B0ADA8', '#2E2E30'];
     const EMOJIS_SUGERIDOS = ['🏷️','🏠','🏡','🌐','➡️','⭐','✈️','🧳','🏢','🏭','🤝','📅','💼','🎁','🌙','☀️','🇨🇱','🇦🇷','🇧🇷','🇺🇸','💎','🔑','🍷','🛎️'];
 
     let activeDropdown = null;
@@ -1390,7 +1390,7 @@
         dt.addColumn('string', 'x'); dt.addColumn('number', 'y');
         (rowsData || []).forEach(item => dt.addRow([item[0], item[1]]));
         window[key] = new google.visualization.BarChart(document.getElementById(elId));
-        window[key].draw(dt, { ...opts, title: '', legend: 'none', colors: ['#A6906B'] });
+        window[key].draw(dt, { ...opts, title: '', legend: 'none', colors: ['#6E6C69'] });
       };
 
       pie('chart_medio', data.porMedio, 0.4, 'chart_medio');
@@ -1440,7 +1440,7 @@
             options.hAxis = { textStyle: { fontSize: 12 }, slantedText: true, slantedTextAngle: 45 };
             options.vAxis = { textStyle: { fontSize: 12 }, gridlines: { count: 4 } };
           }
-          if (cfg.type === 'BarChart') { options.legend = 'none'; options.colors = ['#A6906B']; }
+          if (cfg.type === 'BarChart') { options.legend = 'none'; options.colors = ['#6E6C69']; }
           google.visualization.events.addListener(chart, 'ready', () => {
             uris[idx] = chart.getImageURI();
             done++;
