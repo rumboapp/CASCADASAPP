@@ -1,0 +1,565 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2580
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 Menlo-Regular;\f1\fnil\fcharset0 AppleColorEmoji;}
+{\colortbl;\red255\green255\blue255;\red20\green67\blue174;\red246\green247\blue249;\red46\green49\blue51;
+\red186\green6\blue115;\red162\green0\blue16;\red77\green80\blue85;\red0\green0\blue0;\red97\green3\blue173;
+\red18\green115\blue126;}
+{\*\expandedcolortbl;;\cssrgb\c9412\c35294\c73725;\cssrgb\c97255\c97647\c98039;\cssrgb\c23529\c25098\c26275;
+\cssrgb\c78824\c15294\c52549;\cssrgb\c70196\c7843\c7059;\cssrgb\c37255\c38824\c40784;\cssrgb\c0\c0\c0;\cssrgb\c46275\c15294\c73333;
+\cssrgb\c3529\c52157\c56863;}
+\margl1440\margr1440\vieww28600\viewh14860\viewkind0
+\deftab720
+\pard\pardeftab720\sl400\partightenfactor0
+
+\f0\fs26 \cf2 \cb3 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 const\cf4 \strokec4  \cf5 \strokec5 SHEET_ID\cf4 \strokec4  = \cf6 \strokec6 '1e9lqFYqh_ebtfrTZexm-iQys_Ii1LdobpQdxaP9O9Cw'\cf4 \strokec4 ;\cb1 \
+\cf2 \cb3 \strokec2 const\cf4 \strokec4  \cf5 \strokec5 SHEET_HUESPEDES\cf4 \strokec4  = \cf6 \strokec6 'Huespedes'\cf4 \strokec4 ;\cb1 \
+\cf2 \cb3 \strokec2 const\cf4 \strokec4  \cf5 \strokec5 SHEET_PROGRAMAS\cf4 \strokec4  = \cf6 \strokec6 'Programas'\cf4 \strokec4 ;\cb1 \
+\
+\pard\pardeftab720\sl400\partightenfactor0
+\cf7 \cb3 \strokec7 /* Programas por defecto (se siembran la primera vez en la hoja "Programas").\cf4 \cb1 \strokec4 \
+\cf7 \cb3 \strokec7    A partir de ah\'ed se administran desde la app: crear, editar y borrar burbujas. */\cf4 \cb1 \strokec4 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf2 \cb3 \strokec2 const\cf4 \strokec4  \cf5 \strokec5 DEFAULT_PROGRAMAS\cf4 \strokec4  = [\cb1 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf4 \cb3   \{ \cf8 \strokec8 nombre\cf4 \strokec4 : \cf6 \strokec6 'Est\'e1ndar'\cf4 \strokec4 ,     \cf8 \strokec8 emoji\cf4 \strokec4 : \cf6 \strokec6 '
+\f1 \uc0\u55356 \u57335 \u65039 
+\f0 '\cf4 \strokec4  \},\cb1 \
+\cb3   \{ \cf8 \strokec8 nombre\cf4 \strokec4 : \cf6 \strokec6 'Residentes'\cf4 \strokec4 ,   \cf8 \strokec8 emoji\cf4 \strokec4 : \cf6 \strokec6 '
+\f1 \uc0\u55356 \u57312 
+\f0 '\cf4 \strokec4  \},\cb1 \
+\cb3   \{ \cf8 \strokec8 nombre\cf4 \strokec4 : \cf6 \strokec6 'Booking'\cf4 \strokec4 ,      \cf8 \strokec8 emoji\cf4 \strokec4 : \cf6 \strokec6 '
+\f1 \uc0\u55356 \u57104 
+\f0 '\cf4 \strokec4  \},\cb1 \
+\cb3   \{ \cf8 \strokec8 nombre\cf4 \strokec4 : \cf6 \strokec6 'Directo'\cf4 \strokec4 ,      \cf8 \strokec8 emoji\cf4 \strokec4 : \cf6 \strokec6 '
+\f1 \uc0\u10145 \u65039 
+\f0 '\cf4 \strokec4  \},\cb1 \
+\cb3   \{ \cf8 \strokec8 nombre\cf4 \strokec4 : \cf6 \strokec6 'Especial'\cf4 \strokec4 ,     \cf8 \strokec8 emoji\cf4 \strokec4 : \cf6 \strokec6 '
+\f1 \uc0\u11088 
+\f0 '\cf4 \strokec4  \},\cb1 \
+\cb3   \{ \cf8 \strokec8 nombre\cf4 \strokec4 : \cf6 \strokec6 'Airbnb'\cf4 \strokec4 ,       \cf8 \strokec8 emoji\cf4 \strokec4 : \cf6 \strokec6 '
+\f1 \uc0\u55356 \u57313 
+\f0 '\cf4 \strokec4  \},\cb1 \
+\cb3   \{ \cf8 \strokec8 nombre\cf4 \strokec4 : \cf6 \strokec6 'Despegar'\cf4 \strokec4 ,     \cf8 \strokec8 emoji\cf4 \strokec4 : \cf6 \strokec6 '
+\f1 \uc0\u9992 \u65039 
+\f0 '\cf4 \strokec4  \},\cb1 \
+\cb3   \{ \cf8 \strokec8 nombre\cf4 \strokec4 : \cf6 \strokec6 'Expedia'\cf4 \strokec4 ,      \cf8 \strokec8 emoji\cf4 \strokec4 : \cf6 \strokec6 '
+\f1 \uc0\u55358 \u56819 
+\f0 '\cf4 \strokec4  \},\cb1 \
+\cb3   \{ \cf8 \strokec8 nombre\cf4 \strokec4 : \cf6 \strokec6 'Operador'\cf4 \strokec4 ,     \cf8 \strokec8 emoji\cf4 \strokec4 : \cf6 \strokec6 '
+\f1 \uc0\u55356 \u57314 
+\f0 '\cf4 \strokec4  \},\cb1 \
+\cb3   \{ \cf8 \strokec8 nombre\cf4 \strokec4 : \cf6 \strokec6 'Corporativo'\cf4 \strokec4 ,  \cf8 \strokec8 emoji\cf4 \strokec4 : \cf6 \strokec6 '
+\f1 \uc0\u55356 \u57325 
+\f0 '\cf4 \strokec4  \},\cb1 \
+\cb3   \{ \cf8 \strokec8 nombre\cf4 \strokec4 : \cf6 \strokec6 'Convenio'\cf4 \strokec4 ,     \cf8 \strokec8 emoji\cf4 \strokec4 : \cf6 \strokec6 '
+\f1 \uc0\u55358 \u56605 
+\f0 '\cf4 \strokec4  \}\cb1 \
+\cb3 ];\cb1 \
+\
+\pard\pardeftab720\sl400\partightenfactor0
+\cf2 \cb3 \strokec2 function\cf4 \strokec4  \cf8 \strokec8 doGet\cf4 \strokec4 (\cf8 \strokec8 e\cf4 \strokec4 ) \{\cb1 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf4 \cb3   \cf2 \strokec2 return\cf4 \strokec4  \cf5 \strokec5 HtmlService\cf4 \strokec4 .\cf8 \strokec8 createHtmlOutputFromFile\cf4 \strokec4 (\cf6 \strokec6 'index'\cf4 \strokec4 )\cb1 \
+\cb3     .\cf8 \strokec8 setTitle\cf4 \strokec4 (\cf6 \strokec6 'Cascadas Hotel'\cf4 \strokec4 )\cb1 \
+\cb3     .\cf8 \strokec8 setXFrameOptionsMode\cf4 \strokec4 (\cf5 \strokec5 HtmlService\cf4 \strokec4 .\cf5 \strokec5 XFrameOptionsMode\cf4 \strokec4 .\cf5 \strokec5 ALLOWALL\cf4 \strokec4 );\cb1 \
+\cb3 \}\cb1 \
+\
+\pard\pardeftab720\sl400\partightenfactor0
+\cf2 \cb3 \strokec2 function\cf4 \strokec4  \cf8 \strokec8 obtenerUrlSheet\cf4 \strokec4 () \{\cb1 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf4 \cb3   \cf2 \strokec2 return\cf4 \strokec4  \cf6 \strokec6 'https://docs.google.com/spreadsheets/d/'\cf4 \strokec4  + \cf5 \strokec5 SHEET_ID\cf4 \strokec4  + \cf6 \strokec6 '/edit'\cf4 \strokec4 ;\cb1 \
+\cb3 \}\cb1 \
+\
+\pard\pardeftab720\sl400\partightenfactor0
+\cf7 \cb3 \strokec7 /* ============================================================\cf4 \cb1 \strokec4 \
+\cf7 \cb3 \strokec7    HELPERS: b\'fasqueda de columnas por nombre (robusto)\cf4 \cb1 \strokec4 \
+\cf7 \cb3 \strokec7    ============================================================ */\cf4 \cb1 \strokec4 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf2 \cb3 \strokec2 function\cf4 \strokec4  \cf8 \strokec8 getColumnIndex\cf4 \strokec4 (\cf8 \strokec8 headers\cf4 \strokec4 , \cf8 \strokec8 name\cf4 \strokec4 ) \{\cb1 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf4 \cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 clean\cf4 \strokec4  = \cf8 \strokec8 name\cf4 \strokec4 .\cf8 \strokec8 toString\cf4 \strokec4 ().\cf8 \strokec8 toLowerCase\cf4 \strokec4 ().\cf8 \strokec8 replace\cf4 \strokec4 (\cf9 \strokec9 /[_\\s]/\cf2 \strokec2 g\cf4 \strokec4 , \cf6 \strokec6 ''\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 for\cf4 \strokec4  (\cf2 \strokec2 let\cf4 \strokec4  \cf8 \strokec8 i\cf4 \strokec4  = \cf10 \strokec10 0\cf4 \strokec4 ; \cf8 \strokec8 i\cf4 \strokec4  < \cf8 \strokec8 headers\cf4 \strokec4 .\cf8 \strokec8 length\cf4 \strokec4 ; \cf8 \strokec8 i\cf4 \strokec4 ++) \{\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 h\cf4 \strokec4  = (\cf8 \strokec8 headers\cf4 \strokec4 [\cf8 \strokec8 i\cf4 \strokec4 ] || \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 toString\cf4 \strokec4 ().\cf8 \strokec8 toLowerCase\cf4 \strokec4 ().\cf8 \strokec8 replace\cf4 \strokec4 (\cf9 \strokec9 /[_\\s]/\cf2 \strokec2 g\cf4 \strokec4 , \cf6 \strokec6 ''\cf4 \strokec4 );\cb1 \
+\cb3     \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 h\cf4 \strokec4  === \cf8 \strokec8 clean\cf4 \strokec4 ) \cf2 \strokec2 return\cf4 \strokec4  \cf8 \strokec8 i\cf4 \strokec4 ;\cb1 \
+\cb3   \}\cb1 \
+\cb3   \cf2 \strokec2 return\cf4 \strokec4  -\cf10 \strokec10 1\cf4 \strokec4 ;\cb1 \
+\cb3 \}\cb1 \
+\
+\pard\pardeftab720\sl400\partightenfactor0
+\cf7 \cb3 \strokec7 /* Asegura que existan las columnas nuevas al final del header.\cf4 \cb1 \strokec4 \
+\cf7 \cb3 \strokec7    Se agreg\'f3 "Moneda" para poder registrar tarifas en d\'f3lares. */\cf4 \cb1 \strokec4 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf2 \cb3 \strokec2 function\cf4 \strokec4  \cf8 \strokec8 ensureColumns\cf4 \strokec4 (\cf8 \strokec8 ss\cf4 \strokec4 ) \{\cb1 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf4 \cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 sheet\cf4 \strokec4  = \cf8 \strokec8 ss\cf4 \strokec4 .\cf8 \strokec8 getSheetByName\cf4 \strokec4 (\cf5 \strokec5 SHEET_HUESPEDES\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 headers\cf4 \strokec4  = \cf8 \strokec8 sheet\cf4 \strokec4 .\cf8 \strokec8 getRange\cf4 \strokec4 (\cf10 \strokec10 1\cf4 \strokec4 , \cf10 \strokec10 1\cf4 \strokec4 , \cf10 \strokec10 1\cf4 \strokec4 , \cf8 \strokec8 sheet\cf4 \strokec4 .\cf8 \strokec8 getLastColumn\cf4 \strokec4 ()).\cf8 \strokec8 getValues\cf4 \strokec4 ()[\cf10 \strokec10 0\cf4 \strokec4 ];\cb1 \
+\
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 required\cf4 \strokec4  = [\cf6 \strokec6 'Check_out'\cf4 \strokec4 , \cf6 \strokec6 'Noches'\cf4 \strokec4 , \cf6 \strokec6 'Edad'\cf4 \strokec4 , \cf6 \strokec6 'Total_estadia'\cf4 \strokec4 , \cf6 \strokec6 'Moneda'\cf4 \strokec4 ];\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 missing\cf4 \strokec4  = [];\cb1 \
+\
+\cb3   \cf8 \strokec8 required\cf4 \strokec4 .\cf8 \strokec8 forEach\cf4 \strokec4 (\cf8 \strokec8 name\cf4 \strokec4  => \{\cb1 \
+\cb3     \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 getColumnIndex\cf4 \strokec4 (\cf8 \strokec8 headers\cf4 \strokec4 , \cf8 \strokec8 name\cf4 \strokec4 ) < \cf10 \strokec10 0\cf4 \strokec4 ) \cf8 \strokec8 missing\cf4 \strokec4 .\cf8 \strokec8 push\cf4 \strokec4 (\cf8 \strokec8 name\cf4 \strokec4 );\cb1 \
+\cb3   \});\cb1 \
+\
+\cb3   \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 missing\cf4 \strokec4 .\cf8 \strokec8 length\cf4 \strokec4  > \cf10 \strokec10 0\cf4 \strokec4 ) \{\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 startCol\cf4 \strokec4  = \cf8 \strokec8 headers\cf4 \strokec4 .\cf8 \strokec8 length\cf4 \strokec4  + \cf10 \strokec10 1\cf4 \strokec4 ;\cb1 \
+\cb3     \cf8 \strokec8 missing\cf4 \strokec4 .\cf8 \strokec8 forEach\cf4 \strokec4 ((\cf8 \strokec8 name\cf4 \strokec4 , \cf8 \strokec8 i\cf4 \strokec4 ) => \{\cb1 \
+\cb3       \cf8 \strokec8 sheet\cf4 \strokec4 .\cf8 \strokec8 getRange\cf4 \strokec4 (\cf10 \strokec10 1\cf4 \strokec4 , \cf8 \strokec8 startCol\cf4 \strokec4  + \cf8 \strokec8 i\cf4 \strokec4 ).\cf8 \strokec8 setValue\cf4 \strokec4 (\cf8 \strokec8 name\cf4 \strokec4 );\cb1 \
+\cb3     \});\cb1 \
+\cb3     \cf2 \strokec2 return\cf4 \strokec4  \cf8 \strokec8 sheet\cf4 \strokec4 .\cf8 \strokec8 getRange\cf4 \strokec4 (\cf10 \strokec10 1\cf4 \strokec4 , \cf10 \strokec10 1\cf4 \strokec4 , \cf10 \strokec10 1\cf4 \strokec4 , \cf8 \strokec8 sheet\cf4 \strokec4 .\cf8 \strokec8 getLastColumn\cf4 \strokec4 ()).\cf8 \strokec8 getValues\cf4 \strokec4 ()[\cf10 \strokec10 0\cf4 \strokec4 ];\cb1 \
+\cb3   \}\cb1 \
+\
+\cb3   \cf2 \strokec2 return\cf4 \strokec4  \cf8 \strokec8 headers\cf4 \strokec4 ;\cb1 \
+\cb3 \}\cb1 \
+\
+\pard\pardeftab720\sl400\partightenfactor0
+\cf7 \cb3 \strokec7 /* ============================================================\cf4 \cb1 \strokec4 \
+\cf7 \cb3 \strokec7    GUARDAR\cf4 \cb1 \strokec4 \
+\cf7 \cb3 \strokec7    ============================================================ */\cf4 \cb1 \strokec4 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf2 \cb3 \strokec2 function\cf4 \strokec4  \cf8 \strokec8 guardarHuesped\cf4 \strokec4 (\cf8 \strokec8 data\cf4 \strokec4 ) \{\cb1 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf4 \cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 ss\cf4 \strokec4  = \cf5 \strokec5 SpreadsheetApp\cf4 \strokec4 .\cf8 \strokec8 openById\cf4 \strokec4 (\cf5 \strokec5 SHEET_ID\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 sheet\cf4 \strokec4  = \cf8 \strokec8 ss\cf4 \strokec4 .\cf8 \strokec8 getSheetByName\cf4 \strokec4 (\cf5 \strokec5 SHEET_HUESPEDES\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 headers\cf4 \strokec4  = \cf8 \strokec8 ensureColumns\cf4 \strokec4 (\cf8 \strokec8 ss\cf4 \strokec4 );\cb1 \
+\
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 fechaCheckin\cf4 \strokec4  = \cf2 \strokec2 new\cf4 \strokec4  \cf5 \strokec5 Date\cf4 \strokec4 (\cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 checkin\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 meses\cf4 \strokec4  = [\cf6 \strokec6 'Enero'\cf4 \strokec4 ,\cf6 \strokec6 'Febrero'\cf4 \strokec4 ,\cf6 \strokec6 'Marzo'\cf4 \strokec4 ,\cf6 \strokec6 'Abril'\cf4 \strokec4 ,\cf6 \strokec6 'Mayo'\cf4 \strokec4 ,\cf6 \strokec6 'Junio'\cf4 \strokec4 ,\cf6 \strokec6 'Julio'\cf4 \strokec4 ,\cf6 \strokec6 'Agosto'\cf4 \strokec4 ,\cf6 \strokec6 'Septiembre'\cf4 \strokec4 ,\cf6 \strokec6 'Octubre'\cf4 \strokec4 ,\cf6 \strokec6 'Noviembre'\cf4 \strokec4 ,\cf6 \strokec6 'Diciembre'\cf4 \strokec4 ];\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 mesTexto\cf4 \strokec4  = \cf8 \strokec8 meses\cf4 \strokec4 [\cf8 \strokec8 fechaCheckin\cf4 \strokec4 .\cf8 \strokec8 getMonth\cf4 \strokec4 ()] + \cf6 \strokec6 ' '\cf4 \strokec4  + \cf8 \strokec8 fechaCheckin\cf4 \strokec4 .\cf8 \strokec8 getFullYear\cf4 \strokec4 ();\cb1 \
+\
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 colMap\cf4 \strokec4  = \{\cb1 \
+\cb3     \cf6 \strokec6 'Nombre'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 nombre\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Nacionalidad'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 nacionalidad\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Fecha_Nacimiento'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 fechaNac\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Check_in'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 checkin\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Mes'\cf4 \strokec4 : \cf8 \strokec8 mesTexto\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Tarifa_por_Noche'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 tarifa\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Numero_contacto_o_Correo'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 contacto\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Motivo'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 motivo\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Medio'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 medio\cf4 \strokec4  || \cf6 \strokec6 'No especificado'\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Programa'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 programa\cf4 \strokec4  || \cf6 \strokec6 'ESTANDAR'\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Check_out'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 checkout\cf4 \strokec4  || \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Noches'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 noches\cf4 \strokec4  || \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Edad'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 edad\cf4 \strokec4  || \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Total_estadia'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 totalEstadia\cf4 \strokec4  || \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Moneda'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 moneda\cf4 \strokec4  || \cf6 \strokec6 'CLP'\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Pre_Reserva'\cf4 \strokec4 : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Booking'\cf4 \strokec4 : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Walk_in'\cf4 \strokec4 : \cf6 \strokec6 ''\cf4 \cb1 \strokec4 \
+\cb3   \};\cb1 \
+\
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 rowData\cf4 \strokec4  = \cf8 \strokec8 headers\cf4 \strokec4 .\cf8 \strokec8 map\cf4 \strokec4 (\cf8 \strokec8 h\cf4 \strokec4  => \{\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 key\cf4 \strokec4  = \cf8 \strokec8 h\cf4 \strokec4 .\cf8 \strokec8 toString\cf4 \strokec4 ().\cf8 \strokec8 replace\cf4 \strokec4 (\cf9 \strokec9 /[_\\s]/\cf2 \strokec2 g\cf4 \strokec4 , \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 toLowerCase\cf4 \strokec4 ();\cb1 \
+\cb3     \cf2 \strokec2 for\cf4 \strokec4  (\cf2 \strokec2 let\cf4 \strokec4  \cf8 \strokec8 k\cf4 \strokec4  \cf2 \strokec2 in\cf4 \strokec4  \cf8 \strokec8 colMap\cf4 \strokec4 ) \{\cb1 \
+\cb3       \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 k\cf4 \strokec4 .\cf8 \strokec8 toString\cf4 \strokec4 ().\cf8 \strokec8 replace\cf4 \strokec4 (\cf9 \strokec9 /[_\\s]/\cf2 \strokec2 g\cf4 \strokec4 , \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 toLowerCase\cf4 \strokec4 () === \cf8 \strokec8 key\cf4 \strokec4 ) \cf2 \strokec2 return\cf4 \strokec4  \cf8 \strokec8 colMap\cf4 \strokec4 [\cf8 \strokec8 k\cf4 \strokec4 ];\cb1 \
+\cb3     \}\cb1 \
+\cb3     \cf2 \strokec2 return\cf4 \strokec4  \cf6 \strokec6 ''\cf4 \strokec4 ;\cb1 \
+\cb3   \});\cb1 \
+\
+\cb3   \cf8 \strokec8 sheet\cf4 \strokec4 .\cf8 \strokec8 appendRow\cf4 \strokec4 (\cf8 \strokec8 rowData\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 return\cf4 \strokec4  \{ \cf8 \strokec8 ok\cf4 \strokec4 : \cf2 \strokec2 true\cf4 \strokec4 , \cf8 \strokec8 mensaje\cf4 \strokec4 : \cf6 \strokec6 'Hu\'e9sped registrado'\cf4 \strokec4  \};\cb1 \
+\cb3 \}\cb1 \
+\
+\pard\pardeftab720\sl400\partightenfactor0
+\cf7 \cb3 \strokec7 /* ============================================================\cf4 \cb1 \strokec4 \
+\cf7 \cb3 \strokec7    ACTUALIZAR\cf4 \cb1 \strokec4 \
+\cf7 \cb3 \strokec7    ============================================================ */\cf4 \cb1 \strokec4 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf2 \cb3 \strokec2 function\cf4 \strokec4  \cf8 \strokec8 actualizarHuesped\cf4 \strokec4 (\cf8 \strokec8 data\cf4 \strokec4 ) \{\cb1 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf4 \cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 ss\cf4 \strokec4  = \cf5 \strokec5 SpreadsheetApp\cf4 \strokec4 .\cf8 \strokec8 openById\cf4 \strokec4 (\cf5 \strokec5 SHEET_ID\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 sheet\cf4 \strokec4  = \cf8 \strokec8 ss\cf4 \strokec4 .\cf8 \strokec8 getSheetByName\cf4 \strokec4 (\cf5 \strokec5 SHEET_HUESPEDES\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 headers\cf4 \strokec4  = \cf8 \strokec8 ensureColumns\cf4 \strokec4 (\cf8 \strokec8 ss\cf4 \strokec4 );\cb1 \
+\
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 fechaCheckin\cf4 \strokec4  = \cf2 \strokec2 new\cf4 \strokec4  \cf5 \strokec5 Date\cf4 \strokec4 (\cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 checkin\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 meses\cf4 \strokec4  = [\cf6 \strokec6 'Enero'\cf4 \strokec4 ,\cf6 \strokec6 'Febrero'\cf4 \strokec4 ,\cf6 \strokec6 'Marzo'\cf4 \strokec4 ,\cf6 \strokec6 'Abril'\cf4 \strokec4 ,\cf6 \strokec6 'Mayo'\cf4 \strokec4 ,\cf6 \strokec6 'Junio'\cf4 \strokec4 ,\cf6 \strokec6 'Julio'\cf4 \strokec4 ,\cf6 \strokec6 'Agosto'\cf4 \strokec4 ,\cf6 \strokec6 'Septiembre'\cf4 \strokec4 ,\cf6 \strokec6 'Octubre'\cf4 \strokec4 ,\cf6 \strokec6 'Noviembre'\cf4 \strokec4 ,\cf6 \strokec6 'Diciembre'\cf4 \strokec4 ];\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 mesTexto\cf4 \strokec4  = \cf8 \strokec8 meses\cf4 \strokec4 [\cf8 \strokec8 fechaCheckin\cf4 \strokec4 .\cf8 \strokec8 getMonth\cf4 \strokec4 ()] + \cf6 \strokec6 ' '\cf4 \strokec4  + \cf8 \strokec8 fechaCheckin\cf4 \strokec4 .\cf8 \strokec8 getFullYear\cf4 \strokec4 ();\cb1 \
+\
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 colMap\cf4 \strokec4  = \{\cb1 \
+\cb3     \cf6 \strokec6 'Nombre'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 nombre\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Nacionalidad'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 nacionalidad\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Fecha_Nacimiento'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 fechaNac\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Check_in'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 checkin\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Mes'\cf4 \strokec4 : \cf8 \strokec8 mesTexto\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Tarifa_por_Noche'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 tarifa\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Numero_contacto_o_Correo'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 contacto\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Motivo'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 motivo\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Medio'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 medio\cf4 \strokec4  || \cf6 \strokec6 'No especificado'\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Programa'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 programa\cf4 \strokec4  || \cf6 \strokec6 'ESTANDAR'\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Check_out'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 checkout\cf4 \strokec4  || \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Noches'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 noches\cf4 \strokec4  || \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Edad'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 edad\cf4 \strokec4  || \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Total_estadia'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 totalEstadia\cf4 \strokec4  || \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Moneda'\cf4 \strokec4 : \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 moneda\cf4 \strokec4  || \cf6 \strokec6 'CLP'\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Pre_Reserva'\cf4 \strokec4 : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Booking'\cf4 \strokec4 : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf6 \strokec6 'Walk_in'\cf4 \strokec4 : \cf6 \strokec6 ''\cf4 \cb1 \strokec4 \
+\cb3   \};\cb1 \
+\
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 rowData\cf4 \strokec4  = \cf8 \strokec8 headers\cf4 \strokec4 .\cf8 \strokec8 map\cf4 \strokec4 (\cf8 \strokec8 h\cf4 \strokec4  => \{\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 key\cf4 \strokec4  = \cf8 \strokec8 h\cf4 \strokec4 .\cf8 \strokec8 toString\cf4 \strokec4 ().\cf8 \strokec8 replace\cf4 \strokec4 (\cf9 \strokec9 /[_\\s]/\cf2 \strokec2 g\cf4 \strokec4 , \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 toLowerCase\cf4 \strokec4 ();\cb1 \
+\cb3     \cf2 \strokec2 for\cf4 \strokec4  (\cf2 \strokec2 let\cf4 \strokec4  \cf8 \strokec8 k\cf4 \strokec4  \cf2 \strokec2 in\cf4 \strokec4  \cf8 \strokec8 colMap\cf4 \strokec4 ) \{\cb1 \
+\cb3       \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 k\cf4 \strokec4 .\cf8 \strokec8 toString\cf4 \strokec4 ().\cf8 \strokec8 replace\cf4 \strokec4 (\cf9 \strokec9 /[_\\s]/\cf2 \strokec2 g\cf4 \strokec4 , \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 toLowerCase\cf4 \strokec4 () === \cf8 \strokec8 key\cf4 \strokec4 ) \cf2 \strokec2 return\cf4 \strokec4  \cf8 \strokec8 colMap\cf4 \strokec4 [\cf8 \strokec8 k\cf4 \strokec4 ];\cb1 \
+\cb3     \}\cb1 \
+\cb3     \cf2 \strokec2 return\cf4 \strokec4  \cf6 \strokec6 ''\cf4 \strokec4 ;\cb1 \
+\cb3   \});\cb1 \
+\
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 range\cf4 \strokec4  = \cf8 \strokec8 sheet\cf4 \strokec4 .\cf8 \strokec8 getRange\cf4 \strokec4 (\cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 rowIndex\cf4 \strokec4 , \cf10 \strokec10 1\cf4 \strokec4 , \cf10 \strokec10 1\cf4 \strokec4 , \cf8 \strokec8 rowData\cf4 \strokec4 .\cf8 \strokec8 length\cf4 \strokec4 );\cb1 \
+\cb3   \cf8 \strokec8 range\cf4 \strokec4 .\cf8 \strokec8 setValues\cf4 \strokec4 ([\cf8 \strokec8 rowData\cf4 \strokec4 ]);\cb1 \
+\cb3   \cf2 \strokec2 return\cf4 \strokec4  \{ \cf8 \strokec8 ok\cf4 \strokec4 : \cf2 \strokec2 true\cf4 \strokec4 , \cf8 \strokec8 mensaje\cf4 \strokec4 : \cf6 \strokec6 'Hu\'e9sped actualizado'\cf4 \strokec4  \};\cb1 \
+\cb3 \}\cb1 \
+\
+\pard\pardeftab720\sl400\partightenfactor0
+\cf7 \cb3 \strokec7 /* ============================================================\cf4 \cb1 \strokec4 \
+\cf7 \cb3 \strokec7    ELIMINAR\cf4 \cb1 \strokec4 \
+\cf7 \cb3 \strokec7    ============================================================ */\cf4 \cb1 \strokec4 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf2 \cb3 \strokec2 function\cf4 \strokec4  \cf8 \strokec8 eliminarHuesped\cf4 \strokec4 (\cf8 \strokec8 rowIndex\cf4 \strokec4 ) \{\cb1 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf4 \cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 ss\cf4 \strokec4  = \cf5 \strokec5 SpreadsheetApp\cf4 \strokec4 .\cf8 \strokec8 openById\cf4 \strokec4 (\cf5 \strokec5 SHEET_ID\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 sheet\cf4 \strokec4  = \cf8 \strokec8 ss\cf4 \strokec4 .\cf8 \strokec8 getSheetByName\cf4 \strokec4 (\cf5 \strokec5 SHEET_HUESPEDES\cf4 \strokec4 );\cb1 \
+\cb3   \cf8 \strokec8 sheet\cf4 \strokec4 .\cf8 \strokec8 deleteRow\cf4 \strokec4 (\cf8 \strokec8 rowIndex\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 return\cf4 \strokec4  \{ \cf8 \strokec8 ok\cf4 \strokec4 : \cf2 \strokec2 true\cf4 \strokec4 , \cf8 \strokec8 mensaje\cf4 \strokec4 : \cf6 \strokec6 'Hu\'e9sped eliminado'\cf4 \strokec4  \};\cb1 \
+\cb3 \}\cb1 \
+\
+\pard\pardeftab720\sl400\partightenfactor0
+\cf7 \cb3 \strokec7 /* ============================================================\cf4 \cb1 \strokec4 \
+\cf7 \cb3 \strokec7    BUSCAR\cf4 \cb1 \strokec4 \
+\cf7 \cb3 \strokec7    ============================================================ */\cf4 \cb1 \strokec4 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf2 \cb3 \strokec2 function\cf4 \strokec4  \cf8 \strokec8 buscarHuespedes\cf4 \strokec4 (\cf8 \strokec8 query\cf4 \strokec4 , \cf8 \strokec8 fechaFiltro\cf4 \strokec4 ) \{\cb1 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf4 \cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 ss\cf4 \strokec4  = \cf5 \strokec5 SpreadsheetApp\cf4 \strokec4 .\cf8 \strokec8 openById\cf4 \strokec4 (\cf5 \strokec5 SHEET_ID\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 sheet\cf4 \strokec4  = \cf8 \strokec8 ss\cf4 \strokec4 .\cf8 \strokec8 getSheetByName\cf4 \strokec4 (\cf5 \strokec5 SHEET_HUESPEDES\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 data\cf4 \strokec4  = \cf8 \strokec8 sheet\cf4 \strokec4 .\cf8 \strokec8 getDataRange\cf4 \strokec4 ().\cf8 \strokec8 getDisplayValues\cf4 \strokec4 ();\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 headers\cf4 \strokec4  = \cf8 \strokec8 data\cf4 \strokec4 [\cf10 \strokec10 0\cf4 \strokec4 ];\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 rows\cf4 \strokec4  = \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 slice\cf4 \strokec4 (\cf10 \strokec10 1\cf4 \strokec4 );\cb1 \
+\
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 idx\cf4 \strokec4  = \cf8 \strokec8 name\cf4 \strokec4  => \cf8 \strokec8 getColumnIndex\cf4 \strokec4 (\cf8 \strokec8 headers\cf4 \strokec4 , \cf8 \strokec8 name\cf4 \strokec4 );\cb1 \
+\
+\cb3   \cf2 \strokec2 let\cf4 \strokec4  \cf8 \strokec8 resultados\cf4 \strokec4  = \cf8 \strokec8 rows\cf4 \strokec4 .\cf8 \strokec8 map\cf4 \strokec4 ((\cf8 \strokec8 r\cf4 \strokec4 , \cf8 \strokec8 i\cf4 \strokec4 ) => (\{\cb1 \
+\cb3     \cf8 \strokec8 rowIndex\cf4 \strokec4 : \cf8 \strokec8 i\cf4 \strokec4  + \cf10 \strokec10 2\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 nombre\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Nombre'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Nombre'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 nacionalidad\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Nacionalidad'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Nacionalidad'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 fechaNac\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Fecha_Nacimiento'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Fecha_Nacimiento'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 checkin\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Check_in'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Check_in'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 checkout\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Check_out'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Check_out'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 noches\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Noches'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Noches'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 tarifa\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Tarifa_por_Noche'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Tarifa_por_Noche'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 total\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Total_estadia'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Total_estadia'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 moneda\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Moneda'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? (\cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Moneda'\cf4 \strokec4 )] || \cf6 \strokec6 'CLP'\cf4 \strokec4 ) : \cf6 \strokec6 'CLP'\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 programa\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Programa'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Programa'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 contacto\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Numero_contacto_o_Correo'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Numero_contacto_o_Correo'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 motivo\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Motivo'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Motivo'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 medio\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Medio'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Medio'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 edad\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Edad'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Edad'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \cb1 \strokec4 \
+\cb3   \}));\cb1 \
+\
+\cb3   \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 query\cf4 \strokec4  && \cf8 \strokec8 query\cf4 \strokec4 .\cf8 \strokec8 trim\cf4 \strokec4 ()) \{\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 q\cf4 \strokec4  = \cf8 \strokec8 query\cf4 \strokec4 .\cf8 \strokec8 toLowerCase\cf4 \strokec4 ();\cb1 \
+\cb3     \cf8 \strokec8 resultados\cf4 \strokec4  = \cf8 \strokec8 resultados\cf4 \strokec4 .\cf8 \strokec8 filter\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4  => \cf8 \strokec8 r\cf4 \strokec4 .\cf8 \strokec8 nombre\cf4 \strokec4 .\cf8 \strokec8 toLowerCase\cf4 \strokec4 ().\cf8 \strokec8 includes\cf4 \strokec4 (\cf8 \strokec8 q\cf4 \strokec4 ));\cb1 \
+\cb3   \}\cb1 \
+\
+\cb3   \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 fechaFiltro\cf4 \strokec4  && \cf8 \strokec8 fechaFiltro\cf4 \strokec4 .\cf8 \strokec8 trim\cf4 \strokec4 ()) \{\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 f\cf4 \strokec4  = \cf5 \strokec5 String\cf4 \strokec4 (\cf8 \strokec8 fechaFiltro\cf4 \strokec4 ).\cf8 \strokec8 trim\cf4 \strokec4 ();\cb1 \
+\cb3     \cf8 \strokec8 resultados\cf4 \strokec4  = \cf8 \strokec8 resultados\cf4 \strokec4 .\cf8 \strokec8 filter\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4  => \{\cb1 \
+\cb3       \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 cin\cf4 \strokec4  = \cf5 \strokec5 String\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 .\cf8 \strokec8 checkin\cf4 \strokec4  || \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 trim\cf4 \strokec4 ();\cb1 \
+\cb3       \cf2 \strokec2 return\cf4 \strokec4  \cf8 \strokec8 cin\cf4 \strokec4  === \cf8 \strokec8 f\cf4 \strokec4 ;\cb1 \
+\cb3     \});\cb1 \
+\cb3   \}\cb1 \
+\
+\cb3   \cf2 \strokec2 return\cf4 \strokec4  \cf8 \strokec8 resultados\cf4 \strokec4 ;\cb1 \
+\cb3 \}\cb1 \
+\
+\pard\pardeftab720\sl400\partightenfactor0
+\cf7 \cb3 \strokec7 /* ============================================================\cf4 \cb1 \strokec4 \
+\cf7 \cb3 \strokec7    PROGRAMAS  (persistidos y editables desde la app)\cf4 \cb1 \strokec4 \
+\cf7 \cb3 \strokec7    ============================================================ */\cf4 \cb1 \strokec4 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf2 \cb3 \strokec2 function\cf4 \strokec4  \cf8 \strokec8 getProgramasSheet_\cf4 \strokec4 (\cf8 \strokec8 ss\cf4 \strokec4 ) \{\cb1 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf4 \cb3   \cf2 \strokec2 let\cf4 \strokec4  \cf8 \strokec8 sh\cf4 \strokec4  = \cf8 \strokec8 ss\cf4 \strokec4 .\cf8 \strokec8 getSheetByName\cf4 \strokec4 (\cf5 \strokec5 SHEET_PROGRAMAS\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 if\cf4 \strokec4  (!\cf8 \strokec8 sh\cf4 \strokec4 ) \{\cb1 \
+\cb3     \cf8 \strokec8 sh\cf4 \strokec4  = \cf8 \strokec8 ss\cf4 \strokec4 .\cf8 \strokec8 insertSheet\cf4 \strokec4 (\cf5 \strokec5 SHEET_PROGRAMAS\cf4 \strokec4 );\cb1 \
+\cb3     \cf8 \strokec8 sh\cf4 \strokec4 .\cf8 \strokec8 appendRow\cf4 \strokec4 ([\cf6 \strokec6 'Nombre'\cf4 \strokec4 , \cf6 \strokec6 'Emoji'\cf4 \strokec4 ]);\cb1 \
+\cb3     \cf5 \strokec5 DEFAULT_PROGRAMAS\cf4 \strokec4 .\cf8 \strokec8 forEach\cf4 \strokec4 (\cf8 \strokec8 p\cf4 \strokec4  => \cf8 \strokec8 sh\cf4 \strokec4 .\cf8 \strokec8 appendRow\cf4 \strokec4 ([\cf8 \strokec8 p\cf4 \strokec4 .\cf8 \strokec8 nombre\cf4 \strokec4 , \cf8 \strokec8 p\cf4 \strokec4 .\cf8 \strokec8 emoji\cf4 \strokec4 ]));\cb1 \
+\cb3     \cf2 \strokec2 return\cf4 \strokec4  \cf8 \strokec8 sh\cf4 \strokec4 ;\cb1 \
+\cb3   \}\cb1 \
+\cb3   \cf7 \strokec7 // Si existe pero est\'e1 vac\'eda, sembrar por defecto\cf4 \cb1 \strokec4 \
+\cb3   \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 sh\cf4 \strokec4 .\cf8 \strokec8 getLastRow\cf4 \strokec4 () <= \cf10 \strokec10 1\cf4 \strokec4 ) \{\cb1 \
+\cb3     \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 sh\cf4 \strokec4 .\cf8 \strokec8 getLastRow\cf4 \strokec4 () === \cf10 \strokec10 0\cf4 \strokec4 ) \cf8 \strokec8 sh\cf4 \strokec4 .\cf8 \strokec8 appendRow\cf4 \strokec4 ([\cf6 \strokec6 'Nombre'\cf4 \strokec4 , \cf6 \strokec6 'Emoji'\cf4 \strokec4 ]);\cb1 \
+\cb3     \cf5 \strokec5 DEFAULT_PROGRAMAS\cf4 \strokec4 .\cf8 \strokec8 forEach\cf4 \strokec4 (\cf8 \strokec8 p\cf4 \strokec4  => \cf8 \strokec8 sh\cf4 \strokec4 .\cf8 \strokec8 appendRow\cf4 \strokec4 ([\cf8 \strokec8 p\cf4 \strokec4 .\cf8 \strokec8 nombre\cf4 \strokec4 , \cf8 \strokec8 p\cf4 \strokec4 .\cf8 \strokec8 emoji\cf4 \strokec4 ]));\cb1 \
+\cb3   \}\cb1 \
+\cb3   \cf2 \strokec2 return\cf4 \strokec4  \cf8 \strokec8 sh\cf4 \strokec4 ;\cb1 \
+\cb3 \}\cb1 \
+\
+\pard\pardeftab720\sl400\partightenfactor0
+\cf7 \cb3 \strokec7 /* Devuelve [\{nombre, emoji\}] en el orden guardado. */\cf4 \cb1 \strokec4 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf2 \cb3 \strokec2 function\cf4 \strokec4  \cf8 \strokec8 obtenerProgramas\cf4 \strokec4 () \{\cb1 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf4 \cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 ss\cf4 \strokec4  = \cf5 \strokec5 SpreadsheetApp\cf4 \strokec4 .\cf8 \strokec8 openById\cf4 \strokec4 (\cf5 \strokec5 SHEET_ID\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 sh\cf4 \strokec4  = \cf8 \strokec8 getProgramasSheet_\cf4 \strokec4 (\cf8 \strokec8 ss\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 data\cf4 \strokec4  = \cf8 \strokec8 sh\cf4 \strokec4 .\cf8 \strokec8 getDataRange\cf4 \strokec4 ().\cf8 \strokec8 getValues\cf4 \strokec4 ();\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 out\cf4 \strokec4  = [];\cb1 \
+\cb3   \cf2 \strokec2 for\cf4 \strokec4  (\cf2 \strokec2 let\cf4 \strokec4  \cf8 \strokec8 i\cf4 \strokec4  = \cf10 \strokec10 1\cf4 \strokec4 ; \cf8 \strokec8 i\cf4 \strokec4  < \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 length\cf4 \strokec4 ; \cf8 \strokec8 i\cf4 \strokec4 ++) \{\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 nombre\cf4 \strokec4  = (\cf8 \strokec8 data\cf4 \strokec4 [\cf8 \strokec8 i\cf4 \strokec4 ][\cf10 \strokec10 0\cf4 \strokec4 ] || \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 toString\cf4 \strokec4 ().\cf8 \strokec8 trim\cf4 \strokec4 ();\cb1 \
+\cb3     \cf2 \strokec2 if\cf4 \strokec4  (!\cf8 \strokec8 nombre\cf4 \strokec4 ) \cf2 \strokec2 continue\cf4 \strokec4 ;\cb1 \
+\cb3     \cf8 \strokec8 out\cf4 \strokec4 .\cf8 \strokec8 push\cf4 \strokec4 (\{ \cf8 \strokec8 nombre\cf4 \strokec4 : \cf8 \strokec8 nombre\cf4 \strokec4 , \cf8 \strokec8 emoji\cf4 \strokec4 : (\cf8 \strokec8 data\cf4 \strokec4 [\cf8 \strokec8 i\cf4 \strokec4 ][\cf10 \strokec10 1\cf4 \strokec4 ] || \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 toString\cf4 \strokec4 ().\cf8 \strokec8 trim\cf4 \strokec4 () \});\cb1 \
+\cb3   \}\cb1 \
+\cb3   \cf2 \strokec2 return\cf4 \strokec4  \cf8 \strokec8 out\cf4 \strokec4 ;\cb1 \
+\cb3 \}\cb1 \
+\
+\pard\pardeftab720\sl400\partightenfactor0
+\cf7 \cb3 \strokec7 /* Crea un programa nuevo o renombra uno existente (si se env\'eda oldNombre).\cf4 \cb1 \strokec4 \
+\cf7 \cb3 \strokec7    Evita duplicados por nombre (sin distinguir may\'fasculas). */\cf4 \cb1 \strokec4 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf2 \cb3 \strokec2 function\cf4 \strokec4  \cf8 \strokec8 guardarPrograma\cf4 \strokec4 (\cf8 \strokec8 nombre\cf4 \strokec4 , \cf8 \strokec8 emoji\cf4 \strokec4 , \cf8 \strokec8 oldNombre\cf4 \strokec4 ) \{\cb1 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf4 \cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 ss\cf4 \strokec4  = \cf5 \strokec5 SpreadsheetApp\cf4 \strokec4 .\cf8 \strokec8 openById\cf4 \strokec4 (\cf5 \strokec5 SHEET_ID\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 sh\cf4 \strokec4  = \cf8 \strokec8 getProgramasSheet_\cf4 \strokec4 (\cf8 \strokec8 ss\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 data\cf4 \strokec4  = \cf8 \strokec8 sh\cf4 \strokec4 .\cf8 \strokec8 getDataRange\cf4 \strokec4 ().\cf8 \strokec8 getValues\cf4 \strokec4 ();\cb1 \
+\cb3   \cf8 \strokec8 nombre\cf4 \strokec4  = (\cf8 \strokec8 nombre\cf4 \strokec4  || \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 toString\cf4 \strokec4 ().\cf8 \strokec8 trim\cf4 \strokec4 ();\cb1 \
+\cb3   \cf8 \strokec8 emoji\cf4 \strokec4  = (\cf8 \strokec8 emoji\cf4 \strokec4  || \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 toString\cf4 \strokec4 ().\cf8 \strokec8 trim\cf4 \strokec4 ();\cb1 \
+\cb3   \cf8 \strokec8 oldNombre\cf4 \strokec4  = (\cf8 \strokec8 oldNombre\cf4 \strokec4  || \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 toString\cf4 \strokec4 ().\cf8 \strokec8 trim\cf4 \strokec4 ();\cb1 \
+\
+\cb3   \cf2 \strokec2 if\cf4 \strokec4  (!\cf8 \strokec8 nombre\cf4 \strokec4 ) \cf2 \strokec2 return\cf4 \strokec4  \{ \cf8 \strokec8 ok\cf4 \strokec4 : \cf2 \strokec2 false\cf4 \strokec4 , \cf8 \strokec8 error\cf4 \strokec4 : \cf6 \strokec6 'El nombre no puede estar vac\'edo'\cf4 \strokec4 , \cf8 \strokec8 programas\cf4 \strokec4 : \cf8 \strokec8 obtenerProgramas\cf4 \strokec4 () \};\cb1 \
+\
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 nombreKey\cf4 \strokec4  = \cf8 \strokec8 nombre\cf4 \strokec4 .\cf8 \strokec8 toLowerCase\cf4 \strokec4 ();\cb1 \
+\
+\cb3   \cf7 \strokec7 // Buscar fila del programa a editar (si aplica)\cf4 \cb1 \strokec4 \
+\cb3   \cf2 \strokec2 let\cf4 \strokec4  \cf8 \strokec8 filaEditar\cf4 \strokec4  = -\cf10 \strokec10 1\cf4 \strokec4 ;\cb1 \
+\cb3   \cf2 \strokec2 for\cf4 \strokec4  (\cf2 \strokec2 let\cf4 \strokec4  \cf8 \strokec8 i\cf4 \strokec4  = \cf10 \strokec10 1\cf4 \strokec4 ; \cf8 \strokec8 i\cf4 \strokec4  < \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 length\cf4 \strokec4 ; \cf8 \strokec8 i\cf4 \strokec4 ++) \{\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 n\cf4 \strokec4  = (\cf8 \strokec8 data\cf4 \strokec4 [\cf8 \strokec8 i\cf4 \strokec4 ][\cf10 \strokec10 0\cf4 \strokec4 ] || \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 toString\cf4 \strokec4 ().\cf8 \strokec8 trim\cf4 \strokec4 ().\cf8 \strokec8 toLowerCase\cf4 \strokec4 ();\cb1 \
+\cb3     \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 oldNombre\cf4 \strokec4  && \cf8 \strokec8 n\cf4 \strokec4  === \cf8 \strokec8 oldNombre\cf4 \strokec4 .\cf8 \strokec8 toLowerCase\cf4 \strokec4 ()) \{ \cf8 \strokec8 filaEditar\cf4 \strokec4  = \cf8 \strokec8 i\cf4 \strokec4  + \cf10 \strokec10 1\cf4 \strokec4 ; \}\cb1 \
+\cb3   \}\cb1 \
+\
+\cb3   \cf7 \strokec7 // Verificar duplicado (que no sea la misma fila que editamos)\cf4 \cb1 \strokec4 \
+\cb3   \cf2 \strokec2 for\cf4 \strokec4  (\cf2 \strokec2 let\cf4 \strokec4  \cf8 \strokec8 i\cf4 \strokec4  = \cf10 \strokec10 1\cf4 \strokec4 ; \cf8 \strokec8 i\cf4 \strokec4  < \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 length\cf4 \strokec4 ; \cf8 \strokec8 i\cf4 \strokec4 ++) \{\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 n\cf4 \strokec4  = (\cf8 \strokec8 data\cf4 \strokec4 [\cf8 \strokec8 i\cf4 \strokec4 ][\cf10 \strokec10 0\cf4 \strokec4 ] || \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 toString\cf4 \strokec4 ().\cf8 \strokec8 trim\cf4 \strokec4 ().\cf8 \strokec8 toLowerCase\cf4 \strokec4 ();\cb1 \
+\cb3     \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 n\cf4 \strokec4  === \cf8 \strokec8 nombreKey\cf4 \strokec4  && (\cf8 \strokec8 i\cf4 \strokec4  + \cf10 \strokec10 1\cf4 \strokec4 ) !== \cf8 \strokec8 filaEditar\cf4 \strokec4 ) \{\cb1 \
+\cb3       \cf2 \strokec2 return\cf4 \strokec4  \{ \cf8 \strokec8 ok\cf4 \strokec4 : \cf2 \strokec2 false\cf4 \strokec4 , \cf8 \strokec8 error\cf4 \strokec4 : \cf6 \strokec6 'Ya existe un programa con ese nombre'\cf4 \strokec4 , \cf8 \strokec8 programas\cf4 \strokec4 : \cf8 \strokec8 obtenerProgramas\cf4 \strokec4 () \};\cb1 \
+\cb3     \}\cb1 \
+\cb3   \}\cb1 \
+\
+\cb3   \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 filaEditar\cf4 \strokec4  > \cf10 \strokec10 0\cf4 \strokec4 ) \{\cb1 \
+\cb3     \cf8 \strokec8 sh\cf4 \strokec4 .\cf8 \strokec8 getRange\cf4 \strokec4 (\cf8 \strokec8 filaEditar\cf4 \strokec4 , \cf10 \strokec10 1\cf4 \strokec4 ).\cf8 \strokec8 setValue\cf4 \strokec4 (\cf8 \strokec8 nombre\cf4 \strokec4 );\cb1 \
+\cb3     \cf8 \strokec8 sh\cf4 \strokec4 .\cf8 \strokec8 getRange\cf4 \strokec4 (\cf8 \strokec8 filaEditar\cf4 \strokec4 , \cf10 \strokec10 2\cf4 \strokec4 ).\cf8 \strokec8 setValue\cf4 \strokec4 (\cf8 \strokec8 emoji\cf4 \strokec4 );\cb1 \
+\cb3   \} \cf2 \strokec2 else\cf4 \strokec4  \{\cb1 \
+\cb3     \cf8 \strokec8 sh\cf4 \strokec4 .\cf8 \strokec8 appendRow\cf4 \strokec4 ([\cf8 \strokec8 nombre\cf4 \strokec4 , \cf8 \strokec8 emoji\cf4 \strokec4 ]);\cb1 \
+\cb3   \}\cb1 \
+\cb3   \cf5 \strokec5 SpreadsheetApp\cf4 \strokec4 .\cf8 \strokec8 flush\cf4 \strokec4 ();\cb1 \
+\cb3   \cf2 \strokec2 return\cf4 \strokec4  \{ \cf8 \strokec8 ok\cf4 \strokec4 : \cf2 \strokec2 true\cf4 \strokec4 , \cf8 \strokec8 programas\cf4 \strokec4 : \cf8 \strokec8 obtenerProgramas\cf4 \strokec4 () \};\cb1 \
+\cb3 \}\cb1 \
+\
+\pard\pardeftab720\sl400\partightenfactor0
+\cf7 \cb3 \strokec7 /* Borra un programa por nombre. */\cf4 \cb1 \strokec4 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf2 \cb3 \strokec2 function\cf4 \strokec4  \cf8 \strokec8 eliminarPrograma\cf4 \strokec4 (\cf8 \strokec8 nombre\cf4 \strokec4 ) \{\cb1 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf4 \cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 ss\cf4 \strokec4  = \cf5 \strokec5 SpreadsheetApp\cf4 \strokec4 .\cf8 \strokec8 openById\cf4 \strokec4 (\cf5 \strokec5 SHEET_ID\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 sh\cf4 \strokec4  = \cf8 \strokec8 getProgramasSheet_\cf4 \strokec4 (\cf8 \strokec8 ss\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 data\cf4 \strokec4  = \cf8 \strokec8 sh\cf4 \strokec4 .\cf8 \strokec8 getDataRange\cf4 \strokec4 ().\cf8 \strokec8 getValues\cf4 \strokec4 ();\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 key\cf4 \strokec4  = (\cf8 \strokec8 nombre\cf4 \strokec4  || \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 toString\cf4 \strokec4 ().\cf8 \strokec8 trim\cf4 \strokec4 ().\cf8 \strokec8 toLowerCase\cf4 \strokec4 ();\cb1 \
+\cb3   \cf2 \strokec2 for\cf4 \strokec4  (\cf2 \strokec2 let\cf4 \strokec4  \cf8 \strokec8 i\cf4 \strokec4  = \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 length\cf4 \strokec4  - \cf10 \strokec10 1\cf4 \strokec4 ; \cf8 \strokec8 i\cf4 \strokec4  >= \cf10 \strokec10 1\cf4 \strokec4 ; \cf8 \strokec8 i\cf4 \strokec4 --) \{\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 n\cf4 \strokec4  = (\cf8 \strokec8 data\cf4 \strokec4 [\cf8 \strokec8 i\cf4 \strokec4 ][\cf10 \strokec10 0\cf4 \strokec4 ] || \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 toString\cf4 \strokec4 ().\cf8 \strokec8 trim\cf4 \strokec4 ().\cf8 \strokec8 toLowerCase\cf4 \strokec4 ();\cb1 \
+\cb3     \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 n\cf4 \strokec4  === \cf8 \strokec8 key\cf4 \strokec4 ) \cf8 \strokec8 sh\cf4 \strokec4 .\cf8 \strokec8 deleteRow\cf4 \strokec4 (\cf8 \strokec8 i\cf4 \strokec4  + \cf10 \strokec10 1\cf4 \strokec4 );\cb1 \
+\cb3   \}\cb1 \
+\cb3   \cf5 \strokec5 SpreadsheetApp\cf4 \strokec4 .\cf8 \strokec8 flush\cf4 \strokec4 ();\cb1 \
+\cb3   \cf2 \strokec2 return\cf4 \strokec4  \{ \cf8 \strokec8 ok\cf4 \strokec4 : \cf2 \strokec2 true\cf4 \strokec4 , \cf8 \strokec8 programas\cf4 \strokec4 : \cf8 \strokec8 obtenerProgramas\cf4 \strokec4 () \};\cb1 \
+\cb3 \}\cb1 \
+\
+\pard\pardeftab720\sl400\partightenfactor0
+\cf7 \cb3 \strokec7 /* ============================================================\cf4 \cb1 \strokec4 \
+\cf7 \cb3 \strokec7    EDAD\cf4 \cb1 \strokec4 \
+\cf7 \cb3 \strokec7    ============================================================ */\cf4 \cb1 \strokec4 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf2 \cb3 \strokec2 function\cf4 \strokec4  \cf8 \strokec8 calcularEdad\cf4 \strokec4 (\cf8 \strokec8 fechaNacStr\cf4 \strokec4 ) \{\cb1 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf4 \cb3   \cf2 \strokec2 if\cf4 \strokec4  (!\cf8 \strokec8 fechaNacStr\cf4 \strokec4 ) \cf2 \strokec2 return\cf4 \strokec4  \cf2 \strokec2 null\cf4 \strokec4 ;\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 hoy\cf4 \strokec4  = \cf2 \strokec2 new\cf4 \strokec4  \cf5 \strokec5 Date\cf4 \strokec4 ();\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 partes\cf4 \strokec4  = \cf5 \strokec5 String\cf4 \strokec4 (\cf8 \strokec8 fechaNacStr\cf4 \strokec4 ).\cf8 \strokec8 trim\cf4 \strokec4 ().\cf8 \strokec8 split\cf4 \strokec4 (\cf6 \strokec6 '-'\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 partes\cf4 \strokec4 .\cf8 \strokec8 length\cf4 \strokec4  !== \cf10 \strokec10 3\cf4 \strokec4 ) \cf2 \strokec2 return\cf4 \strokec4  \cf2 \strokec2 null\cf4 \strokec4 ;\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 fn\cf4 \strokec4  = \cf2 \strokec2 new\cf4 \strokec4  \cf5 \strokec5 Date\cf4 \strokec4 (\cf8 \strokec8 parseInt\cf4 \strokec4 (\cf8 \strokec8 partes\cf4 \strokec4 [\cf10 \strokec10 0\cf4 \strokec4 ]), \cf8 \strokec8 parseInt\cf4 \strokec4 (\cf8 \strokec8 partes\cf4 \strokec4 [\cf10 \strokec10 1\cf4 \strokec4 ]) - \cf10 \strokec10 1\cf4 \strokec4 , \cf8 \strokec8 parseInt\cf4 \strokec4 (\cf8 \strokec8 partes\cf4 \strokec4 [\cf10 \strokec10 2\cf4 \strokec4 ]));\cb1 \
+\cb3   \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 isNaN\cf4 \strokec4 (\cf8 \strokec8 fn\cf4 \strokec4 .\cf8 \strokec8 getTime\cf4 \strokec4 ())) \cf2 \strokec2 return\cf4 \strokec4  \cf2 \strokec2 null\cf4 \strokec4 ;\cb1 \
+\cb3   \cf2 \strokec2 let\cf4 \strokec4  \cf8 \strokec8 edad\cf4 \strokec4  = \cf8 \strokec8 hoy\cf4 \strokec4 .\cf8 \strokec8 getFullYear\cf4 \strokec4 () - \cf8 \strokec8 fn\cf4 \strokec4 .\cf8 \strokec8 getFullYear\cf4 \strokec4 ();\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 m\cf4 \strokec4  = \cf8 \strokec8 hoy\cf4 \strokec4 .\cf8 \strokec8 getMonth\cf4 \strokec4 () - \cf8 \strokec8 fn\cf4 \strokec4 .\cf8 \strokec8 getMonth\cf4 \strokec4 ();\cb1 \
+\cb3   \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 m\cf4 \strokec4  < \cf10 \strokec10 0\cf4 \strokec4  || (\cf8 \strokec8 m\cf4 \strokec4  === \cf10 \strokec10 0\cf4 \strokec4  && \cf8 \strokec8 hoy\cf4 \strokec4 .\cf8 \strokec8 getDate\cf4 \strokec4 () < \cf8 \strokec8 fn\cf4 \strokec4 .\cf8 \strokec8 getDate\cf4 \strokec4 ())) \cf8 \strokec8 edad\cf4 \strokec4 --;\cb1 \
+\cb3   \cf2 \strokec2 return\cf4 \strokec4  \cf8 \strokec8 edad\cf4 \strokec4  >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 edad\cf4 \strokec4  : \cf2 \strokec2 null\cf4 \strokec4 ;\cb1 \
+\cb3 \}\cb1 \
+\
+\pard\pardeftab720\sl400\partightenfactor0
+\cf7 \cb3 \strokec7 /* ============================================================\cf4 \cb1 \strokec4 \
+\cf7 \cb3 \strokec7    REPORTE (versi\'f3n ampliada)\cf4 \cb1 \strokec4 \
+\cf7 \cb3 \strokec7    ============================================================ */\cf4 \cb1 \strokec4 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf2 \cb3 \strokec2 function\cf4 \strokec4  \cf8 \strokec8 numero_\cf4 \strokec4 (\cf8 \strokec8 v\cf4 \strokec4 ) \{\cb1 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf4 \cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 n\cf4 \strokec4  = \cf8 \strokec8 parseFloat\cf4 \strokec4 (\cf5 \strokec5 String\cf4 \strokec4 (\cf8 \strokec8 v\cf4 \strokec4  == \cf2 \strokec2 null\cf4 \strokec4  ? \cf6 \strokec6 ''\cf4 \strokec4  : \cf8 \strokec8 v\cf4 \strokec4 ).\cf8 \strokec8 replace\cf4 \strokec4 (\cf9 \strokec9 /[^0-9.-]/\cf2 \strokec2 g\cf4 \strokec4 , \cf6 \strokec6 ''\cf4 \strokec4 ));\cb1 \
+\cb3   \cf2 \strokec2 return\cf4 \strokec4  \cf8 \strokec8 isNaN\cf4 \strokec4 (\cf8 \strokec8 n\cf4 \strokec4 ) ? \cf10 \strokec10 0\cf4 \strokec4  : \cf8 \strokec8 n\cf4 \strokec4 ;\cb1 \
+\cb3 \}\cb1 \
+\
+\pard\pardeftab720\sl400\partightenfactor0
+\cf2 \cb3 \strokec2 function\cf4 \strokec4  \cf8 \strokec8 obtenerDatosReporte\cf4 \strokec4 (\cf8 \strokec8 filtros\cf4 \strokec4 ) \{\cb1 \
+\pard\pardeftab720\sl400\partightenfactor0
+\cf4 \cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 ss\cf4 \strokec4  = \cf5 \strokec5 SpreadsheetApp\cf4 \strokec4 .\cf8 \strokec8 openById\cf4 \strokec4 (\cf5 \strokec5 SHEET_ID\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 sheet\cf4 \strokec4  = \cf8 \strokec8 ss\cf4 \strokec4 .\cf8 \strokec8 getSheetByName\cf4 \strokec4 (\cf5 \strokec5 SHEET_HUESPEDES\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 data\cf4 \strokec4  = \cf8 \strokec8 sheet\cf4 \strokec4 .\cf8 \strokec8 getDataRange\cf4 \strokec4 ().\cf8 \strokec8 getDisplayValues\cf4 \strokec4 ();\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 headers\cf4 \strokec4  = \cf8 \strokec8 data\cf4 \strokec4 [\cf10 \strokec10 0\cf4 \strokec4 ];\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 rows\cf4 \strokec4  = \cf8 \strokec8 data\cf4 \strokec4 .\cf8 \strokec8 slice\cf4 \strokec4 (\cf10 \strokec10 1\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 idx\cf4 \strokec4  = \cf8 \strokec8 name\cf4 \strokec4  => \cf8 \strokec8 getColumnIndex\cf4 \strokec4 (\cf8 \strokec8 headers\cf4 \strokec4 , \cf8 \strokec8 name\cf4 \strokec4 );\cb1 \
+\
+\cb3   \cf2 \strokec2 let\cf4 \strokec4  \cf8 \strokec8 filtrados\cf4 \strokec4  = \cf8 \strokec8 rows\cf4 \strokec4 ;\cb1 \
+\
+\cb3   \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 filtros\cf4 \strokec4 .\cf8 \strokec8 fechaDesde\cf4 \strokec4  && \cf8 \strokec8 filtros\cf4 \strokec4 .\cf8 \strokec8 fechaHasta\cf4 \strokec4 ) \{\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 desde\cf4 \strokec4  = \cf5 \strokec5 String\cf4 \strokec4 (\cf8 \strokec8 filtros\cf4 \strokec4 .\cf8 \strokec8 fechaDesde\cf4 \strokec4 ).\cf8 \strokec8 trim\cf4 \strokec4 ();\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 hasta\cf4 \strokec4  = \cf5 \strokec5 String\cf4 \strokec4 (\cf8 \strokec8 filtros\cf4 \strokec4 .\cf8 \strokec8 fechaHasta\cf4 \strokec4 ).\cf8 \strokec8 trim\cf4 \strokec4 ();\cb1 \
+\cb3     \cf8 \strokec8 filtrados\cf4 \strokec4  = \cf8 \strokec8 filtrados\cf4 \strokec4 .\cf8 \strokec8 filter\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4  => \{\cb1 \
+\cb3       \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 fechaStr\cf4 \strokec4  = \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Check_in'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf5 \strokec5 String\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Check_in'\cf4 \strokec4 )] || \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 trim\cf4 \strokec4 () : \cf6 \strokec6 ''\cf4 \strokec4 ;\cb1 \
+\cb3       \cf2 \strokec2 return\cf4 \strokec4  \cf8 \strokec8 fechaStr\cf4 \strokec4  >= \cf8 \strokec8 desde\cf4 \strokec4  && \cf8 \strokec8 fechaStr\cf4 \strokec4  <= \cf8 \strokec8 hasta\cf4 \strokec4 ;\cb1 \
+\cb3     \});\cb1 \
+\cb3   \}\cb1 \
+\
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 totalHabitaciones\cf4 \strokec4  = \cf8 \strokec8 filtrados\cf4 \strokec4 .\cf8 \strokec8 length\cf4 \strokec4 ;\cb1 \
+\
+\cb3   \cf7 \strokec7 // Moneda por fila\cf4 \cb1 \strokec4 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 monedaDe\cf4 \strokec4  = \cf8 \strokec8 r\cf4 \strokec4  => \{\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 m\cf4 \strokec4  = \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Moneda'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf5 \strokec5 String\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Moneda'\cf4 \strokec4 )] || \cf6 \strokec6 'CLP'\cf4 \strokec4 ).\cf8 \strokec8 trim\cf4 \strokec4 ().\cf8 \strokec8 toUpperCase\cf4 \strokec4 () : \cf6 \strokec6 'CLP'\cf4 \strokec4 ;\cb1 \
+\cb3     \cf2 \strokec2 return\cf4 \strokec4  \cf8 \strokec8 m\cf4 \strokec4  === \cf6 \strokec6 'USD'\cf4 \strokec4  || \cf8 \strokec8 m\cf4 \strokec4  === \cf6 \strokec6 'US$'\cf4 \strokec4  || \cf8 \strokec8 m\cf4 \strokec4  === \cf6 \strokec6 'DOLAR'\cf4 \strokec4  || \cf8 \strokec8 m\cf4 \strokec4  === \cf6 \strokec6 'D\'d3LAR'\cf4 \strokec4  ? \cf6 \strokec6 'USD'\cf4 \strokec4  : \cf6 \strokec6 'CLP'\cf4 \strokec4 ;\cb1 \
+\cb3   \};\cb1 \
+\cb3   \cf7 \strokec7 // Total de la estad\'eda por fila (usa Total_estadia; si no, tarifa*noches)\cf4 \cb1 \strokec4 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 totalDe\cf4 \strokec4  = \cf8 \strokec8 r\cf4 \strokec4  => \{\cb1 \
+\cb3     \cf2 \strokec2 let\cf4 \strokec4  \cf8 \strokec8 t\cf4 \strokec4  = \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Total_estadia'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 numero_\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Total_estadia'\cf4 \strokec4 )]) : \cf10 \strokec10 0\cf4 \strokec4 ;\cb1 \
+\cb3     \cf2 \strokec2 if\cf4 \strokec4  (!\cf8 \strokec8 t\cf4 \strokec4 ) \{\cb1 \
+\cb3       \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 tar\cf4 \strokec4  = \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Tarifa_por_Noche'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 numero_\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Tarifa_por_Noche'\cf4 \strokec4 )]) : \cf10 \strokec10 0\cf4 \strokec4 ;\cb1 \
+\cb3       \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 noc\cf4 \strokec4  = \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Noches'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 numero_\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Noches'\cf4 \strokec4 )]) : \cf10 \strokec10 0\cf4 \strokec4 ;\cb1 \
+\cb3       \cf8 \strokec8 t\cf4 \strokec4  = \cf8 \strokec8 tar\cf4 \strokec4  * \cf8 \strokec8 noc\cf4 \strokec4 ;\cb1 \
+\cb3     \}\cb1 \
+\cb3     \cf2 \strokec2 return\cf4 \strokec4  \cf8 \strokec8 t\cf4 \strokec4 ;\cb1 \
+\cb3   \};\cb1 \
+\
+\cb3   \cf7 \strokec7 // Tarifa promedio (solo CLP, para no mezclar monedas)\cf4 \cb1 \strokec4 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 tarifasCLP\cf4 \strokec4  = \cf8 \strokec8 filtrados\cf4 \strokec4 .\cf8 \strokec8 filter\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4  => \cf8 \strokec8 monedaDe\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 ) === \cf6 \strokec6 'CLP'\cf4 \strokec4 )\cb1 \
+\cb3     .\cf8 \strokec8 map\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4  => \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Tarifa_por_Noche'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 numero_\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Tarifa_por_Noche'\cf4 \strokec4 )]) : \cf10 \strokec10 0\cf4 \strokec4 )\cb1 \
+\cb3     .\cf8 \strokec8 filter\cf4 \strokec4 (\cf8 \strokec8 v\cf4 \strokec4  => \cf8 \strokec8 v\cf4 \strokec4  > \cf10 \strokec10 0\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 tarifaPromedio\cf4 \strokec4  = \cf8 \strokec8 tarifasCLP\cf4 \strokec4 .\cf8 \strokec8 length\cf4 \strokec4  > \cf10 \strokec10 0\cf4 \strokec4  ? \cf5 \strokec5 Math\cf4 \strokec4 .\cf8 \strokec8 round\cf4 \strokec4 (\cf8 \strokec8 tarifasCLP\cf4 \strokec4 .\cf8 \strokec8 reduce\cf4 \strokec4 ((\cf8 \strokec8 a\cf4 \strokec4 , \cf8 \strokec8 b\cf4 \strokec4 ) => \cf8 \strokec8 a\cf4 \strokec4  + \cf8 \strokec8 b\cf4 \strokec4 , \cf10 \strokec10 0\cf4 \strokec4 ) / \cf8 \strokec8 tarifasCLP\cf4 \strokec4 .\cf8 \strokec8 length\cf4 \strokec4 ) : \cf10 \strokec10 0\cf4 \strokec4 ;\cb1 \
+\
+\cb3   \cf7 \strokec7 // Ingresos por moneda\cf4 \cb1 \strokec4 \
+\cb3   \cf2 \strokec2 let\cf4 \strokec4  \cf8 \strokec8 ingresosCLP\cf4 \strokec4  = \cf10 \strokec10 0\cf4 \strokec4 , \cf8 \strokec8 ingresosUSD\cf4 \strokec4  = \cf10 \strokec10 0\cf4 \strokec4 ;\cb1 \
+\cb3   \cf8 \strokec8 filtrados\cf4 \strokec4 .\cf8 \strokec8 forEach\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4  => \{ (\cf8 \strokec8 monedaDe\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 ) === \cf6 \strokec6 'USD'\cf4 \strokec4  ? (\cf8 \strokec8 ingresosUSD\cf4 \strokec4  += \cf8 \strokec8 totalDe\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 )) : (\cf8 \strokec8 ingresosCLP\cf4 \strokec4  += \cf8 \strokec8 totalDe\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 ))); \});\cb1 \
+\cb3   \cf8 \strokec8 ingresosCLP\cf4 \strokec4  = \cf5 \strokec5 Math\cf4 \strokec4 .\cf8 \strokec8 round\cf4 \strokec4 (\cf8 \strokec8 ingresosCLP\cf4 \strokec4 );\cb1 \
+\cb3   \cf8 \strokec8 ingresosUSD\cf4 \strokec4  = \cf5 \strokec5 Math\cf4 \strokec4 .\cf8 \strokec8 round\cf4 \strokec4 (\cf8 \strokec8 ingresosUSD\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 totalTarifa\cf4 \strokec4  = \cf8 \strokec8 ingresosCLP\cf4 \strokec4 ; \cf7 \strokec7 // compat: KPI "Total" en CLP\cf4 \cb1 \strokec4 \
+\
+\cb3   \cf7 \strokec7 // Noches\cf4 \cb1 \strokec4 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 nochesArr\cf4 \strokec4  = \cf8 \strokec8 filtrados\cf4 \strokec4 .\cf8 \strokec8 map\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4  => \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Noches'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 numero_\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Noches'\cf4 \strokec4 )]) : \cf10 \strokec10 0\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 nochesTotales\cf4 \strokec4  = \cf8 \strokec8 nochesArr\cf4 \strokec4 .\cf8 \strokec8 reduce\cf4 \strokec4 ((\cf8 \strokec8 a\cf4 \strokec4 , \cf8 \strokec8 b\cf4 \strokec4 ) => \cf8 \strokec8 a\cf4 \strokec4  + \cf8 \strokec8 b\cf4 \strokec4 , \cf10 \strokec10 0\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 nochesPromedio\cf4 \strokec4  = \cf8 \strokec8 totalHabitaciones\cf4 \strokec4  > \cf10 \strokec10 0\cf4 \strokec4  ? \cf5 \strokec5 Math\cf4 \strokec4 .\cf8 \strokec8 round\cf4 \strokec4 ((\cf8 \strokec8 nochesTotales\cf4 \strokec4  / \cf8 \strokec8 totalHabitaciones\cf4 \strokec4 ) * \cf10 \strokec10 10\cf4 \strokec4 ) / \cf10 \strokec10 10\cf4 \strokec4  : \cf10 \strokec10 0\cf4 \strokec4 ;\cb1 \
+\
+\cb3   \cf7 \strokec7 // Edad\cf4 \cb1 \strokec4 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 edades\cf4 \strokec4  = \cf8 \strokec8 filtrados\cf4 \strokec4 .\cf8 \strokec8 map\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4  => \cf8 \strokec8 calcularEdad\cf4 \strokec4 (\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Fecha_Nacimiento'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Fecha_Nacimiento'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 )).\cf8 \strokec8 filter\cf4 \strokec4 (\cf8 \strokec8 e\cf4 \strokec4  => \cf8 \strokec8 e\cf4 \strokec4  !== \cf2 \strokec2 null\cf4 \strokec4 );\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 edadPromedio\cf4 \strokec4  = \cf8 \strokec8 edades\cf4 \strokec4 .\cf8 \strokec8 length\cf4 \strokec4  > \cf10 \strokec10 0\cf4 \strokec4  ? \cf5 \strokec5 Math\cf4 \strokec4 .\cf8 \strokec8 round\cf4 \strokec4 (\cf8 \strokec8 edades\cf4 \strokec4 .\cf8 \strokec8 reduce\cf4 \strokec4 ((\cf8 \strokec8 a\cf4 \strokec4 , \cf8 \strokec8 b\cf4 \strokec4 ) => \cf8 \strokec8 a\cf4 \strokec4  + \cf8 \strokec8 b\cf4 \strokec4 , \cf10 \strokec10 0\cf4 \strokec4 ) / \cf8 \strokec8 edades\cf4 \strokec4 .\cf8 \strokec8 length\cf4 \strokec4 ) : \cf10 \strokec10 0\cf4 \strokec4 ;\cb1 \
+\
+\cb3   \cf7 \strokec7 // Agrupaciones\cf4 \cb1 \strokec4 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 porMedio\cf4 \strokec4  = \{\};\cb1 \
+\cb3   \cf8 \strokec8 filtrados\cf4 \strokec4 .\cf8 \strokec8 forEach\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4  => \{\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 m\cf4 \strokec4  = \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Medio'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? (\cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Medio'\cf4 \strokec4 )] || \cf6 \strokec6 'No especificado'\cf4 \strokec4 ) : \cf6 \strokec6 'No especificado'\cf4 \strokec4 ;\cb1 \
+\cb3     \cf8 \strokec8 porMedio\cf4 \strokec4 [\cf8 \strokec8 m\cf4 \strokec4 ] = (\cf8 \strokec8 porMedio\cf4 \strokec4 [\cf8 \strokec8 m\cf4 \strokec4 ] || \cf10 \strokec10 0\cf4 \strokec4 ) + \cf10 \strokec10 1\cf4 \strokec4 ;\cb1 \
+\cb3   \});\cb1 \
+\
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 porMes\cf4 \strokec4  = \{\};\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 ingresosMes\cf4 \strokec4  = \{\};\cb1 \
+\cb3   \cf8 \strokec8 filtrados\cf4 \strokec4 .\cf8 \strokec8 forEach\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4  => \{\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 m\cf4 \strokec4  = \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Mes'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? (\cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Mes'\cf4 \strokec4 )] || \cf6 \strokec6 'Desconocido'\cf4 \strokec4 ) : \cf6 \strokec6 'Desconocido'\cf4 \strokec4 ;\cb1 \
+\cb3     \cf8 \strokec8 porMes\cf4 \strokec4 [\cf8 \strokec8 m\cf4 \strokec4 ] = (\cf8 \strokec8 porMes\cf4 \strokec4 [\cf8 \strokec8 m\cf4 \strokec4 ] || \cf10 \strokec10 0\cf4 \strokec4 ) + \cf10 \strokec10 1\cf4 \strokec4 ;\cb1 \
+\cb3     \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 monedaDe\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 ) === \cf6 \strokec6 'CLP'\cf4 \strokec4 ) \cf8 \strokec8 ingresosMes\cf4 \strokec4 [\cf8 \strokec8 m\cf4 \strokec4 ] = (\cf8 \strokec8 ingresosMes\cf4 \strokec4 [\cf8 \strokec8 m\cf4 \strokec4 ] || \cf10 \strokec10 0\cf4 \strokec4 ) + \cf8 \strokec8 totalDe\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 );\cb1 \
+\cb3   \});\cb1 \
+\
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 porMotivo\cf4 \strokec4  = \{ \cf6 \strokec6 'Vacaciones'\cf4 \strokec4 : \cf10 \strokec10 0\cf4 \strokec4 , \cf6 \strokec6 'Trabajo'\cf4 \strokec4 : \cf10 \strokec10 0\cf4 \strokec4 , \cf6 \strokec6 'Celebraci\'f3n'\cf4 \strokec4 : \cf10 \strokec10 0\cf4 \strokec4 , \cf6 \strokec6 'Canje'\cf4 \strokec4 : \cf10 \strokec10 0\cf4 \strokec4 , \cf6 \strokec6 'Premio'\cf4 \strokec4 : \cf10 \strokec10 0\cf4 \strokec4 , \cf6 \strokec6 'Agencia'\cf4 \strokec4 : \cf10 \strokec10 0\cf4 \strokec4 , \cf6 \strokec6 'Otro'\cf4 \strokec4 : \cf10 \strokec10 0\cf4 \strokec4  \};\cb1 \
+\cb3   \cf8 \strokec8 filtrados\cf4 \strokec4 .\cf8 \strokec8 forEach\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4  => \{\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 m\cf4 \strokec4  = \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Motivo'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf5 \strokec5 String\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Motivo'\cf4 \strokec4 )] || \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 trim\cf4 \strokec4 () : \cf6 \strokec6 ''\cf4 \strokec4 ;\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 mUpper\cf4 \strokec4  = \cf8 \strokec8 m\cf4 \strokec4 .\cf8 \strokec8 toUpperCase\cf4 \strokec4 ();\cb1 \
+\cb3     \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 mUpper\cf4 \strokec4  === \cf6 \strokec6 'VACACIONES'\cf4 \strokec4 ) \cf8 \strokec8 porMotivo\cf4 \strokec4 [\cf6 \strokec6 'Vacaciones'\cf4 \strokec4 ]++;\cb1 \
+\cb3     \cf2 \strokec2 else\cf4 \strokec4  \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 mUpper\cf4 \strokec4  === \cf6 \strokec6 'TRABAJO'\cf4 \strokec4 ) \cf8 \strokec8 porMotivo\cf4 \strokec4 [\cf6 \strokec6 'Trabajo'\cf4 \strokec4 ]++;\cb1 \
+\cb3     \cf2 \strokec2 else\cf4 \strokec4  \cf2 \strokec2 if\cf4 \strokec4  ([\cf6 \strokec6 'CUMPLEA\'d1OS'\cf4 \strokec4 , \cf6 \strokec6 'ANIVERSARIO'\cf4 \strokec4 , \cf6 \strokec6 'CELEBRACI\'d3N'\cf4 \strokec4 , \cf6 \strokec6 'CELEBRACION'\cf4 \strokec4 ].\cf8 \strokec8 includes\cf4 \strokec4 (\cf8 \strokec8 mUpper\cf4 \strokec4 )) \cf8 \strokec8 porMotivo\cf4 \strokec4 [\cf6 \strokec6 'Celebraci\'f3n'\cf4 \strokec4 ]++;\cb1 \
+\cb3     \cf2 \strokec2 else\cf4 \strokec4  \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 mUpper\cf4 \strokec4  === \cf6 \strokec6 'CANJE'\cf4 \strokec4 ) \cf8 \strokec8 porMotivo\cf4 \strokec4 [\cf6 \strokec6 'Canje'\cf4 \strokec4 ]++;\cb1 \
+\cb3     \cf2 \strokec2 else\cf4 \strokec4  \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 mUpper\cf4 \strokec4  === \cf6 \strokec6 'PREMIO'\cf4 \strokec4 ) \cf8 \strokec8 porMotivo\cf4 \strokec4 [\cf6 \strokec6 'Premio'\cf4 \strokec4 ]++;\cb1 \
+\cb3     \cf2 \strokec2 else\cf4 \strokec4  \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 mUpper\cf4 \strokec4  === \cf6 \strokec6 'AGENCIA'\cf4 \strokec4 ) \cf8 \strokec8 porMotivo\cf4 \strokec4 [\cf6 \strokec6 'Agencia'\cf4 \strokec4 ]++;\cb1 \
+\cb3     \cf2 \strokec2 else\cf4 \strokec4  \cf8 \strokec8 porMotivo\cf4 \strokec4 [\cf6 \strokec6 'Otro'\cf4 \strokec4 ]++;\cb1 \
+\cb3   \});\cb1 \
+\
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 porPrograma\cf4 \strokec4  = \{\};\cb1 \
+\cb3   \cf8 \strokec8 filtrados\cf4 \strokec4 .\cf8 \strokec8 forEach\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4  => \{\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 prog\cf4 \strokec4  = \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Programa'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf5 \strokec5 String\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Programa'\cf4 \strokec4 )] || \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 trim\cf4 \strokec4 ().\cf8 \strokec8 toUpperCase\cf4 \strokec4 () : \cf6 \strokec6 ''\cf4 \strokec4 ;\cb1 \
+\cb3     \cf2 \strokec2 if\cf4 \strokec4  (!\cf8 \strokec8 prog\cf4 \strokec4  || \cf8 \strokec8 prog\cf4 \strokec4  === \cf6 \strokec6 'ESTANDAR'\cf4 \strokec4 ) \cf8 \strokec8 porPrograma\cf4 \strokec4 [\cf6 \strokec6 'ESTANDAR'\cf4 \strokec4 ] = (\cf8 \strokec8 porPrograma\cf4 \strokec4 [\cf6 \strokec6 'ESTANDAR'\cf4 \strokec4 ] || \cf10 \strokec10 0\cf4 \strokec4 ) + \cf10 \strokec10 1\cf4 \strokec4 ;\cb1 \
+\cb3     \cf2 \strokec2 else\cf4 \strokec4  \cf8 \strokec8 porPrograma\cf4 \strokec4 [\cf8 \strokec8 prog\cf4 \strokec4 ] = (\cf8 \strokec8 porPrograma\cf4 \strokec4 [\cf8 \strokec8 prog\cf4 \strokec4 ] || \cf10 \strokec10 0\cf4 \strokec4 ) + \cf10 \strokec10 1\cf4 \strokec4 ;\cb1 \
+\cb3   \});\cb1 \
+\
+\cb3   \cf7 \strokec7 // Nacionalidades (top)\cf4 \cb1 \strokec4 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 porNacionalidad\cf4 \strokec4  = \{\};\cb1 \
+\cb3   \cf8 \strokec8 filtrados\cf4 \strokec4 .\cf8 \strokec8 forEach\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4  => \{\cb1 \
+\cb3     \cf2 \strokec2 let\cf4 \strokec4  \cf8 \strokec8 n\cf4 \strokec4  = \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Nacionalidad'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf5 \strokec5 String\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Nacionalidad'\cf4 \strokec4 )] || \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 trim\cf4 \strokec4 () : \cf6 \strokec6 ''\cf4 \strokec4 ;\cb1 \
+\cb3     \cf2 \strokec2 if\cf4 \strokec4  (!\cf8 \strokec8 n\cf4 \strokec4 ) \cf8 \strokec8 n\cf4 \strokec4  = \cf6 \strokec6 'Sin dato'\cf4 \strokec4 ;\cb1 \
+\cb3     \cf8 \strokec8 porNacionalidad\cf4 \strokec4 [\cf8 \strokec8 n\cf4 \strokec4 ] = (\cf8 \strokec8 porNacionalidad\cf4 \strokec4 [\cf8 \strokec8 n\cf4 \strokec4 ] || \cf10 \strokec10 0\cf4 \strokec4 ) + \cf10 \strokec10 1\cf4 \strokec4 ;\cb1 \
+\cb3   \});\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 nacionalidadesDistintas\cf4 \strokec4  = \cf5 \strokec5 Object\cf4 \strokec4 .\cf8 \strokec8 keys\cf4 \strokec4 (\cf8 \strokec8 porNacionalidad\cf4 \strokec4 ).\cf8 \strokec8 filter\cf4 \strokec4 (\cf8 \strokec8 k\cf4 \strokec4  => \cf8 \strokec8 k\cf4 \strokec4  !== \cf6 \strokec6 'Sin dato'\cf4 \strokec4 ).\cf8 \strokec8 length\cf4 \strokec4 ;\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 topNacionalidades\cf4 \strokec4  = \cf5 \strokec5 Object\cf4 \strokec4 .\cf8 \strokec8 entries\cf4 \strokec4 (\cf8 \strokec8 porNacionalidad\cf4 \strokec4 ).\cf8 \strokec8 sort\cf4 \strokec4 ((\cf8 \strokec8 a\cf4 \strokec4 , \cf8 \strokec8 b\cf4 \strokec4 ) => \cf8 \strokec8 b\cf4 \strokec4 [\cf10 \strokec10 1\cf4 \strokec4 ] - \cf8 \strokec8 a\cf4 \strokec4 [\cf10 \strokec10 1\cf4 \strokec4 ]).\cf8 \strokec8 slice\cf4 \strokec4 (\cf10 \strokec10 0\cf4 \strokec4 , \cf10 \strokec10 7\cf4 \strokec4 );\cb1 \
+\
+\cb3   \cf7 \strokec7 // D\'eda de la semana del check-in\cf4 \cb1 \strokec4 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 dias\cf4 \strokec4  = [\cf6 \strokec6 'Domingo'\cf4 \strokec4 ,\cf6 \strokec6 'Lunes'\cf4 \strokec4 ,\cf6 \strokec6 'Martes'\cf4 \strokec4 ,\cf6 \strokec6 'Mi\'e9rcoles'\cf4 \strokec4 ,\cf6 \strokec6 'Jueves'\cf4 \strokec4 ,\cf6 \strokec6 'Viernes'\cf4 \strokec4 ,\cf6 \strokec6 'S\'e1bado'\cf4 \strokec4 ];\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 porDiaSemana\cf4 \strokec4  = \{ \cf6 \strokec6 'Lunes'\cf4 \strokec4 :\cf10 \strokec10 0\cf4 \strokec4 ,\cf6 \strokec6 'Martes'\cf4 \strokec4 :\cf10 \strokec10 0\cf4 \strokec4 ,\cf6 \strokec6 'Mi\'e9rcoles'\cf4 \strokec4 :\cf10 \strokec10 0\cf4 \strokec4 ,\cf6 \strokec6 'Jueves'\cf4 \strokec4 :\cf10 \strokec10 0\cf4 \strokec4 ,\cf6 \strokec6 'Viernes'\cf4 \strokec4 :\cf10 \strokec10 0\cf4 \strokec4 ,\cf6 \strokec6 'S\'e1bado'\cf4 \strokec4 :\cf10 \strokec10 0\cf4 \strokec4 ,\cf6 \strokec6 'Domingo'\cf4 \strokec4 :\cf10 \strokec10 0\cf4 \strokec4  \};\cb1 \
+\cb3   \cf8 \strokec8 filtrados\cf4 \strokec4 .\cf8 \strokec8 forEach\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4  => \{\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 cin\cf4 \strokec4  = \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Check_in'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf5 \strokec5 String\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Check_in'\cf4 \strokec4 )] || \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 trim\cf4 \strokec4 () : \cf6 \strokec6 ''\cf4 \strokec4 ;\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 p\cf4 \strokec4  = \cf8 \strokec8 cin\cf4 \strokec4 .\cf8 \strokec8 split\cf4 \strokec4 (\cf6 \strokec6 '-'\cf4 \strokec4 );\cb1 \
+\cb3     \cf2 \strokec2 if\cf4 \strokec4  (\cf8 \strokec8 p\cf4 \strokec4 .\cf8 \strokec8 length\cf4 \strokec4  === \cf10 \strokec10 3\cf4 \strokec4 ) \{\cb1 \
+\cb3       \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 d\cf4 \strokec4  = \cf2 \strokec2 new\cf4 \strokec4  \cf5 \strokec5 Date\cf4 \strokec4 (\cf8 \strokec8 parseInt\cf4 \strokec4 (\cf8 \strokec8 p\cf4 \strokec4 [\cf10 \strokec10 0\cf4 \strokec4 ]), \cf8 \strokec8 parseInt\cf4 \strokec4 (\cf8 \strokec8 p\cf4 \strokec4 [\cf10 \strokec10 1\cf4 \strokec4 ]) - \cf10 \strokec10 1\cf4 \strokec4 , \cf8 \strokec8 parseInt\cf4 \strokec4 (\cf8 \strokec8 p\cf4 \strokec4 [\cf10 \strokec10 2\cf4 \strokec4 ]));\cb1 \
+\cb3       \cf2 \strokec2 if\cf4 \strokec4  (!\cf8 \strokec8 isNaN\cf4 \strokec4 (\cf8 \strokec8 d\cf4 \strokec4 .\cf8 \strokec8 getTime\cf4 \strokec4 ())) \cf8 \strokec8 porDiaSemana\cf4 \strokec4 [\cf8 \strokec8 dias\cf4 \strokec4 [\cf8 \strokec8 d\cf4 \strokec4 .\cf8 \strokec8 getDay\cf4 \strokec4 ()]]++;\cb1 \
+\cb3     \}\cb1 \
+\cb3   \});\cb1 \
+\
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 tabla\cf4 \strokec4  = \cf8 \strokec8 filtrados\cf4 \strokec4 .\cf8 \strokec8 map\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4  => (\{\cb1 \
+\cb3     \cf8 \strokec8 nombre\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Nombre'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Nombre'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 nacionalidad\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Nacionalidad'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Nacionalidad'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 checkin\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Check_in'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Check_in'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 checkout\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Check_out'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Check_out'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 noches\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Noches'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Noches'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 tarifa\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Tarifa_por_Noche'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Tarifa_por_Noche'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 total\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Total_estadia'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Total_estadia'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 moneda\cf4 \strokec4 : \cf8 \strokec8 monedaDe\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 ),\cb1 \
+\cb3     \cf8 \strokec8 motivo\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Motivo'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Motivo'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 medio\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Medio'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Medio'\cf4 \strokec4 )] : \cf6 \strokec6 ''\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 programa\cf4 \strokec4 : \cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Programa'\cf4 \strokec4 ) >= \cf10 \strokec10 0\cf4 \strokec4  ? \cf5 \strokec5 String\cf4 \strokec4 (\cf8 \strokec8 r\cf4 \strokec4 [\cf8 \strokec8 idx\cf4 \strokec4 (\cf6 \strokec6 'Programa'\cf4 \strokec4 )] || \cf6 \strokec6 ''\cf4 \strokec4 ).\cf8 \strokec8 trim\cf4 \strokec4 ().\cf8 \strokec8 toUpperCase\cf4 \strokec4 () : \cf6 \strokec6 'ESTANDAR'\cf4 \cb1 \strokec4 \
+\cb3   \}));\cb1 \
+\
+\cb3   \cf7 \strokec7 // Orden de meses cronol\'f3gico (Mes = "Enero 2026")\cf4 \cb1 \strokec4 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 ordenMes\cf4 \strokec4  = [\cf6 \strokec6 'Enero'\cf4 \strokec4 ,\cf6 \strokec6 'Febrero'\cf4 \strokec4 ,\cf6 \strokec6 'Marzo'\cf4 \strokec4 ,\cf6 \strokec6 'Abril'\cf4 \strokec4 ,\cf6 \strokec6 'Mayo'\cf4 \strokec4 ,\cf6 \strokec6 'Junio'\cf4 \strokec4 ,\cf6 \strokec6 'Julio'\cf4 \strokec4 ,\cf6 \strokec6 'Agosto'\cf4 \strokec4 ,\cf6 \strokec6 'Septiembre'\cf4 \strokec4 ,\cf6 \strokec6 'Octubre'\cf4 \strokec4 ,\cf6 \strokec6 'Noviembre'\cf4 \strokec4 ,\cf6 \strokec6 'Diciembre'\cf4 \strokec4 ];\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 claveMes\cf4 \strokec4  = \cf8 \strokec8 m\cf4 \strokec4  => \{\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 p\cf4 \strokec4  = \cf5 \strokec5 String\cf4 \strokec4 (\cf8 \strokec8 m\cf4 \strokec4 ).\cf8 \strokec8 split\cf4 \strokec4 (\cf6 \strokec6 ' '\cf4 \strokec4 );\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 anio\cf4 \strokec4  = \cf8 \strokec8 parseInt\cf4 \strokec4 (\cf8 \strokec8 p\cf4 \strokec4 [\cf10 \strokec10 1\cf4 \strokec4 ]) || \cf10 \strokec10 0\cf4 \strokec4 ;\cb1 \
+\cb3     \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 mi\cf4 \strokec4  = \cf8 \strokec8 ordenMes\cf4 \strokec4 .\cf8 \strokec8 indexOf\cf4 \strokec4 (\cf8 \strokec8 p\cf4 \strokec4 [\cf10 \strokec10 0\cf4 \strokec4 ]);\cb1 \
+\cb3     \cf2 \strokec2 return\cf4 \strokec4  \cf8 \strokec8 anio\cf4 \strokec4  * \cf10 \strokec10 100\cf4 \strokec4  + (\cf8 \strokec8 mi\cf4 \strokec4  < \cf10 \strokec10 0\cf4 \strokec4  ? \cf10 \strokec10 99\cf4 \strokec4  : \cf8 \strokec8 mi\cf4 \strokec4 );\cb1 \
+\cb3   \};\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 porMesOrd\cf4 \strokec4  = \cf5 \strokec5 Object\cf4 \strokec4 .\cf8 \strokec8 entries\cf4 \strokec4 (\cf8 \strokec8 porMes\cf4 \strokec4 ).\cf8 \strokec8 sort\cf4 \strokec4 ((\cf8 \strokec8 a\cf4 \strokec4 , \cf8 \strokec8 b\cf4 \strokec4 ) => \cf8 \strokec8 claveMes\cf4 \strokec4 (\cf8 \strokec8 a\cf4 \strokec4 [\cf10 \strokec10 0\cf4 \strokec4 ]) - \cf8 \strokec8 claveMes\cf4 \strokec4 (\cf8 \strokec8 b\cf4 \strokec4 [\cf10 \strokec10 0\cf4 \strokec4 ]));\cb1 \
+\cb3   \cf2 \strokec2 const\cf4 \strokec4  \cf8 \strokec8 ingresosMesOrd\cf4 \strokec4  = \cf5 \strokec5 Object\cf4 \strokec4 .\cf8 \strokec8 entries\cf4 \strokec4 (\cf8 \strokec8 ingresosMes\cf4 \strokec4 ).\cf8 \strokec8 map\cf4 \strokec4 (([\cf8 \strokec8 k\cf4 \strokec4 , \cf8 \strokec8 v\cf4 \strokec4 ]) => [\cf8 \strokec8 k\cf4 \strokec4 , \cf5 \strokec5 Math\cf4 \strokec4 .\cf8 \strokec8 round\cf4 \strokec4 (\cf8 \strokec8 v\cf4 \strokec4 )]).\cf8 \strokec8 sort\cf4 \strokec4 ((\cf8 \strokec8 a\cf4 \strokec4 , \cf8 \strokec8 b\cf4 \strokec4 ) => \cf8 \strokec8 claveMes\cf4 \strokec4 (\cf8 \strokec8 a\cf4 \strokec4 [\cf10 \strokec10 0\cf4 \strokec4 ]) - \cf8 \strokec8 claveMes\cf4 \strokec4 (\cf8 \strokec8 b\cf4 \strokec4 [\cf10 \strokec10 0\cf4 \strokec4 ]));\cb1 \
+\
+\cb3   \cf2 \strokec2 return\cf4 \strokec4  \{\cb1 \
+\cb3     \cf8 \strokec8 totalHabitaciones\cf4 \strokec4 : \cf8 \strokec8 totalHabitaciones\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 totalTarifa\cf4 \strokec4 : \cf8 \strokec8 totalTarifa\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 tarifaPromedio\cf4 \strokec4 : \cf8 \strokec8 tarifaPromedio\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 edadPromedio\cf4 \strokec4 : \cf8 \strokec8 edadPromedio\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 ingresosCLP\cf4 \strokec4 : \cf8 \strokec8 ingresosCLP\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 ingresosUSD\cf4 \strokec4 : \cf8 \strokec8 ingresosUSD\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 nochesTotales\cf4 \strokec4 : \cf8 \strokec8 nochesTotales\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 nochesPromedio\cf4 \strokec4 : \cf8 \strokec8 nochesPromedio\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 nacionalidadesDistintas\cf4 \strokec4 : \cf8 \strokec8 nacionalidadesDistintas\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 porMedio\cf4 \strokec4 : \cf5 \strokec5 Object\cf4 \strokec4 .\cf8 \strokec8 entries\cf4 \strokec4 (\cf8 \strokec8 porMedio\cf4 \strokec4 ),\cb1 \
+\cb3     \cf8 \strokec8 porMes\cf4 \strokec4 : \cf8 \strokec8 porMesOrd\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 ingresosMes\cf4 \strokec4 : \cf8 \strokec8 ingresosMesOrd\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 porMotivo\cf4 \strokec4 : \cf5 \strokec5 Object\cf4 \strokec4 .\cf8 \strokec8 entries\cf4 \strokec4 (\cf8 \strokec8 porMotivo\cf4 \strokec4 ).\cf8 \strokec8 filter\cf4 \strokec4 (([\cf8 \strokec8 k\cf4 \strokec4 , \cf8 \strokec8 v\cf4 \strokec4 ]) => \cf8 \strokec8 v\cf4 \strokec4  > \cf10 \strokec10 0\cf4 \strokec4 ),\cb1 \
+\cb3     \cf8 \strokec8 porPrograma\cf4 \strokec4 : \cf5 \strokec5 Object\cf4 \strokec4 .\cf8 \strokec8 entries\cf4 \strokec4 (\cf8 \strokec8 porPrograma\cf4 \strokec4 ),\cb1 \
+\cb3     \cf8 \strokec8 porNacionalidad\cf4 \strokec4 : \cf8 \strokec8 topNacionalidades\cf4 \strokec4 ,\cb1 \
+\cb3     \cf8 \strokec8 porDiaSemana\cf4 \strokec4 : \cf5 \strokec5 Object\cf4 \strokec4 .\cf8 \strokec8 entries\cf4 \strokec4 (\cf8 \strokec8 porDiaSemana\cf4 \strokec4 ),\cb1 \
+\cb3     \cf8 \strokec8 tabla\cf4 \strokec4 : \cf8 \strokec8 tabla\cf4 \cb1 \strokec4 \
+\cb3   \};\cb1 \
+\cb3 \}\cb1 \
+}
