@@ -299,6 +299,7 @@
           <div class="cur-switch" id="switch-idioma">
             <button type="button" class="cur-btn cur-active" data-idi="ES" onclick="setIdioma('ES')">🇨🇱 Español</button>
             <button type="button" class="cur-btn" data-idi="EN" onclick="setIdioma('EN')">🇬🇧 English</button>
+            <button type="button" class="cur-btn" data-idi="PT" onclick="setIdioma('PT')">🇧🇷 Português</button>
           </div>
           <span id="aviso-moneda-usd"><i class="fa-solid fa-circle-info"></i> Cotización en dólares: EXENTA de IVA (Total = Neto).</span>
         </div>
@@ -508,6 +509,7 @@
               <div class="cur-switch" id="switch-plantilla-idioma">
                 <button type="button" class="cur-btn cur-active" data-pidi="ES" onclick="setIdiomaPlantilla('ES')">ES</button>
                 <button type="button" class="cur-btn" data-pidi="EN" onclick="setIdiomaPlantilla('EN')">EN</button>
+                <button type="button" class="cur-btn" data-pidi="PT" onclick="setIdiomaPlantilla('PT')">PT</button>
               </div>
               <button type="button" onclick="cargarElementosPlantilla()" class="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer shadow-sm flex items-center space-x-2 whitespace-nowrap">
                 <i class="fa-solid fa-rotate"></i> <span>CARGAR / RECARGAR</span>
@@ -1213,6 +1215,8 @@ function refrescarDatosServidor() {
       document.getElementById('cat-desc').value = '';
       document.getElementById('cat-nombre-en').value = '';
       document.getElementById('cat-desc-en').value = '';
+      document.getElementById('cat-nombre-pt').value = '';
+      document.getElementById('cat-desc-pt').value = '';
       document.getElementById('cat-valor').value = '';
       document.getElementById('cat-valor-usd').value = '';
       document.getElementById('cat-icono').value = 'fa-circle';
@@ -1226,6 +1230,8 @@ function refrescarDatosServidor() {
       document.getElementById('cat-desc').value = it.descripcion || '';
       document.getElementById('cat-nombre-en').value = it.nombreEN || '';
       document.getElementById('cat-desc-en').value = it.descripcionEN || '';
+      document.getElementById('cat-nombre-pt').value = it.nombrePT || '';
+      document.getElementById('cat-desc-pt').value = it.descripcionPT || '';
       document.getElementById('cat-valor').value = (it.valor != null ? it.valor : '');
       document.getElementById('cat-valor-usd').value = (it.valorUSD != null ? it.valorUSD : '');
       document.getElementById('cat-icono').value = it.icono || 'fa-circle';
@@ -1242,6 +1248,8 @@ function refrescarDatosServidor() {
         descripcion: document.getElementById('cat-desc').value.trim(),
         nombreEN: document.getElementById('cat-nombre-en').value.trim(),
         descripcionEN: document.getElementById('cat-desc-en').value.trim(),
+        nombrePT: document.getElementById('cat-nombre-pt').value.trim(),
+        descripcionPT: document.getElementById('cat-desc-pt').value.trim(),
         icono: document.getElementById('cat-icono').value.trim() || 'fa-circle'
       };
       let btn = document.getElementById('cat-guardar-btn');
@@ -1645,7 +1653,7 @@ function refrescarDatosServidor() {
         </div>`;
     }
     function setIdiomaPlantilla(idi) {
-      idiomaPlantillaEditor = (idi === 'EN') ? 'EN' : 'ES';
+      idiomaPlantillaEditor = (idi === 'EN' || idi === 'PT') ? idi : 'ES';
       document.querySelectorAll('#switch-plantilla-idioma .cur-btn').forEach(function(b){
         b.classList.toggle('cur-active', b.dataset.pidi === idiomaPlantillaEditor);
       });
@@ -2489,7 +2497,7 @@ function refrescarDatosServidor() {
 
     // Descarga el PDF, lo respalda en Drive (carpeta del mes) y registra en Historial
     function finalizarPdf(pdf, payload) {
-      let nombreArchivo = (payload.idioma === 'EN' ? "Quotation Cascadas Hotel " : "Cotizacion Cascadas Hotel ") + payload.nombre_cliente + " " + payload.checkin.replace(/\//g, "-") + ".pdf";
+      let nombreArchivo = (payload.idioma === 'EN' ? "Quotation Cascadas Hotel " : payload.idioma === 'PT' ? "Orcamento Cascadas Hotel " : "Cotizacion Cascadas Hotel ") + payload.nombre_cliente + " " + payload.checkin.replace(/\//g, "-") + ".pdf";
       pdf.save(nombreArchivo); // descarga inmediata
       payloadParaWhatsApp = payload;
       let base64 = pdf.output('datauristring').split(',')[1];
@@ -2671,6 +2679,13 @@ function refrescarDatosServidor() {
           payload.checkin + ' to ' + payload.checkout + ' (' + nightsEN + '): ' + items.join(', ') +
           '. Total: ' + totalTxt + vatEN + '. This quotation is valid for 5 days. Should you have any questions, we remain at your service. Front Desk Team, Cascadas Hotel';
       }
+      if (payload.idioma === 'PT') {
+        let noitesPT = payload.noches + (payload.noches == 1 ? ' noite' : ' noites');
+        let ivaPT = payload.exento ? ' (preços em dólares, isentos de IVA)' : ' (IVA incluído)';
+        return 'Prezado(a) ' + payload.nombre_cliente + ': enviamos o orçamento solicitado para ' +
+          payload.checkin + ' a ' + payload.checkout + ' (' + noitesPT + '): ' + items.join(', ') +
+          '. Total: ' + totalTxt + ivaPT + '. Este orçamento é válido por 5 dias. Em caso de dúvidas, estamos à disposição. Equipe de Recepção, Cascadas Hotel';
+      }
       let noches = payload.noches + (payload.noches == 1 ? ' noche' : ' noches');
       let notaIva = payload.exento ? ' (precios en dólares, exentos de IVA)' : ' (IVA incluido)';
       return payload.saludo + ' ' + payload.nombre_cliente + ': le enviamos la cotización solicitada para el ' +
@@ -2789,7 +2804,7 @@ function refrescarDatosServidor() {
       conPlantillaFresca(function(elementos) {
         try {
           construirWordDocx(payload, elementos).then(function(blob) {
-            let nombre = (payload.idioma === 'EN' ? "Quotation Cascadas Hotel " : "Cotizacion Cascadas Hotel ") + payload.nombre_cliente + " " + payload.checkin.replace(/\//g, "-") + ".docx";
+            let nombre = (payload.idioma === 'EN' ? "Quotation Cascadas Hotel " : payload.idioma === 'PT' ? "Orcamento Cascadas Hotel " : "Cotizacion Cascadas Hotel ") + payload.nombre_cliente + " " + payload.checkin.replace(/\//g, "-") + ".docx";
             let a = document.createElement('a');
             let url = URL.createObjectURL(blob);
             a.href = url; a.download = nombre;
@@ -3081,12 +3096,13 @@ function refrescarDatosServidor() {
       let emisionValue = document.getElementById('fecha_emision').value;
       let dateObj = new Date(emisionValue + "T12:00:00");
       if (isNaN(dateObj.getTime())) dateObj = new Date(); // si el campo está vacío, usa hoy
-      let fechaLarga = (idioma === 'EN')
-        ? dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-        : dateObj.toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });
+      let fechaLarga;
+      if (idioma === 'EN') fechaLarga = dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      else if (idioma === 'PT') fechaLarga = dateObj.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+      else fechaLarga = dateObj.toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });
 
-      // En inglés el trato pasa a "Dear" (sirve para Sr. y Sra.).
-      let saludoDoc = (idioma === 'EN') ? 'Dear' : document.getElementById('saludo').value;
+      // El trato se traduce: EN "Dear", PT "Prezado(a)"; en ES respeta Sr./Sra.
+      let saludoDoc = (idioma === 'EN') ? 'Dear' : (idioma === 'PT') ? 'Prezado(a)' : document.getElementById('saludo').value;
 
       let payload = {
         nombre_cliente: nom,
@@ -3121,9 +3137,11 @@ function refrescarDatosServidor() {
           if (estadoAmenidades[k].activo && estadoAmenidades[k].cantidad > 0) {
             let precio = parseInt(document.getElementById('precio-amenidad-' + k).value) || 0;
             let a = mapaAmen[k] || {};
-            // En inglés usa la traducción del catálogo si existe.
-            let nombreDoc = (idioma === 'EN' && a.nombreEN) ? a.nombreEN : (a.nombre || k);
-            let descDoc = (idioma === 'EN') ? (a.descripcionEN || '') : (a.descripcion || '');
+            // Usa la traducción del catálogo si existe; si no, cae al español.
+            let nombreDoc = (idioma === 'EN' && a.nombreEN) ? a.nombreEN
+                          : (idioma === 'PT' && a.nombrePT) ? a.nombrePT : (a.nombre || k);
+            let descDoc = (idioma === 'EN') ? (a.descripcionEN || a.descripcion || '')
+                        : (idioma === 'PT') ? (a.descripcionPT || a.descripcion || '') : (a.descripcion || '');
             payload.amenidades_predefinidas.push({
               clave: k,
               nombre: nombreDoc,
@@ -3148,7 +3166,7 @@ function refrescarDatosServidor() {
         var valorUnitarioProg = parseInt(document.getElementById('valor_programa').value) || 0;
         payload.total_programa = valorUnitarioProg * payload.cantidad_programa;
         let ticks = [];
-        let T = TXT_DOC[idioma === 'EN' ? 'EN' : 'ES'];
+        let T = TXT_DOC[(idioma === 'EN' || idioma === 'PT') ? idioma : 'ES'];
         // Habitaciones incluidas en el programa (tipo + cantidad, con sistema de ticks)
         habitacionesProgramaSel().forEach(function(h) {
           if (h.tipo && Number(h.cantidad) > 0) ticks.push(T.alojamiento + h.cantidad + 'x ' + traducirTipoHab(h.tipo, idioma));
@@ -3157,8 +3175,9 @@ function refrescarDatosServidor() {
         (config.coberturas || []).forEach(function(cb) {
           let est = estadoCoberturas[cb.clave];
           if (!est || !est.activo || Number(est.cantidad) <= 0) return;
-          // En inglés usa la traducción del catálogo; si no hay, cae al español.
-          let descDoc = (idioma === 'EN' && cb.descripcionEN) ? cb.descripcionEN : cb.descripcion;
+          // Usa la traducción del catálogo; si no hay, cae al español.
+          let descDoc = (idioma === 'EN' && cb.descripcionEN) ? cb.descripcionEN
+                      : (idioma === 'PT' && cb.descripcionPT) ? cb.descripcionPT : cb.descripcion;
           if (cb.modo === 'contador') {
             ticks.push(descDoc + (est.cantidad > 1 ? ' (x' + est.cantidad + ')' : ''));
           } else {
@@ -3202,9 +3221,9 @@ function refrescarDatosServidor() {
       return moneda === 'USD' ? (Number(config.tarifasUSD[tipo]) || 0) : (Number(config.tarifas[tipo]) || 0);
     }
 
-    // ── Interruptor de idioma del documento ES / EN ──
+    // ── Interruptor de idioma del documento ES / EN / PT ──
     function setIdioma(nuevo) {
-      idioma = (nuevo === 'EN') ? 'EN' : 'ES';
+      idioma = (nuevo === 'EN' || nuevo === 'PT') ? nuevo : 'ES';
       document.querySelectorAll('#switch-idioma .cur-btn').forEach(function(b){
         b.classList.toggle('cur-active', b.dataset.idi === idioma);
       });
@@ -3225,27 +3244,53 @@ function refrescarDatosServidor() {
         subtotal: 'Subtotal (Net)', iva: 'VAT 19%', ivaExento: 'VAT', exento: 'Exempt', total: 'Total',
         programa: 'Program ', coberturas: 'Special Services & Coverages Included',
         alojamiento: 'Accommodation included: ', prefijoPrograma: 'Program: '
+      },
+      PT: {
+        thServicio: 'Quarto / Serviço', thCant: 'Qtd.', thIn: 'check-in', thOut: 'check-out',
+        thNoches: 'noites', thValor: 'valor por noite', thTotal: 'total',
+        subtotal: 'Subtotal (Líquido)', iva: 'IVA 19%', ivaExento: 'IVA', exento: 'Isento', total: 'Total',
+        programa: 'Programa ', coberturas: 'Serviços e Coberturas Especiais Incluídos',
+        alojamiento: 'Hospedagem incluída: ', prefijoPrograma: 'Programa: '
       }
     };
-    function txtDoc(payload) { return TXT_DOC[(payload && payload.idioma === 'EN') ? 'EN' : 'ES']; }
+    function txtDoc(payload) {
+      var idi = (payload && (payload.idioma === 'EN' || payload.idioma === 'PT')) ? payload.idioma : 'ES';
+      return TXT_DOC[idi];
+    }
 
-    // Traducción de tipos de habitación para el documento en inglés.
+    // Traducción de tipos de habitación para el documento (EN / PT).
     function traducirTipoHab(tipo, idi) {
-      if (idi !== 'EN') return tipo;
-      const mapa = {
-        'Habitación Single (1 persona - 1 Cama Matrimonial)': 'Single Room (1 person - 1 Double Bed)',
-        'Habitación Single (1 persona - 2 Camas de 1 1/2 plaza)': 'Single Room (1 person - 2 Twin Beds)',
-        'Habitación Matrimonial': 'Double Room',
-        'Habitación Twin': 'Twin Room',
-        'Habitación Suite': 'Suite',
-        'Cama Adicional': 'Extra Bed'
-      };
-      if (mapa[tipo]) return mapa[tipo];
-      // Fallback genérico por palabras para tipos personalizados.
-      return String(tipo)
-        .replace(/Habitación/gi, 'Room').replace(/Camas/gi, 'Beds').replace(/Cama/gi, 'Bed')
-        .replace(/personas/gi, 'people').replace(/persona/gi, 'person')
-        .replace(/Adicional/gi, 'Extra').replace(/Matrimonial/gi, 'Double');
+      if (idi === 'EN') {
+        const mapa = {
+          'Habitación Single (1 persona - 1 Cama Matrimonial)': 'Single Room (1 person - 1 Double Bed)',
+          'Habitación Single (1 persona - 2 Camas de 1 1/2 plaza)': 'Single Room (1 person - 2 Twin Beds)',
+          'Habitación Matrimonial': 'Double Room',
+          'Habitación Twin': 'Twin Room',
+          'Habitación Suite': 'Suite',
+          'Cama Adicional': 'Extra Bed'
+        };
+        if (mapa[tipo]) return mapa[tipo];
+        return String(tipo)
+          .replace(/Habitación/gi, 'Room').replace(/Camas/gi, 'Beds').replace(/Cama/gi, 'Bed')
+          .replace(/personas/gi, 'people').replace(/persona/gi, 'person')
+          .replace(/Adicional/gi, 'Extra').replace(/Matrimonial/gi, 'Double');
+      }
+      if (idi === 'PT') {
+        const mapa = {
+          'Habitación Single (1 persona - 1 Cama Matrimonial)': 'Quarto Single (1 pessoa - 1 Cama de Casal)',
+          'Habitación Single (1 persona - 2 Camas de 1 1/2 plaza)': 'Quarto Single (1 pessoa - 2 Camas de Solteiro)',
+          'Habitación Matrimonial': 'Quarto Casal',
+          'Habitación Twin': 'Quarto Twin',
+          'Habitación Suite': 'Suíte',
+          'Cama Adicional': 'Cama Extra'
+        };
+        if (mapa[tipo]) return mapa[tipo];
+        return String(tipo)
+          .replace(/Habitación/gi, 'Quarto').replace(/Camas/gi, 'Camas').replace(/Cama/gi, 'Cama')
+          .replace(/personas/gi, 'pessoas').replace(/persona/gi, 'pessoa')
+          .replace(/Adicional/gi, 'Extra').replace(/Matrimonial/gi, 'Casal');
+      }
+      return tipo;
     }
 
     // ── Interruptor de moneda CLP / USD ──
@@ -3330,6 +3375,14 @@ function refrescarDatosServidor() {
             <div style="grid-column:1 / -1;">
               <label>Descripción en inglés (para cotizaciones EN)</label>
               <textarea id="cat-desc-en" rows="2" placeholder="English description shown in the PDF"></textarea>
+            </div>
+            <div style="grid-column:1 / -1;">
+              <label>Nombre en portugués (para cotizaciones PT)</label>
+              <input type="text" id="cat-nombre-pt" placeholder="Ex: Sessão de Ofurô">
+            </div>
+            <div style="grid-column:1 / -1;">
+              <label>Descripción en portugués (para cotizaciones PT)</label>
+              <textarea id="cat-desc-pt" rows="2" placeholder="Descrição em português exibida no PDF"></textarea>
             </div>
             <div id="cat-campo-precios" style="grid-column:1 / -1;grid-template-columns:1fr 1fr;gap:10px;display:grid;">
               <div>
