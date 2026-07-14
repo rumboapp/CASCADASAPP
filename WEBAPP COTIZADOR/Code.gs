@@ -2,8 +2,19 @@
 // CONFIGURACIÓN DE IDS GLOBALE
 // =================================================================
 const ID_PLANTILLA = "1CrI7WhSfXKDw1S86opgTJYKpAi1mDjXFrsKr2lEOeyY";
+// Plantilla en INGLÉS: crea una copia de tu plantilla en Google Docs, tradúcela
+// y pega aquí su ID (lo que va entre /d/ y /edit en la URL del documento).
+// Mientras esté vacío, las cotizaciones en inglés usan la plantilla en español
+// (la tabla de valores y las coberturas sí salen traducidas igualmente).
+const ID_PLANTILLA_EN = "";
 const ID_PLANILLA_SHEETS = "164qlshfA21LK2hIAcVlrv8rdNIamupZfF5_gSTW6zWo";
 const NOMBRE_CARPETA_COTIZACIONES = "Cotizaciones Temporales";
+
+/* Devuelve el ID de plantilla según idioma ('ES' | 'EN') con fallback a ES. */
+function _idPlantilla(idioma) {
+  if (String(idioma).toUpperCase() === "EN" && ID_PLANTILLA_EN) return ID_PLANTILLA_EN;
+  return ID_PLANTILLA;
+}
 
 function doGet() {
   return HtmlService.createTemplateFromFile('index')
@@ -160,16 +171,29 @@ function obtenerConfiguracion() {
    Columnas: Clave | Nombre | Descripcion | PrecioNeto | PrecioUSD | Icono | Orden | Activo
    Devuelve un array [{clave, nombre, descripcion, valor, valorUSD, icono, orden}]
    ================================================================= */
-var _AMEN_HEADER = ["Clave", "Nombre", "Descripcion", "PrecioNeto", "PrecioUSD", "Icono", "Orden", "Activo"];
+var _AMEN_HEADER = ["Clave", "Nombre", "Descripcion", "PrecioNeto", "PrecioUSD", "Icono", "Orden", "Activo", "NombreEN", "DescripcionEN"];
 var _AMEN_SEED = [
-  ["early",    "Early Check In",               "Ingreso a las 12:00 hrs (sujeto a disponibilidad)",              25000, 30, "fa-sun",                1, "TRUE"],
-  ["late",     "Late Check Out",               "Salida hasta las 15:00 hrs (sujeto a disponibilidad)",           25000, 30, "fa-moon",               2, "TRUE"],
-  ["tinaja",   "Sesión de Tinaja",             "Sesión de tinaja de 2 horas para dos personas previa agenda.",   45000, 50, "fa-hot-tub-person",     3, "TRUE"],
-  ["almuerzo", "Almuerzo Sugerencia del Chef", "Menú sugerencia de 3 tiempos de nuestro Chef para 2 personas.",  35000, 40, "fa-utensils",           4, "TRUE"],
-  ["cena",     "Cena Sugerencia del Chef",     "Menú sugerencia de 3 tiempos de nuestro Chef para 2 personas.",  45000, 50, "fa-wine-glass",         5, "TRUE"],
-  ["drink",    "Welcome Drink",                "Welcome drink para dos personas (Jugo, vino o espumante).",      15000, 18, "fa-champagne-glasses",  6, "TRUE"],
-  ["masaje",   "Masaje de Relajación",         "Sesión de masaje de relajación de 45 minutos por persona.",      35000, 40, "fa-spa",                7, "TRUE"]
+  ["early",    "Early Check In",               "Ingreso a las 12:00 hrs (sujeto a disponibilidad)",              25000, 30, "fa-sun",                1, "TRUE", "Early Check In",            "Check-in at 12:00 hrs (subject to availability)"],
+  ["late",     "Late Check Out",               "Salida hasta las 15:00 hrs (sujeto a disponibilidad)",           25000, 30, "fa-moon",               2, "TRUE", "Late Check Out",            "Check-out until 15:00 hrs (subject to availability)"],
+  ["tinaja",   "Sesión de Tinaja",             "Sesión de tinaja de 2 horas para dos personas previa agenda.",   45000, 50, "fa-hot-tub-person",     3, "TRUE", "Hot Tub Session",           "2-hour wood-fired hot tub session for two people, prior booking required."],
+  ["almuerzo", "Almuerzo Sugerencia del Chef", "Menú sugerencia de 3 tiempos de nuestro Chef para 2 personas.",  35000, 40, "fa-utensils",           4, "TRUE", "Chef's Suggestion Lunch",   "3-course menu suggested by our Chef for 2 people."],
+  ["cena",     "Cena Sugerencia del Chef",     "Menú sugerencia de 3 tiempos de nuestro Chef para 2 personas.",  45000, 50, "fa-wine-glass",         5, "TRUE", "Chef's Suggestion Dinner",  "3-course menu suggested by our Chef for 2 people."],
+  ["drink",    "Welcome Drink",                "Welcome drink para dos personas (Jugo, vino o espumante).",      15000, 18, "fa-champagne-glasses",  6, "TRUE", "Welcome Drink",             "Welcome drink for two people (juice, wine or sparkling wine)."],
+  ["masaje",   "Masaje de Relajación",         "Sesión de masaje de relajación de 45 minutos por persona.",      35000, 40, "fa-spa",                7, "TRUE", "Relaxation Massage",        "45-minute relaxation massage session per person."]
 ];
+
+/* Asegura que una hoja de catálogo tenga las columnas EN al final del header. */
+function _asegurarColumnasEN(hoja, header) {
+  var cambios = false;
+  ["NombreEN", "DescripcionEN"].forEach(function(col) {
+    if (header.indexOf(col) < 0) {
+      hoja.getRange(1, header.length + 1).setValue(col);
+      header.push(col);
+      cambios = true;
+    }
+  });
+  return cambios;
+}
 
 function _leerAmenidadesCatalogo(ss) {
   ss = ss || SpreadsheetApp.openById(ID_PLANILLA_SHEETS);
@@ -196,6 +220,23 @@ function _leerAmenidadesCatalogo(ss) {
     header = data[0].map(function(c){ return c.toString().trim(); });
   }
 
+  // Migración suave: agrega las columnas EN si la hoja se creó sin ellas.
+  if (_asegurarColumnasEN(hoja, header)) {
+    // Rellena las traducciones de fábrica SOLO en celdas vacías de las semillas.
+    var seedEN = {};
+    _AMEN_SEED.forEach(function(f){ seedEN[f[0]] = { nEN: f[8], dEN: f[9] }; });
+    data = hoja.getDataRange().getValues();
+    var iC = header.indexOf("Clave"), iNE = header.indexOf("NombreEN"), iDE = header.indexOf("DescripcionEN");
+    for (var m = 1; m < data.length; m++) {
+      var cl = data[m][iC] ? data[m][iC].toString().trim() : "";
+      if (seedEN[cl]) {
+        if (!String(data[m][iNE] || "").trim()) hoja.getRange(m + 1, iNE + 1).setValue(seedEN[cl].nEN);
+        if (!String(data[m][iDE] || "").trim()) hoja.getRange(m + 1, iDE + 1).setValue(seedEN[cl].dEN);
+      }
+    }
+    data = hoja.getDataRange().getValues();
+  }
+
   var idx = function(n){ return header.indexOf(n); };
   var out = [];
   for (var r = 1; r < data.length; r++) {
@@ -210,7 +251,9 @@ function _leerAmenidadesCatalogo(ss) {
       valor: Number(data[r][idx("PrecioNeto")]) || 0,
       valorUSD: Number(data[r][idx("PrecioUSD")]) || 0,
       icono: (data[r][idx("Icono")] || "fa-circle").toString(),
-      orden: Number(data[r][idx("Orden")]) || 0
+      orden: Number(data[r][idx("Orden")]) || 0,
+      nombreEN: idx("NombreEN") >= 0 ? (data[r][idx("NombreEN")] || "").toString() : "",
+      descripcionEN: idx("DescripcionEN") >= 0 ? (data[r][idx("DescripcionEN")] || "").toString() : ""
     });
   }
   out.sort(function(a, b){ return a.orden - b.orden; });
@@ -224,14 +267,14 @@ function _leerAmenidadesCatalogo(ss) {
    Modo: "contador" (cantidad) o "check" (sí/no).
    La Descripcion es el texto que aparece en el PDF como cobertura incluida.
    ================================================================= */
-var _COB_HEADER = ["Clave", "Nombre", "Descripcion", "Icono", "Modo", "Orden", "Activo"];
+var _COB_HEADER = ["Clave", "Nombre", "Descripcion", "Icono", "Modo", "Orden", "Activo", "NombreEN", "DescripcionEN"];
 var _COB_SEED = [
-  ["almuerzo", "Almuerzos (Sugerencia del Chef)", "Incluye 1 Almuerzo para 2 personas (Menú sugerencia de 3 tiempos de nuestro Chef, 1 por persona).", "fa-utensils", "contador", 1, "TRUE"],
-  ["cena",     "Cenas (Sugerencia del Chef)",     "Incluye 1 Cena para 2 personas (Menú sugerencia de 3 tiempos de nuestro Chef, 1 por persona).",     "fa-wine-glass", "contador", 2, "TRUE"],
-  ["masaje",   "Masajes de Relajación (45 min)",  "1 Sesión de masaje de relajación (Duración: 45 minutos).", "fa-spa", "contador", 3, "TRUE"],
-  ["tinaja",   "Sesión de Tinaja de Agua Caliente", "Sesión de tinaja de 2 horas para dos personas previa agenda. Está prohibido agregar más personas a su sesión de tinaja; de querer hacerlo, se debe pagar una diferencia (máximo de 4 personas por tinaja).", "fa-hot-tub-person", "check", 4, "TRUE"],
-  ["drinks",   "Welcome Drinks de Bienvenida",    "Welcome drink para dos personas (Alternativas: Jugo natural, copa de vino o copa de espumante de la casa).", "fa-champagne-glasses", "check", 5, "TRUE"],
-  ["house",    "Programa de Experiencias y Aventura Cascadas", "Programa Completo de Experiencias y Aventura Cascadas (In-House): Incluye Senderismo Interpretativo Nocturno de baja dificultad, navegación asistida en Kayak/SUP en Lago Llanquihue y Cicloturismo guiado hacia el Salto La Cascada.", "fa-mountain-sun", "check", 6, "TRUE"]
+  ["almuerzo", "Almuerzos (Sugerencia del Chef)", "Incluye 1 Almuerzo para 2 personas (Menú sugerencia de 3 tiempos de nuestro Chef, 1 por persona).", "fa-utensils", "contador", 1, "TRUE", "Lunches (Chef's Suggestion)", "Includes 1 Lunch for 2 people (3-course menu suggested by our Chef, 1 per person)."],
+  ["cena",     "Cenas (Sugerencia del Chef)",     "Incluye 1 Cena para 2 personas (Menú sugerencia de 3 tiempos de nuestro Chef, 1 por persona).",     "fa-wine-glass", "contador", 2, "TRUE", "Dinners (Chef's Suggestion)", "Includes 1 Dinner for 2 people (3-course menu suggested by our Chef, 1 per person)."],
+  ["masaje",   "Masajes de Relajación (45 min)",  "1 Sesión de masaje de relajación (Duración: 45 minutos).", "fa-spa", "contador", 3, "TRUE", "Relaxation Massages (45 min)", "1 relaxation massage session (duration: 45 minutes)."],
+  ["tinaja",   "Sesión de Tinaja de Agua Caliente", "Sesión de tinaja de 2 horas para dos personas previa agenda. Está prohibido agregar más personas a su sesión de tinaja; de querer hacerlo, se debe pagar una diferencia (máximo de 4 personas por tinaja).", "fa-hot-tub-person", "check", 4, "TRUE", "Hot Tub Session", "2-hour wood-fired hot tub session for two people, prior booking required. Adding extra people to your session is not allowed; if you wish to do so, an additional fee applies (maximum 4 people per hot tub)."],
+  ["drinks",   "Welcome Drinks de Bienvenida",    "Welcome drink para dos personas (Alternativas: Jugo natural, copa de vino o copa de espumante de la casa).", "fa-champagne-glasses", "check", 5, "TRUE", "Welcome Drinks", "Welcome drink for two people (options: natural juice, glass of wine or glass of house sparkling wine)."],
+  ["house",    "Programa de Experiencias y Aventura Cascadas", "Programa Completo de Experiencias y Aventura Cascadas (In-House): Incluye Senderismo Interpretativo Nocturno de baja dificultad, navegación asistida en Kayak/SUP en Lago Llanquihue y Cicloturismo guiado hacia el Salto La Cascada.", "fa-mountain-sun", "check", 6, "TRUE", "Cascadas Experiences & Adventure Program", "Complete Cascadas In-House Experiences & Adventure Program: includes low-difficulty Night Interpretive Hiking, assisted Kayak/SUP navigation on Lake Llanquihue and guided bike tour to La Cascada Waterfall."]
 ];
 
 function _leerCoberturasCatalogo(ss) {
@@ -246,6 +289,23 @@ function _leerCoberturasCatalogo(ss) {
     data = hoja.getDataRange().getValues();
     header = data[0].map(function(c){ return c.toString().trim(); });
   }
+
+  // Migración suave: agrega columnas EN si faltan y rellena traducciones de fábrica.
+  if (_asegurarColumnasEN(hoja, header)) {
+    var seedEN = {};
+    _COB_SEED.forEach(function(f){ seedEN[f[0]] = { nEN: f[7], dEN: f[8] }; });
+    data = hoja.getDataRange().getValues();
+    var iC = header.indexOf("Clave"), iNE = header.indexOf("NombreEN"), iDE = header.indexOf("DescripcionEN");
+    for (var m = 1; m < data.length; m++) {
+      var cl = data[m][iC] ? data[m][iC].toString().trim() : "";
+      if (seedEN[cl]) {
+        if (!String(data[m][iNE] || "").trim()) hoja.getRange(m + 1, iNE + 1).setValue(seedEN[cl].nEN);
+        if (!String(data[m][iDE] || "").trim()) hoja.getRange(m + 1, iDE + 1).setValue(seedEN[cl].dEN);
+      }
+    }
+    data = hoja.getDataRange().getValues();
+  }
+
   var idx = function(n){ return header.indexOf(n); };
   var out = [];
   for (var r = 1; r < data.length; r++) {
@@ -260,7 +320,9 @@ function _leerCoberturasCatalogo(ss) {
       descripcion: (data[r][idx("Descripcion")] || "").toString(),
       icono: (data[r][idx("Icono")] || "fa-square-check").toString(),
       modo: (modo === "contador" ? "contador" : "check"),
-      orden: Number(data[r][idx("Orden")]) || 0
+      orden: Number(data[r][idx("Orden")]) || 0,
+      nombreEN: idx("NombreEN") >= 0 ? (data[r][idx("NombreEN")] || "").toString() : "",
+      descripcionEN: idx("DescripcionEN") >= 0 ? (data[r][idx("DescripcionEN")] || "").toString() : ""
     });
   }
   out.sort(function(a, b){ return a.orden - b.orden; });
@@ -296,7 +358,14 @@ function guardarAmenidadCatalogo(item) {
   if (!clave) clave = _generarClave(item.nombre, claves);
 
   var orden = Number(item.orden) || (fila > 0 ? Number(data[fila-1][idx("Orden")]) || 0 : claves.length + 1);
-  var valores = [clave, item.nombre || "", item.descripcion || "", Number(item.valor) || 0, Number(item.valorUSD) || 0, item.icono || "fa-circle", orden, "TRUE"];
+  // Arma la fila respetando la posición real de cada columna.
+  var valoresMap = {
+    "Clave": clave, "Nombre": item.nombre || "", "Descripcion": item.descripcion || "",
+    "PrecioNeto": Number(item.valor) || 0, "PrecioUSD": Number(item.valorUSD) || 0,
+    "Icono": item.icono || "fa-circle", "Orden": orden, "Activo": "TRUE",
+    "NombreEN": item.nombreEN || "", "DescripcionEN": item.descripcionEN || ""
+  };
+  var valores = header.map(function(h){ return (h in valoresMap) ? valoresMap[h] : ""; });
 
   if (fila > 0) hoja.getRange(fila, 1, 1, valores.length).setValues([valores]);
   else hoja.appendRow(valores);
@@ -336,7 +405,13 @@ function guardarCoberturaCatalogo(item) {
 
   var modo = (String(item.modo).toLowerCase() === "contador") ? "contador" : "check";
   var orden = Number(item.orden) || (fila > 0 ? Number(data[fila-1][idx("Orden")]) || 0 : claves.length + 1);
-  var valores = [clave, item.nombre || "", item.descripcion || "", item.icono || "fa-square-check", modo, orden, "TRUE"];
+  // Arma la fila respetando la posición real de cada columna.
+  var valoresMap = {
+    "Clave": clave, "Nombre": item.nombre || "", "Descripcion": item.descripcion || "",
+    "Icono": item.icono || "fa-square-check", "Modo": modo, "Orden": orden, "Activo": "TRUE",
+    "NombreEN": item.nombreEN || "", "DescripcionEN": item.descripcionEN || ""
+  };
+  var valores = header.map(function(h){ return (h in valoresMap) ? valoresMap[h] : ""; });
 
   if (fila > 0) hoja.getRange(fila, 1, 1, valores.length).setValues([valores]);
   else hoja.appendRow(valores);
@@ -1047,9 +1122,11 @@ function detectarBoldElemento(elemento, textoEd) {
   return false;
 }
 
-function obtenerElementosPlantilla() {
+function obtenerElementosPlantilla(idioma) {
   try {
-    var doc = DocumentApp.openById(ID_PLANTILLA);
+    var idiomaPedido = String(idioma || 'ES').toUpperCase();
+    var usandoFallback = (idiomaPedido === 'EN' && !ID_PLANTILLA_EN);
+    var doc = DocumentApp.openById(_idPlantilla(idiomaPedido));
     var body = doc.getBody();
     var elementos = [];
     var contador = 0;
@@ -1081,15 +1158,16 @@ function obtenerElementosPlantilla() {
         contador++;
       }
     }
-    return { exito: true, elementos: elementos };
+    return { exito: true, elementos: elementos, idiomaUsado: usandoFallback ? 'ES' : idiomaPedido,
+             aviso: usandoFallback ? 'No hay plantilla en inglés configurada (ID_PLANTILLA_EN vacío en Code.gs). Se usa la plantilla en español.' : '' };
   } catch(e) {
     return { exito: false, error: e.toString(), elementos: [] };
   }
 }
 
-function guardarElementoPlantilla(indiceBody, textoNuevo, tipoElemento) {
+function guardarElementoPlantilla(indiceBody, textoNuevo, tipoElemento, idioma) {
   try {
-    var doc = DocumentApp.openById(ID_PLANTILLA);
+    var doc = DocumentApp.openById(_idPlantilla(idioma));
     var body = doc.getBody();
     var elemento = body.getChild(indiceBody);
     if (!elemento) return { exito: false, error: 'No se encontró el elemento en el índice ' + indiceBody };

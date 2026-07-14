@@ -288,12 +288,17 @@
       </div>
 
       <form id="mainForm" onsubmit="event.preventDefault();">
-        <!-- ─── INTERRUPTOR DE MONEDA ─── -->
+        <!-- ─── INTERRUPTORES DE MONEDA E IDIOMA ─── -->
         <div id="bloque-moneda">
-          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Moneda de la cotización</span>
+          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Moneda</span>
           <div class="cur-switch">
             <button type="button" class="cur-btn cur-active" data-cur="CLP" onclick="setMoneda('CLP')">$ Pesos (CLP)</button>
             <button type="button" class="cur-btn" data-cur="USD" onclick="setMoneda('USD')">US$ Dólares</button>
+          </div>
+          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest" style="margin-left:8px;">Idioma del documento</span>
+          <div class="cur-switch" id="switch-idioma">
+            <button type="button" class="cur-btn cur-active" data-idi="ES" onclick="setIdioma('ES')">🇨🇱 Español</button>
+            <button type="button" class="cur-btn" data-idi="EN" onclick="setIdioma('EN')">🇬🇧 English</button>
           </div>
           <span id="aviso-moneda-usd"><i class="fa-solid fa-circle-info"></i> Cotización en dólares: EXENTA de IVA (Total = Neto).</span>
         </div>
@@ -499,9 +504,15 @@
                 <span class="text-amber-600 font-semibold">No modifiques los marcadores <code class="bg-amber-50 px-1 rounded">{{entre_llaves}}</code> — son reemplazados automáticamente.</span>
               </p>
             </div>
-            <button type="button" onclick="cargarElementosPlantilla()" class="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer shadow-sm flex items-center space-x-2 whitespace-nowrap self-start sm:self-auto">
-              <i class="fa-solid fa-rotate"></i> <span>CARGAR / RECARGAR</span>
-            </button>
+            <div class="flex items-center gap-2 self-start sm:self-auto">
+              <div class="cur-switch" id="switch-plantilla-idioma">
+                <button type="button" class="cur-btn cur-active" data-pidi="ES" onclick="setIdiomaPlantilla('ES')">ES</button>
+                <button type="button" class="cur-btn" data-pidi="EN" onclick="setIdiomaPlantilla('EN')">EN</button>
+              </div>
+              <button type="button" onclick="cargarElementosPlantilla()" class="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer shadow-sm flex items-center space-x-2 whitespace-nowrap">
+                <i class="fa-solid fa-rotate"></i> <span>CARGAR / RECARGAR</span>
+              </button>
+            </div>
           </div>
           <div id="plantilla-loader" class="hidden items-center space-x-3 bg-slate-50 py-5 px-5 rounded-2xl border border-slate-200 text-slate-500 font-bold text-xs">
             <i class="fa-solid fa-circle-notch spin text-slate-900 text-base mr-2"></i>
@@ -786,6 +797,8 @@
     let q = { almuerzo: 0, cena: 0, masaje: 0 };
     let datesSelected = { checkin: null, checkout: null };
     let moneda = 'CLP';                 // moneda global de la cotización: 'CLP' o 'USD'
+    let idioma = 'ES';                  // idioma del documento generado: 'ES' o 'EN'
+    let idiomaPlantillaEditor = 'ES';   // idioma que se está editando en el Editor de Plantilla
     let estadoCoberturas = {};          // { claveCobertura: {cantidad, activo} } para el programa
     let habProgMap = {};                // { tipoHabitacion: cantidad } para el programa
     let tiposHabPrograma = [];          // orden de tipos para los índices de los botones
@@ -1198,6 +1211,8 @@ function refrescarDatosServidor() {
       document.getElementById('cat-clave').value = '';
       document.getElementById('cat-nombre').value = '';
       document.getElementById('cat-desc').value = '';
+      document.getElementById('cat-nombre-en').value = '';
+      document.getElementById('cat-desc-en').value = '';
       document.getElementById('cat-valor').value = '';
       document.getElementById('cat-valor-usd').value = '';
       document.getElementById('cat-icono').value = 'fa-circle';
@@ -1209,6 +1224,8 @@ function refrescarDatosServidor() {
       document.getElementById('cat-clave').value = it.clave || '';
       document.getElementById('cat-nombre').value = it.nombre || '';
       document.getElementById('cat-desc').value = it.descripcion || '';
+      document.getElementById('cat-nombre-en').value = it.nombreEN || '';
+      document.getElementById('cat-desc-en').value = it.descripcionEN || '';
       document.getElementById('cat-valor').value = (it.valor != null ? it.valor : '');
       document.getElementById('cat-valor-usd').value = (it.valorUSD != null ? it.valorUSD : '');
       document.getElementById('cat-icono').value = it.icono || 'fa-circle';
@@ -1223,6 +1240,8 @@ function refrescarDatosServidor() {
         clave: document.getElementById('cat-clave').value.trim(),
         nombre: nombre,
         descripcion: document.getElementById('cat-desc').value.trim(),
+        nombreEN: document.getElementById('cat-nombre-en').value.trim(),
+        descripcionEN: document.getElementById('cat-desc-en').value.trim(),
         icono: document.getElementById('cat-icono').value.trim() || 'fa-circle'
       };
       let btn = document.getElementById('cat-guardar-btn');
@@ -1625,6 +1644,14 @@ function refrescarDatosServidor() {
           </div>
         </div>`;
     }
+    function setIdiomaPlantilla(idi) {
+      idiomaPlantillaEditor = (idi === 'EN') ? 'EN' : 'ES';
+      document.querySelectorAll('#switch-plantilla-idioma .cur-btn').forEach(function(b){
+        b.classList.toggle('cur-active', b.dataset.pidi === idiomaPlantillaEditor);
+      });
+      cargarElementosPlantilla();
+    }
+
     function cargarElementosPlantilla() {
       let loader = document.getElementById('plantilla-loader');
       loader.classList.remove('hidden'); loader.style.display = 'flex';
@@ -1654,10 +1681,11 @@ function refrescarDatosServidor() {
           document.getElementById('plantilla-doc-wrapper').classList.remove('hidden');
           document.getElementById('plantilla-leyenda').classList.remove('hidden');
           document.getElementById('plantilla-leyenda').style.display = 'flex';
-          mostrarToast('exito', '✓ ' + res.elementos.length + ' elementos cargados');
+          if (res.aviso) mostrarToast('error', '⚠ ' + res.aviso);
+          else mostrarToast('exito', '✓ ' + res.elementos.length + ' elementos cargados (' + (res.idiomaUsado || idiomaPlantillaEditor) + ')');
         })
         .withFailureHandler(err => { loader.style.display='none'; loader.classList.add('hidden'); document.getElementById('plantilla-empty').classList.remove('hidden'); mostrarToast('error','✗ '+err); })
-        .obtenerElementosPlantilla();
+        .obtenerElementosPlantilla(idiomaPlantillaEditor);
     }
     function activarEdicion(id) {
       if (editandoId !== null && editandoId !== id) cancelarEdicion(editandoId);
@@ -1693,7 +1721,7 @@ function refrescarDatosServidor() {
           } else mostrarToast('error', '✗ ' + res.error);
         })
         .withFailureHandler(err => { btn.disabled=false; btn.innerHTML='<i class="fa-solid fa-floppy-disk"></i> Guardar'; mostrarToast('error','✗ '+err); })
-        .guardarElementoPlantilla(el.indiceBody, textoNuevo, el.tipo);
+        .guardarElementoPlantilla(el.indiceBody, textoNuevo, el.tipo, idiomaPlantillaEditor);
     }
     function mostrarToast(tipo, texto) {
       let t = document.getElementById('toast-plantilla');
@@ -2128,7 +2156,7 @@ function refrescarDatosServidor() {
           .split('{{nombre_cliente}}').join(payload.nombre_cliente || '')
           .split('{{nombre_programa}}').join(
             payload.tipo_cotizacion === 'programa' && payload.nombre_programa
-              ? 'Programa: ' + payload.nombre_programa : ''
+              ? txtDoc(payload).prefijoPrograma + payload.nombre_programa : ''
           );
       }
 
@@ -2267,17 +2295,18 @@ function refrescarDatosServidor() {
       }
 
       function tablaCotizacionDatos() {
+        var T = txtDoc(payload);
         var filas = [];
         filas.push({ celdas: [
-          { texto: 'Servicio habitación', b: true, align: 'izq' },
-          { texto: 'Cantidad', b: true }, { texto: 'check-in', b: true }, { texto: 'check-out', b: true },
-          { texto: 'noches', b: true }, { texto: 'valor por noche', b: true }, { texto: 'total por habitaciones', b: true }
+          { texto: T.thServicio, b: true, align: 'izq' },
+          { texto: T.thCant, b: true }, { texto: T.thIn, b: true }, { texto: T.thOut, b: true },
+          { texto: T.thNoches, b: true }, { texto: T.thValor, b: true }, { texto: T.thTotal, b: true }
         ]});
         var sub = 0, iva = 0, total = 0;
         if (payload.tipo_cotizacion === 'estandar') {
           consolidarHabitacionesCliente(payload.habitaciones).forEach(function(h) {
             filas.push({ celdas: [
-              { texto: h.tipoBase, align: 'izq' }, { texto: String(h.cantidad) },
+              { texto: traducirTipoHab(h.tipoBase, payload.idioma), align: 'izq' }, { texto: String(h.cantidad) },
               { texto: payload.checkin }, { texto: payload.checkout }, { texto: String(payload.noches) },
               { texto: fm(h.precio) }, { texto: fm(h.total) }
             ]});
@@ -2304,26 +2333,26 @@ function refrescarDatosServidor() {
           var neto = payload.total_programa || 0;
           var unit = cant > 0 ? Math.round(neto / cant) : neto;
           filas.push({ celdas: [
-            { texto: 'Programa ' + (payload.nombre_programa || ''), align: 'izq' }, { texto: String(cant) },
+            { texto: T.programa + (payload.nombre_programa || ''), align: 'izq' }, { texto: String(cant) },
             { texto: payload.checkin }, { texto: payload.checkout }, { texto: String(payload.noches) },
             { texto: fm(unit) }, { texto: fm(neto) }
           ]});
           sub = neto; iva = payload.exento ? 0 : Math.round(sub * 0.19); total = sub + iva;
         }
         var vac = [{ vacia: true }, { vacia: true }, { vacia: true }, { vacia: true }, { vacia: true }];
-        filas.push({ celdas: vac.concat([{ texto: 'Subtotal Neto' }, { texto: fm(sub) }]) });
+        filas.push({ celdas: vac.concat([{ texto: T.subtotal }, { texto: fm(sub) }]) });
         if (payload.exento) {
-          filas.push({ celdas: vac.concat([{ texto: 'IVA' }, { texto: 'Exento' }]) });
+          filas.push({ celdas: vac.concat([{ texto: T.ivaExento }, { texto: T.exento }]) });
         } else {
-          filas.push({ celdas: vac.concat([{ texto: 'IVA 19%' }, { texto: fm(iva) }]) });
+          filas.push({ celdas: vac.concat([{ texto: T.iva }, { texto: fm(iva) }]) });
         }
-        filas.push({ celdas: vac.concat([{ texto: 'Total', b: true }, { texto: fm(total), b: true }]) });
+        filas.push({ celdas: vac.concat([{ texto: T.total, b: true }, { texto: fm(total), b: true }]) });
         return { colPcts: [24, 11, 14, 14, 9, 11.5, 16.5], filas: filas };
       }
 
       function coberturasDatos() {
         if (payload.tipo_cotizacion !== 'programa' || !payload.ticks || !payload.ticks.length) return null;
-        var filas = [{ celdas: [{ texto: 'Servicios Coberturas Especiales Incluidas', b: true, align: 'izq' }] }];
+        var filas = [{ celdas: [{ texto: txtDoc(payload).coberturas, b: true, align: 'izq' }] }];
         payload.ticks.forEach(function(tk) {
           filas.push({ celdas: [{ texto: '• ' + tk, align: 'izq' }] });
         });
@@ -2412,11 +2441,12 @@ function refrescarDatosServidor() {
     }
 
     // Pide la plantilla fresca a Google Docs y sigue con onOk(elementos)
-    function conPlantillaFresca(onOk) {
+    function conPlantillaFresca(onOk, idiomaDoc) {
       google.script.run
         .withSuccessHandler(function(res) {
           if (res && res.exito && res.elementos && res.elementos.length) {
             elementosPlantilla = res.elementos;
+            if (res.aviso) mostrarToast('error', '⚠ ' + res.aviso);
             onOk(res.elementos);
           } else {
             alert("No se pudo leer la plantilla del documento: " + ((res && res.error) || "sin elementos"));
@@ -2429,7 +2459,7 @@ function refrescarDatosServidor() {
           resetActions();
           cerrarVistaPrevia();
         })
-        .obtenerElementosPlantilla();
+        .obtenerElementosPlantilla(idiomaDoc || idioma);
     }
 
     let payloadParaWhatsApp = null; // última cotización generada, para el botón de copiar mensaje
@@ -2459,7 +2489,7 @@ function refrescarDatosServidor() {
 
     // Descarga el PDF, lo respalda en Drive (carpeta del mes) y registra en Historial
     function finalizarPdf(pdf, payload) {
-      let nombreArchivo = "Cotizacion Cascadas Hotel " + payload.nombre_cliente + " " + payload.checkin.replace(/\//g, "-") + ".pdf";
+      let nombreArchivo = (payload.idioma === 'EN' ? "Quotation Cascadas Hotel " : "Cotizacion Cascadas Hotel ") + payload.nombre_cliente + " " + payload.checkin.replace(/\//g, "-") + ".pdf";
       pdf.save(nombreArchivo); // descarga inmediata
       payloadParaWhatsApp = payload;
       let base64 = pdf.output('datauristring').split(',')[1];
@@ -2494,7 +2524,7 @@ function refrescarDatosServidor() {
           return;
         }
         finalizarPdf(pdf, payload);
-      });
+      }, payload.idioma);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -2528,7 +2558,7 @@ function refrescarDatosServidor() {
           document.getElementById('preview-scroll').style.display = 'block';
           document.getElementById('preview-cargando').style.display = 'none';
         });
-      });
+      }, payload.idioma);
     }
 
     // Pinta la composición del documento en un lienzo (misma imagen que el PDF)
@@ -2621,7 +2651,7 @@ function refrescarDatosServidor() {
       let fmm = function(v) { return simb + Math.round(v || 0).toLocaleString('es-CL'); };
       if (payload.tipo_cotizacion === 'estandar') {
         consolidarHabitacionesCliente(payload.habitaciones).forEach(function(h) {
-          items.push(h.tipoBase + (h.cantidad > 1 ? ' x' + h.cantidad : ''));
+          items.push(traducirTipoHab(h.tipoBase, payload.idioma) + (h.cantidad > 1 ? ' x' + h.cantidad : ''));
         });
         (payload.amenidades_predefinidas || []).forEach(function(a) {
           items.push(a.nombre + (a.cantidad > 1 ? ' x' + a.cantidad : ''));
@@ -2630,9 +2660,16 @@ function refrescarDatosServidor() {
         totalTxt = fmm(payload.total);
       } else {
         let cant = payload.cantidad_programa || 1;
-        items.push('Programa ' + payload.nombre_programa + (cant > 1 ? ' x' + cant : ''));
+        items.push(txtDoc(payload).programa + payload.nombre_programa + (cant > 1 ? ' x' + cant : ''));
         let neto = payload.total_programa || 0;
         totalTxt = payload.exento ? fmm(neto) : fmm(Math.round(neto * 1.19));
+      }
+      if (payload.idioma === 'EN') {
+        let nightsEN = payload.noches + (payload.noches == 1 ? ' night' : ' nights');
+        let vatEN = payload.exento ? ' (USD prices, VAT exempt)' : ' (VAT included)';
+        return 'Dear ' + payload.nombre_cliente + ': please find attached the quotation you requested for ' +
+          payload.checkin + ' to ' + payload.checkout + ' (' + nightsEN + '): ' + items.join(', ') +
+          '. Total: ' + totalTxt + vatEN + '. This quotation is valid for 5 days. Should you have any questions, we remain at your service. Front Desk Team, Cascadas Hotel';
       }
       let noches = payload.noches + (payload.noches == 1 ? ' noche' : ' noches');
       let notaIva = payload.exento ? ' (precios en dólares, exentos de IVA)' : ' (IVA incluido)';
@@ -2752,7 +2789,7 @@ function refrescarDatosServidor() {
       conPlantillaFresca(function(elementos) {
         try {
           construirWordDocx(payload, elementos).then(function(blob) {
-            let nombre = "Cotizacion Cascadas Hotel " + payload.nombre_cliente + " " + payload.checkin.replace(/\//g, "-") + ".docx";
+            let nombre = (payload.idioma === 'EN' ? "Quotation Cascadas Hotel " : "Cotizacion Cascadas Hotel ") + payload.nombre_cliente + " " + payload.checkin.replace(/\//g, "-") + ".docx";
             let a = document.createElement('a');
             let url = URL.createObjectURL(blob);
             a.href = url; a.download = nombre;
@@ -2776,7 +2813,7 @@ function refrescarDatosServidor() {
           alert("Error generando el Word: " + e);
           resetActions();
         }
-      });
+      }, payload.idioma);
     }
 
     function construirWordDocx(payload, elementos) {
@@ -2790,7 +2827,7 @@ function refrescarDatosServidor() {
           .split('{{nombre_cliente}}').join(payload.nombre_cliente || '')
           .split('{{nombre_programa}}').join(
             payload.tipo_cotizacion === 'programa' && payload.nombre_programa
-              ? 'Programa: ' + payload.nombre_programa : ''
+              ? txtDoc(payload).prefijoPrograma + payload.nombre_programa : ''
           );
       }
       function segsW(el) {
@@ -2821,17 +2858,18 @@ function refrescarDatosServidor() {
 
       // mismos datos de tabla que usa el PDF
       function datosTablaW() {
+        let T = txtDoc(payload);
         let filas = [];
         filas.push({ celdas: [
-          { texto: 'Servicio habitación', b: true, align: 'izq' },
-          { texto: 'Cantidad', b: true }, { texto: 'check-in', b: true }, { texto: 'check-out', b: true },
-          { texto: 'noches', b: true }, { texto: 'valor por noche', b: true }, { texto: 'total por habitaciones', b: true }
+          { texto: T.thServicio, b: true, align: 'izq' },
+          { texto: T.thCant, b: true }, { texto: T.thIn, b: true }, { texto: T.thOut, b: true },
+          { texto: T.thNoches, b: true }, { texto: T.thValor, b: true }, { texto: T.thTotal, b: true }
         ]});
         let sub = 0, iva = 0, total = 0;
         if (payload.tipo_cotizacion === 'estandar') {
           consolidarHabitacionesCliente(payload.habitaciones).forEach(function(h) {
             filas.push({ celdas: [
-              { texto: h.tipoBase, align: 'izq' }, { texto: String(h.cantidad) },
+              { texto: traducirTipoHab(h.tipoBase, payload.idioma), align: 'izq' }, { texto: String(h.cantidad) },
               { texto: payload.checkin }, { texto: payload.checkout }, { texto: String(payload.noches) },
               { texto: fm(h.precio) }, { texto: fm(h.total) }
             ]});
@@ -2857,25 +2895,25 @@ function refrescarDatosServidor() {
           let neto = payload.total_programa || 0;
           let unit = cant > 0 ? Math.round(neto / cant) : neto;
           filas.push({ celdas: [
-            { texto: 'Programa ' + (payload.nombre_programa || ''), align: 'izq' }, { texto: String(cant) },
+            { texto: T.programa + (payload.nombre_programa || ''), align: 'izq' }, { texto: String(cant) },
             { texto: payload.checkin }, { texto: payload.checkout }, { texto: String(payload.noches) },
             { texto: fm(unit) }, { texto: fm(neto) }
           ]});
           sub = neto; iva = payload.exento ? 0 : Math.round(sub * 0.19); total = sub + iva;
         }
         let vac = [{ vacia: true }, { vacia: true }, { vacia: true }, { vacia: true }, { vacia: true }];
-        filas.push({ celdas: vac.concat([{ texto: 'Subtotal Neto' }, { texto: fm(sub) }]) });
+        filas.push({ celdas: vac.concat([{ texto: T.subtotal }, { texto: fm(sub) }]) });
         if (payload.exento) {
-          filas.push({ celdas: vac.concat([{ texto: 'IVA' }, { texto: 'Exento' }]) });
+          filas.push({ celdas: vac.concat([{ texto: T.ivaExento }, { texto: T.exento }]) });
         } else {
-          filas.push({ celdas: vac.concat([{ texto: 'IVA 19%' }, { texto: fm(iva) }]) });
+          filas.push({ celdas: vac.concat([{ texto: T.iva }, { texto: fm(iva) }]) });
         }
-        filas.push({ celdas: vac.concat([{ texto: 'Total', b: true }, { texto: fm(total), b: true }]) });
+        filas.push({ celdas: vac.concat([{ texto: T.total, b: true }, { texto: fm(total), b: true }]) });
         return { colPcts: [24, 11, 14, 14, 9, 11.5, 16.5], filas: filas };
       }
       function coberturasW() {
         if (payload.tipo_cotizacion !== 'programa' || !payload.ticks || !payload.ticks.length) return null;
-        let filas = [{ celdas: [{ texto: 'Servicios Coberturas Especiales Incluidas', b: true, align: 'izq' }] }];
+        let filas = [{ celdas: [{ texto: txtDoc(payload).coberturas, b: true, align: 'izq' }] }];
         payload.ticks.forEach(function(tk) {
           filas.push({ celdas: [{ texto: '✓ ' + tk, align: 'izq' }] });
         });
@@ -3042,17 +3080,24 @@ function refrescarDatosServidor() {
 
       let emisionValue = document.getElementById('fecha_emision').value;
       let dateObj = new Date(emisionValue + "T12:00:00");
-      let fechaLarga = dateObj.toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });
+      if (isNaN(dateObj.getTime())) dateObj = new Date(); // si el campo está vacío, usa hoy
+      let fechaLarga = (idioma === 'EN')
+        ? dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        : dateObj.toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });
+
+      // En inglés el trato pasa a "Dear" (sirve para Sr. y Sra.).
+      let saludoDoc = (idioma === 'EN') ? 'Dear' : document.getElementById('saludo').value;
 
       let payload = {
         nombre_cliente: nom,
-        saludo: document.getElementById('saludo').value,
+        saludo: saludoDoc,
         fecha_emision_larga: fechaLarga,
         checkin: fl(datesSelected.checkin),
         checkout: fl(datesSelected.checkout),
         noches: noches,
         tipo_cotizacion: currentTab,
         moneda: moneda,
+        idioma: idioma,
         exento: (moneda === 'USD')   // USD: exento de IVA (Total = Neto)
       };
 
@@ -3076,10 +3121,13 @@ function refrescarDatosServidor() {
           if (estadoAmenidades[k].activo && estadoAmenidades[k].cantidad > 0) {
             let precio = parseInt(document.getElementById('precio-amenidad-' + k).value) || 0;
             let a = mapaAmen[k] || {};
+            // En inglés usa la traducción del catálogo si existe.
+            let nombreDoc = (idioma === 'EN' && a.nombreEN) ? a.nombreEN : (a.nombre || k);
+            let descDoc = (idioma === 'EN') ? (a.descripcionEN || '') : (a.descripcion || '');
             payload.amenidades_predefinidas.push({
               clave: k,
-              nombre: a.nombre || k,
-              descripcion: a.descripcion || '',
+              nombre: nombreDoc,
+              descripcion: descDoc,
               cantidad: estadoAmenidades[k].cantidad,
               valorUnitario: precio,
               total: precio * estadoAmenidades[k].cantidad
@@ -3100,23 +3148,26 @@ function refrescarDatosServidor() {
         var valorUnitarioProg = parseInt(document.getElementById('valor_programa').value) || 0;
         payload.total_programa = valorUnitarioProg * payload.cantidad_programa;
         let ticks = [];
+        let T = TXT_DOC[idioma === 'EN' ? 'EN' : 'ES'];
         // Habitaciones incluidas en el programa (tipo + cantidad, con sistema de ticks)
-        (habitacionesPrograma || []).forEach(function(h) {
-          if (h.tipo && Number(h.cantidad) > 0) ticks.push('Alojamiento incluido: ' + h.cantidad + 'x ' + h.tipo);
+        habitacionesProgramaSel().forEach(function(h) {
+          if (h.tipo && Number(h.cantidad) > 0) ticks.push(T.alojamiento + h.cantidad + 'x ' + traducirTipoHab(h.tipo, idioma));
         });
         // Coberturas y experiencias (catálogo dinámico y editable)
         (config.coberturas || []).forEach(function(cb) {
           let est = estadoCoberturas[cb.clave];
           if (!est || !est.activo || Number(est.cantidad) <= 0) return;
+          // En inglés usa la traducción del catálogo; si no hay, cae al español.
+          let descDoc = (idioma === 'EN' && cb.descripcionEN) ? cb.descripcionEN : cb.descripcion;
           if (cb.modo === 'contador') {
-            ticks.push(cb.descripcion + (est.cantidad > 1 ? ' (x' + est.cantidad + ')' : ''));
+            ticks.push(descDoc + (est.cantidad > 1 ? ' (x' + est.cantidad + ')' : ''));
           } else {
-            ticks.push(cb.descripcion);
+            ticks.push(descDoc);
           }
         });
         requerimientosExtrasDinamicos.forEach(req => ticks.push(req.texto));
         payload.ticks = ticks;
-        payload.habitaciones_programa = habitacionesPrograma.slice();
+        payload.habitaciones_programa = habitacionesProgramaSel();
       }
       return payload;
     }
@@ -3149,6 +3200,52 @@ function refrescarDatosServidor() {
     // Precio base de una habitación según la moneda activa.
     function precioBaseHabitacion(tipo) {
       return moneda === 'USD' ? (Number(config.tarifasUSD[tipo]) || 0) : (Number(config.tarifas[tipo]) || 0);
+    }
+
+    // ── Interruptor de idioma del documento ES / EN ──
+    function setIdioma(nuevo) {
+      idioma = (nuevo === 'EN') ? 'EN' : 'ES';
+      document.querySelectorAll('#switch-idioma .cur-btn').forEach(function(b){
+        b.classList.toggle('cur-active', b.dataset.idi === idioma);
+      });
+    }
+
+    // ── Textos del documento según idioma ──
+    const TXT_DOC = {
+      ES: {
+        thServicio: 'Servicio habitación', thCant: 'Cantidad', thIn: 'check-in', thOut: 'check-out',
+        thNoches: 'noches', thValor: 'valor por noche', thTotal: 'total por habitaciones',
+        subtotal: 'Subtotal Neto', iva: 'IVA 19%', ivaExento: 'IVA', exento: 'Exento', total: 'Total',
+        programa: 'Programa ', coberturas: 'Servicios Coberturas Especiales Incluidas',
+        alojamiento: 'Alojamiento incluido: ', prefijoPrograma: 'Programa: '
+      },
+      EN: {
+        thServicio: 'Room / Service', thCant: 'Qty', thIn: 'check-in', thOut: 'check-out',
+        thNoches: 'nights', thValor: 'rate per night', thTotal: 'total',
+        subtotal: 'Subtotal (Net)', iva: 'VAT 19%', ivaExento: 'VAT', exento: 'Exempt', total: 'Total',
+        programa: 'Program ', coberturas: 'Special Services & Coverages Included',
+        alojamiento: 'Accommodation included: ', prefijoPrograma: 'Program: '
+      }
+    };
+    function txtDoc(payload) { return TXT_DOC[(payload && payload.idioma === 'EN') ? 'EN' : 'ES']; }
+
+    // Traducción de tipos de habitación para el documento en inglés.
+    function traducirTipoHab(tipo, idi) {
+      if (idi !== 'EN') return tipo;
+      const mapa = {
+        'Habitación Single (1 persona - 1 Cama Matrimonial)': 'Single Room (1 person - 1 Double Bed)',
+        'Habitación Single (1 persona - 2 Camas de 1 1/2 plaza)': 'Single Room (1 person - 2 Twin Beds)',
+        'Habitación Matrimonial': 'Double Room',
+        'Habitación Twin': 'Twin Room',
+        'Habitación Suite': 'Suite',
+        'Cama Adicional': 'Extra Bed'
+      };
+      if (mapa[tipo]) return mapa[tipo];
+      // Fallback genérico por palabras para tipos personalizados.
+      return String(tipo)
+        .replace(/Habitación/gi, 'Room').replace(/Camas/gi, 'Beds').replace(/Cama/gi, 'Bed')
+        .replace(/personas/gi, 'people').replace(/persona/gi, 'person')
+        .replace(/Adicional/gi, 'Extra').replace(/Matrimonial/gi, 'Double');
     }
 
     // ── Interruptor de moneda CLP / USD ──
@@ -3225,6 +3322,14 @@ function refrescarDatosServidor() {
             <div style="grid-column:1 / -1;">
               <label>Descripción (aparece en el PDF)</label>
               <textarea id="cat-desc" rows="2" placeholder="Descripción / texto de la cobertura"></textarea>
+            </div>
+            <div style="grid-column:1 / -1;">
+              <label>Nombre en inglés (para cotizaciones EN)</label>
+              <input type="text" id="cat-nombre-en" placeholder="Ej: Hot Tub Session">
+            </div>
+            <div style="grid-column:1 / -1;">
+              <label>Descripción en inglés (para cotizaciones EN)</label>
+              <textarea id="cat-desc-en" rows="2" placeholder="English description shown in the PDF"></textarea>
             </div>
             <div id="cat-campo-precios" style="grid-column:1 / -1;grid-template-columns:1fr 1fr;gap:10px;display:grid;">
               <div>
