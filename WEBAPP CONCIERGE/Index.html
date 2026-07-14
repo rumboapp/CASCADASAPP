@@ -1,0 +1,3521 @@
+<!-- ============================================================================
+     CASCADAS CONCIERGE — ACTO 2: FRONTEND (Index.html)
+     Archivo unico autocontenido: CSS + HTML + JS inline.
+     Se sirve desde Code.gs (doGet). La variable HABITACION_QR se inyecta por
+     el motor de plantillas de Apps Script.
+     ============================================================================ -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cascadas Concierge</title>
+
+  <!-- TailwindCSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome v6 via CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Flatpickr via CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://npmcdn.com/flatpickr/dist/l10n/es.js"></script>
+  <!-- Google Fonts: Bebas Neue (titulos) + Oswald (interfaz) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <!-- ===== CSS ===== -->
+  <style>
+    /* =======================================================================
+       SISTEMA DE DISENO ESCUEOMORFICO — CASCADAS
+       Paleta de marca: grafito #414143 · hueso #ECECEE · blanco.
+       Los nombres de variables antiguos se conservan como alias para no
+       tocar el JS: --verde-bosque ahora ES el grafito, --dorado es el laton
+       de los herrajes, --arena es el gris calido claro.
+       ======================================================================= */
+    :root {
+      --grafito: #414143;
+      --grafito-claro: #5A5A5D;
+      --grafito-oscuro: #2E2E30;
+      --hueso: #ECECEE;
+
+      /* Alias heredados (el JS los referencia) */
+      --antracita: #2E2E30;
+      --arena: #D8D8DA;
+      --blanco: #FFFFFF;
+      --verde-bosque: #414143;
+      --dorado: #66666A;          /* acento gris acero (antes laton) */
+      --fondo: #ECECEE;
+      --texto: #3A3A3C;
+      --borde: #CECECF;
+      --exito: #4E6B54;
+      --alerta: #66666A;
+      --peligro: #8B3A3A;
+    }
+
+    /* Modo oscuro: grafito profundo, mismas reglas de relieve */
+    .dark-mode {
+      --fondo: #2A2A2C;
+      --texto: #ECECEE;
+      --blanco: #3C3C3E;
+      --borde: #232325;
+      --arena: #4A4A4D;
+    }
+
+    * { box-sizing: border-box; }
+
+    /* Fondo tipo lino: trama fina + vineta superior de luz */
+    body {
+      font-family: 'Oswald', sans-serif;
+      font-weight: 300;
+      background-color: var(--fondo);
+      background-image:
+        radial-gradient(ellipse at 50% -20%, rgba(255,255,255,.55), transparent 55%),
+        repeating-linear-gradient(0deg, rgba(65,65,67,.025) 0 1px, transparent 1px 4px),
+        repeating-linear-gradient(90deg, rgba(65,65,67,.025) 0 1px, transparent 1px 4px);
+      background-attachment: fixed;
+      color: var(--texto);
+      margin: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .dark-mode body, body.dark-mode {
+      background-image:
+        radial-gradient(ellipse at 50% -20%, rgba(255,255,255,.07), transparent 55%),
+        repeating-linear-gradient(0deg, rgba(0,0,0,.12) 0 1px, transparent 1px 4px),
+        repeating-linear-gradient(90deg, rgba(0,0,0,.12) 0 1px, transparent 1px 4px);
+    }
+
+    /* Titulos: Bebas Neue con efecto letterpress (grabado en el material) */
+    h1, h2, h3, .serif {
+      font-family: 'Bebas Neue', 'Oswald', sans-serif;
+      letter-spacing: .05em;
+      font-weight: 400;
+      text-shadow: 0 1px 0 rgba(255,255,255,.7);
+    }
+    .dark-mode h1, .dark-mode h2, .dark-mode h3, .dark-mode .serif {
+      text-shadow: 0 -1px 0 rgba(0,0,0,.6);
+    }
+
+    /* Animaciones (curvas con rebote sutil, como mecanismos reales) */
+    .fade-in { animation: fadeIn .35s ease; }
+    .slide-up { animation: slideUp .45s cubic-bezier(.22, 1, .36, 1); }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pop { from { opacity: 0; transform: scale(.94) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+
+    /* Panel elevado: superficie LISA (sin degradado) con la sombra caracteristica */
+    .card {
+      background: #FFFFFF;
+      border: 1px solid #D0D0D2;
+      border-radius: 14px;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.9),
+        inset 0 -1px 0 rgba(0,0,0,.04),
+        0 1px 2px rgba(0,0,0,.08),
+        0 10px 24px -10px rgba(46,46,48,.28);
+      transition: box-shadow .3s ease, transform .3s ease;
+    }
+    .card:hover { box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.9),
+        inset 0 -1px 0 rgba(0,0,0,.04),
+        0 2px 4px rgba(0,0,0,.10),
+        0 16px 32px -12px rgba(46,46,48,.35); }
+    .dark-mode .card {
+      background: #3C3C3E;
+      border-color: #232325;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.07),
+        inset 0 -1px 0 rgba(0,0,0,.3),
+        0 1px 2px rgba(0,0,0,.4),
+        0 12px 26px -10px rgba(0,0,0,.6);
+    }
+
+    /* Placa oscura (bienvenida): metal cepillado grafito */
+    .panel-oscuro {
+      background:
+        repeating-linear-gradient(90deg, rgba(255,255,255,.028) 0 1px, transparent 1px 3px),
+        linear-gradient(160deg, #525255, #414143 55%, #353537) !important;
+      border: 1px solid #2A2A2C !important;
+      color: var(--hueso);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.14),
+        inset 0 -2px 6px rgba(0,0,0,.35),
+        0 12px 28px -10px rgba(46,46,48,.55) !important;
+    }
+    .panel-oscuro h1, .panel-oscuro h2, .panel-oscuro h3 { text-shadow: 0 -1px 0 rgba(0,0,0,.55); }
+
+    /* Cabecera clara (huesped): placa translucida con arista */
+    .header-claro {
+      background: rgba(251,250,249,.92);
+      border-bottom: 1px solid #CECECF;
+      box-shadow: 0 2px 10px rgba(0,0,0,.07);
+    }
+    .dark-mode .header-claro { background: rgba(48,48,50,.92); border-bottom-color: #232325; }
+
+    /* Cabecera del staff: metal cepillado con arista inferior */
+    .header-metal {
+      background:
+        repeating-linear-gradient(90deg, rgba(255,255,255,.03) 0 1px, transparent 1px 3px),
+        linear-gradient(180deg, #4C4C4F, #414143 60%, #38383A);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 3px 10px rgba(0,0,0,.35);
+      border-bottom: 1px solid #2A2A2C;
+    }
+
+    /* Tarjetas-boton de servicio: teclas grandes que se presionan.
+       Entran escalonadas, como piezas que se asientan una a una. */
+    .tarjeta-servicio:nth-child(2) { animation-delay: .05s; }
+    .tarjeta-servicio:nth-child(3) { animation-delay: .10s; }
+    .tarjeta-servicio:nth-child(4) { animation-delay: .15s; }
+    .tarjeta-servicio:nth-child(5) { animation-delay: .20s; }
+    .tarjeta-servicio:nth-child(6) { animation-delay: .25s; }
+    .tarjeta-servicio:nth-child(7) { animation-delay: .30s; }
+    .tarjeta-servicio:nth-child(8) { animation-delay: .35s; }
+    .tarjeta-servicio {
+      cursor: pointer;
+      animation: slideUp .5s cubic-bezier(.22,1,.36,1) backwards;
+      background: #FFFFFF;
+      border: 1px solid #CBCBCD;
+      border-radius: 14px;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.95),
+        0 3px 0 #C2C2C4,
+        0 8px 16px -6px rgba(46,46,48,.30);
+      transition: transform .12s ease, box-shadow .15s ease;
+    }
+    .tarjeta-servicio:hover { transform: translateY(-2px);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 5px 0 #C2C2C4, 0 14px 24px -8px rgba(46,46,48,.38); }
+    .tarjeta-servicio:active { transform: translateY(2px);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 0 #C2C2C4, inset 0 2px 6px rgba(0,0,0,.10); }
+    .tarjeta-servicio.activa {
+      background: #E4E4E6;
+      box-shadow: inset 0 3px 8px rgba(0,0,0,.16), inset 0 0 0 2px var(--grafito), 0 1px 0 rgba(255,255,255,.7);
+      transform: translateY(1px);
+    }
+    .dark-mode .tarjeta-servicio {
+      background: #404043;
+      border-color: #232325;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 3px 0 #1F1F21, 0 8px 16px -6px rgba(0,0,0,.5);
+    }
+    .dark-mode .tarjeta-servicio.activa {
+      background: #313133;
+      box-shadow: inset 0 3px 8px rgba(0,0,0,.5), inset 0 0 0 2px var(--hueso);
+    }
+
+    /* Medallon metalico del servicio (moneda grabada) */
+    .icono-servicio {
+      width: 52px; height: 52px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.25rem; margin-bottom: .6rem;
+      background: radial-gradient(circle at 32% 26%, #6B6B6F, #414143 62%, #313133);
+      color: var(--hueso);
+      box-shadow:
+        0 2px 5px rgba(0,0,0,.35),
+        inset 0 1px 1px rgba(255,255,255,.28),
+        inset 0 -2px 4px rgba(0,0,0,.4);
+      text-shadow: 0 -1px 0 rgba(0,0,0,.5);
+    }
+
+    /* -------------------- BOTONES FISICOS -------------------- */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+      padding: .7rem 1.25rem; border-radius: 10px; cursor: pointer;
+      font-family: 'Oswald', sans-serif; font-weight: 500; font-size: .88rem;
+      text-transform: uppercase; letter-spacing: .07em;
+      min-height: 44px; border: 1px solid transparent;
+      transition: transform .08s ease, box-shadow .12s ease, filter .15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* Tecla grafito (accion principal) */
+    .btn-primary {
+      background: linear-gradient(180deg, #57575A, #414143 50%, #39393B);
+      color: #F2F2F3; border-color: #2A2A2C;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 3px 0 #242426, 0 6px 12px -4px rgba(0,0,0,.4);
+      text-shadow: 0 -1px 0 rgba(0,0,0,.4);
+    }
+    .btn-primary:hover { filter: brightness(1.08); }
+    .btn-primary:active { transform: translateY(3px);
+      box-shadow: inset 0 2px 6px rgba(0,0,0,.4), 0 0 0 #242426; }
+    /* Tecla clara (accion secundaria) */
+    .btn-outline {
+      background: linear-gradient(180deg, #FFFFFF, #E7E7E9);
+      color: var(--grafito); border-color: #BDBDBF;
+      box-shadow: inset 0 1px 0 #fff, 0 2px 0 #B7B7B9, 0 5px 10px -4px rgba(46,46,48,.25);
+    }
+    .btn-outline:hover { filter: brightness(1.03); }
+    .btn-outline:active { transform: translateY(2px);
+      box-shadow: inset 0 2px 5px rgba(0,0,0,.12), 0 0 0 #B7B7B9; }
+    .dark-mode .btn-outline {
+      background: linear-gradient(180deg, #4C4C4F, #3E3E40);
+      color: var(--hueso); border-color: #232325;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 2px 0 #1E1E20, 0 5px 10px -4px rgba(0,0,0,.5);
+    }
+    /* Tecla de acero (enfasis/seleccion) */
+    .btn-dorado {
+      background: linear-gradient(180deg, #7C7C80, #66666A 55%, #545458);
+      color: #F2F2F3; border-color: #3E3E40;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 3px 0 #3A3A3C, 0 6px 12px -4px rgba(0,0,0,.35);
+      text-shadow: 0 -1px 0 rgba(0,0,0,.35);
+    }
+    .btn-dorado:hover { filter: brightness(1.06); }
+    .btn-dorado:active { transform: translateY(3px);
+      box-shadow: inset 0 2px 6px rgba(0,0,0,.3), 0 0 0 #3A3A3C; }
+    /* Tecla peligro (ladrillo apagado) */
+    .btn-peligro {
+      background: linear-gradient(180deg, #A05252, #8B3A3A 55%, #7A3232);
+      color: #F5EBEA; border-color: #612B2B;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 3px 0 #572626, 0 6px 12px -4px rgba(0,0,0,.35);
+      text-shadow: 0 -1px 0 rgba(0,0,0,.35);
+    }
+    .btn-peligro:active { transform: translateY(3px);
+      box-shadow: inset 0 2px 6px rgba(0,0,0,.4), 0 0 0 #572626; }
+    .btn:disabled {
+      opacity: .45; cursor: not-allowed; transform: none !important;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,.12) !important; filter: grayscale(.4);
+    }
+
+    /* -------------------- ETIQUETAS / ESTADOS -------------------- */
+    /* Placa cosida: gradiente + borde + luz superior */
+    .pill {
+      display: inline-block; padding: .22rem .6rem; border-radius: 6px;
+      font-size: .66rem; font-weight: 500; letter-spacing: .06em; text-transform: uppercase;
+      border: 1px solid; box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 1px 2px rgba(0,0,0,.10);
+    }
+    .estado-Solicitada { background: linear-gradient(180deg,#F4E9CF,#E9D8AC); color: #77591F; border-color: #C7B183; }
+    .estado-Confirmada { background: linear-gradient(180deg,#E0E9DD,#C8D7C3); color: #3C5A40; border-color: #9CB497; }
+    .estado-Pendiente  { background: linear-gradient(180deg,#E5E5E7,#D6D6D8); color: #6B655C; border-color: #BBBBBD; }
+    .estado-Encurso    { background: linear-gradient(180deg,#DDE5EB,#C5D2DC); color: #3B5367; border-color: #99ADBD; }
+    .estado-Finalizada { background: linear-gradient(180deg,#E5E3E1,#D2D0CE); color: #55534F; border-color: #B6B6B8; }
+    .estado-Cancelada  { background: linear-gradient(180deg,#ECDAD7,#DCC1BD); color: #793A33; border-color: #BF9993; }
+    .estado-Bloqueada  { background: linear-gradient(180deg,#E3DEE8,#CEC6D7); color: #544868; border-color: #A89CBA; }
+
+    /* Etiqueta de producto (Vegano, Sin Gluten...): grabada en la placa */
+    .pill-etiqueta {
+      background: linear-gradient(180deg, #E6E6E8, #D8D8DA);
+      color: #6A6A6D; border-color: #C0C0C2;
+    }
+
+    /* Cajas informativas hundidas en el panel */
+    .caja-info {
+      background: linear-gradient(180deg, #E2E2E4, #E7E7E9);
+      border: 1px solid #C9C9CB; border-radius: 10px; color: #5C5A56;
+      box-shadow: inset 0 2px 5px rgba(0,0,0,.09), 0 1px 0 rgba(255,255,255,.8);
+    }
+    .caja-error {
+      background: linear-gradient(180deg, #E6D6D3, #EDDCD9);
+      border: 1px solid #C7A19B; border-radius: 10px; color: #7A3B33;
+      box-shadow: inset 0 2px 5px rgba(0,0,0,.09), 0 1px 0 rgba(255,255,255,.7);
+      padding: .5rem .75rem;
+    }
+    .dark-mode .caja-info { background: linear-gradient(180deg,#333335,#3A3A3C); border-color: #232325; color: #CECECF;
+      box-shadow: inset 0 2px 5px rgba(0,0,0,.35); }
+
+    /* -------------------- MODAL -------------------- */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(38,38,40,.55);
+      backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center;
+      z-index: 1000; padding: 1rem; animation: fadeIn .2s ease;
+    }
+    .modal-box {
+      background: #FFFFFF;
+      color: var(--texto); border-radius: 16px; border: 1px solid #C9C9CB;
+      max-width: 640px; width: 100%; max-height: 90vh; overflow-y: auto;
+      animation: pop .35s cubic-bezier(.34, 1.4, .64, 1);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.9),
+        0 30px 70px -10px rgba(0,0,0,.5),
+        0 4px 12px rgba(0,0,0,.25);
+    }
+    .dark-mode .modal-box {
+      background: #3C3C3E;
+      border-color: #232325;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 30px 70px -10px rgba(0,0,0,.7);
+    }
+
+    /* -------------------- INTERRUPTOR FISICO -------------------- */
+    .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; inset: 0; border-radius: 999px;
+      background: linear-gradient(180deg, #CECECF, #DBDBDD);
+      border: 1px solid #B2B2B4;
+      box-shadow: inset 0 2px 5px rgba(0,0,0,.28);
+      transition: background .25s ease, box-shadow .25s ease;
+    }
+    .slider:before {
+      position: absolute; content: ""; height: 22px; width: 22px; left: 2px; top: 2px;
+      background: radial-gradient(circle at 35% 30%, #FFFFFF, #DBDBDD 70%);
+      border: 1px solid #B9B9BB;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.9);
+      transition: transform .25s cubic-bezier(.34, 1.56, .64, 1);
+    }
+    .switch input:checked + .slider {
+      background: linear-gradient(180deg, #3A3A3C, #4A4A4D);
+      border-color: #29292B;
+      box-shadow: inset 0 2px 6px rgba(0,0,0,.5);
+    }
+    .switch input:checked + .slider:before { transform: translateX(22px); }
+
+    /* -------------------- SPINNER (dial metalico) -------------------- */
+    .spinner {
+      width: 40px; height: 40px; border-radius: 50%;
+      border: 4px solid #D0D0D2;
+      border-top-color: var(--dorado);
+      box-shadow: inset 0 1px 2px rgba(0,0,0,.08);
+      animation: spin .9s linear infinite;
+    }
+
+    /* -------------------- CAMPOS HUNDIDOS -------------------- */
+    .input {
+      /* min-width:0 evita que un input de texto (por su contenido/placeholder)
+         "empuje" su columna de grid mas alla del ancho asignado (bug clasico
+         de Safari/iOS: el ancho minimo intrinseco del input gana a width:100%). */
+      width: 100%; min-width: 0; padding: .65rem .9rem; border-radius: 10px;
+      font-family: 'Oswald', sans-serif; font-weight: 300; font-size: .95rem;
+      background: linear-gradient(180deg, #EDEDEF, #F6F6F7 30%);
+      border: 1px solid #C3C3C5; border-top-color: #ADADAF;
+      color: var(--texto); min-height: 44px;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,.10), 0 1px 0 rgba(255,255,255,.85);
+      transition: box-shadow .2s ease, border-color .2s ease;
+    }
+    .input:focus {
+      outline: none; border-color: var(--grafito);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,.10), 0 0 0 3px rgba(65,65,67,.14);
+    }
+    .dark-mode .input {
+      background: linear-gradient(180deg, #2E2E30, #343436 30%);
+      border-color: #1E1E20; color: var(--hueso);
+      box-shadow: inset 0 2px 5px rgba(0,0,0,.4);
+    }
+    label.lbl {
+      font-size: .72rem; font-weight: 500; margin-bottom: .3rem; display: block;
+      text-transform: uppercase; letter-spacing: .08em; color: #6C6C6F;
+    }
+    .dark-mode label.lbl { color: #ADADAF; }
+
+    /* -------------------- NAVEGACION STAFF (sobre metal) -------------------- */
+    .nav-item {
+      cursor: pointer; padding: .55rem .9rem; border-radius: 8px; transition: .2s;
+      font-weight: 400; text-transform: uppercase; letter-spacing: .05em; font-size: .8rem;
+      white-space: nowrap;
+    }
+    .nav-item:hover { background: rgba(255,255,255,.08); }
+    .nav-item.activo {
+      background: rgba(0,0,0,.30); color: #fff;
+      box-shadow: inset 0 2px 5px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.07);
+    }
+
+    /* Acordeon carta */
+    .acordeon-header { cursor: pointer; user-select: none; }
+    .acordeon-header:active { background: rgba(0,0,0,.03); }
+    .acordeon-body { max-height: 0; overflow: hidden; transition: max-height .4s cubic-bezier(.22,1,.36,1); }
+    .acordeon-body.abierto { max-height: 4000px; }
+
+    /* Tabla */
+    table.tabla { width: 100%; border-collapse: collapse; }
+    table.tabla th {
+      text-align: left; font-size: .7rem; text-transform: uppercase; font-weight: 500;
+      letter-spacing: .08em; color: #88888B; padding: .6rem .5rem;
+      border-bottom: 2px solid #C9C9CB;
+      text-shadow: 0 1px 0 rgba(255,255,255,.7);
+    }
+    table.tabla td { padding: .7rem .5rem; border-bottom: 1px solid #D9D9DB; font-size: .9rem; }
+    table.tabla tbody tr { transition: background .15s ease; }
+    table.tabla tbody tr:hover { background: rgba(65,65,67,.04); }
+    .dark-mode table.tabla th { color: #ADADAF; border-bottom-color: #232325; text-shadow: none; }
+    .dark-mode table.tabla td { border-bottom-color: #48484A; }
+    .dark-mode table.tabla tbody tr:hover { background: rgba(255,255,255,.04); }
+
+    .oculto { display: none !important; }
+
+    /* -------------------- LOGO DEL HOTEL -------------------- */
+    .logo-img { display: inline-block; object-fit: contain; max-width: 100%; }
+    /* Respaldo plano, sin efecto grabado (letterpress) que se veia como contorno. */
+    .logo-fallback { letter-spacing: .06em; text-shadow: none !important; }
+
+    /* -------------------- BANDEJA INFERIOR (huesped) -------------------- */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: linear-gradient(180deg, #F6F6F7, #E7E7E9);
+      border-top: 1px solid #C9C9CB;
+      box-shadow: 0 -4px 14px rgba(0,0,0,.12), inset 0 1px 0 #fff;
+      display: flex; justify-content: space-around;
+      padding: .45rem 0 calc(.45rem + env(safe-area-inset-bottom));
+      z-index: 50;
+    }
+    .bottom-nav .nav-btn {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 2px; font-size: .66rem; color: #88888B; padding: .35rem .9rem; cursor: pointer;
+      border-radius: 10px; text-transform: uppercase; letter-spacing: .05em;
+      transition: color .2s ease, background .2s ease, box-shadow .2s ease;
+    }
+    .bottom-nav .nav-btn.activo {
+      color: var(--grafito);
+      background: rgba(65,65,67,.08);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,.12), 0 1px 0 rgba(255,255,255,.8);
+    }
+    .dark-mode .bottom-nav { background: linear-gradient(180deg, #3E3E40, #333335); border-top-color: #232325;
+      box-shadow: 0 -4px 14px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.06); }
+    .dark-mode .bottom-nav .nav-btn.activo { color: var(--hueso); background: rgba(0,0,0,.3);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,.4); }
+
+    /* -------------------- FLATPICKR AL ESTILO DE LA CASA -------------------- */
+    .flatpickr-calendar {
+      font-family: 'Oswald', sans-serif;
+      border-radius: 12px; border: 1px solid #C9C9CB;
+      box-shadow: 0 20px 50px -10px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.9);
+      background: #FFFFFF;
+    }
+    .flatpickr-day.selected, .flatpickr-day.selected:hover {
+      background: var(--grafito); border-color: var(--grafito);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,.35);
+    }
+    .flatpickr-day.today { border-color: var(--dorado); }
+    .flatpickr-day:hover { background: #E3E3E5; border-color: #E3E3E5; }
+    .flatpickr-months .flatpickr-month,
+    .flatpickr-current-month .flatpickr-monthDropdown-months,
+    span.flatpickr-weekday { color: var(--grafito); fill: var(--grafito); }
+
+    /* Barra de desplazamiento */
+    ::-webkit-scrollbar { width: 9px; height: 9px; }
+    ::-webkit-scrollbar-track { background: rgba(0,0,0,.05); }
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, #B9B9BB, #9A9A9D);
+      border-radius: 8px; border: 2px solid transparent; background-clip: content-box;
+    }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  </style>
+</head>
+
+<body>
+
+<!-- ===== HTML ===== -->
+
+<!-- Pantalla de carga inicial -->
+<div id="cargaInicial" class="fixed inset-0 flex flex-col items-center justify-center bg-[var(--fondo)] z-[2000]">
+  <img data-logo class="logo-img mb-5" style="height:120px; background:#2E2E30; padding:18px 28px; border-radius:18px" alt="Cascadas" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+  <p class="serif text-4xl tracking-widest logo-fallback" style="color: var(--grafito); display:none">CASCADAS</p>
+  <div class="spinner mt-2"></div>
+</div>
+
+<!-- ====================== SELECTOR DE ACCESO (sin ?hab) ====================== -->
+<div id="vistaAcceso" class="oculto min-h-screen flex items-center justify-center p-4">
+  <div class="card p-8 max-w-md w-full text-center fade-in">
+    <img data-logo class="logo-img mx-auto mb-4" style="height:96px; background:#2E2E30; padding:16px 26px; border-radius:16px" alt="Cascadas" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+    <h1 class="text-4xl mb-1 logo-fallback" style="color: var(--grafito); display:none">CASCADAS</h1>
+    <p class="text-sm opacity-70 mb-6" data-i18n="hotel_subtitle">Centro operacional del hotel</p>
+
+    <div class="space-y-3">
+      <button class="btn btn-primary w-full" onclick="mostrarAccesoHuesped()">
+        <i class="fa-solid fa-bed"></i> <span data-i18n="soy_huesped">Soy Huesped</span>
+      </button>
+      <button class="btn btn-outline w-full" onclick="mostrarAccesoStaff()">
+        <i class="fa-solid fa-user-tie"></i> <span data-i18n="soy_personal">Soy Personal</span>
+      </button>
+    </div>
+
+    <!-- Selector de idioma (accesible desde el acceso del huesped) -->
+    <button class="text-xs opacity-60 hover:opacity-100 mt-4 underline" onclick="alternarIdioma()">
+      <i class="fa-solid fa-language"></i> <span data-idioma-label>EN</span>
+    </button>
+
+    <!-- Fallback huesped: habitacion manual -->
+    <div id="accesoHuesped" class="oculto mt-6 text-left slide-up">
+      <label class="lbl" data-i18n="room_number">Numero de habitacion</label>
+      <input id="inputHabManual" class="input mb-3" placeholder="Ej: 105" data-i18n-ph="hab_ph" inputmode="numeric">
+      <button class="btn btn-dorado w-full" onclick="entrarComoHuesped()" data-i18n="enter">Ingresar</button>
+    </div>
+
+    <!-- Acceso staff: email -->
+    <div id="accesoStaff" class="oculto mt-6 text-left slide-up">
+      <label class="lbl">Correo del personal</label>
+      <input id="inputEmailStaff" class="input mb-3" placeholder="recepcion@cascadas.cl" inputmode="email">
+      <button class="btn btn-primary w-full" onclick="entrarComoStaff()">Ingresar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====================== VISTA HUESPED ====================== -->
+<div id="vistaHuesped" class="oculto min-h-screen pb-24">
+  <!-- Navbar minimalista -->
+  <header class="header-claro sticky top-0 z-40 backdrop-blur">
+    <div class="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div>
+        <p class="serif text-lg leading-none" style="color: var(--verde-bosque)" id="hotelNombreHeader">Cascadas</p>
+        <p class="text-xs opacity-60"><span data-i18n="room">Habitacion</span> <span id="habLabel">—</span></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="btn-outline btn !py-2 !px-3 text-sm font-semibold" onclick="alternarIdioma()" title="ES / EN">
+          <i class="fa-solid fa-language"></i> <span data-idioma-label>EN</span>
+        </button>
+        <button class="btn-outline btn !py-2 !px-3" onclick="alternarModoOscuro()" title="Modo oscuro">
+          <i class="fa-solid fa-circle-half-stroke"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-3xl mx-auto px-4">
+    <!-- Bienvenida -->
+    <section id="huespedBienvenida" class="pt-6">
+      <div class="card panel-oscuro p-6 fade-in flex items-center justify-between gap-4">
+        <div class="min-w-0">
+          <p class="text-xs uppercase tracking-widest opacity-70" data-i18n="welcome_pre">Bienvenido a</p>
+          <h2 class="text-4xl mb-1 truncate" style="color:#fff" id="bienvenidaHotel">Cascadas Hotel</h2>
+          <p class="opacity-80 text-sm" id="bienvenidaHora">—</p>
+        </div>
+        <div class="text-center shrink-0">
+          <p class="text-[10px] uppercase tracking-widest opacity-70" data-i18n="room">Habitacion</p>
+          <p class="serif leading-none" style="color:#fff; font-size:2.6rem" id="bienvenidaHab">—</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Vistas huesped (secciones conmutables) -->
+    <section id="seccionReservar" class="pt-6"></section>
+    <section id="seccionMisReservas" class="oculto pt-6"></section>
+    <section id="seccionCarta" class="oculto pt-6"></section>
+
+    <!-- Contacto: WhatsApp e Instagram del hotel, debajo de los servicios.
+         Estilo btn-outline (igual al resto de la app): el color de marca
+         queda solo en el icono para no romper la paleta grafito/hueso. -->
+    <section id="huespedContacto" class="pt-2 pb-4">
+      <div class="grid grid-cols-2 gap-2">
+        <a id="whatsappBox" class="oculto btn btn-outline" target="_blank" rel="noopener">
+          <i class="fa-brands fa-whatsapp text-lg" style="color:#1F7A50"></i> <span data-i18n="whatsapp_group">Grupo de WhatsApp</span>
+        </a>
+        <a id="instagramBox" href="https://www.instagram.com/cascadashotel" target="_blank" rel="noopener" class="btn btn-outline">
+          <i class="fa-brands fa-instagram text-lg" style="color:#C13584"></i> <span data-i18n="instagram_seguir">Instagram</span>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <!-- Bottom nav movil / navegacion huesped -->
+  <nav class="bottom-nav">
+    <div class="nav-btn activo" data-huesped-nav="Reservar" onclick="navHuesped('Reservar')">
+      <i class="fa-solid fa-calendar-plus text-lg"></i><span data-i18n="nav_reservar">Reservar</span>
+    </div>
+    <div class="nav-btn" data-huesped-nav="MisReservas" onclick="navHuesped('MisReservas')">
+      <i class="fa-solid fa-clipboard-list text-lg"></i><span data-i18n="nav_misreservas">Mis Reservas</span>
+    </div>
+  </nav>
+</div>
+
+<!-- ====================== VISTA STAFF ====================== -->
+<div id="vistaStaff" class="oculto min-h-screen">
+  <header class="header-metal sticky top-0 z-40 text-white">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img data-logo class="logo-img" style="height:34px" alt="Cascadas" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+        <span class="serif text-xl leading-none logo-fallback" style="color: var(--dorado); display:none">CASCADAS</span>
+        <div>
+          <p class="text-xs opacity-70">Panel de operaciones · <span id="staffRol">—</span></p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="btn !py-2 !px-3 relative" style="background: rgba(255,255,255,.1); color:#fff"
+                onclick="abrirPanelNotificaciones()" title="Notificaciones">
+          <i class="fa-solid fa-bell"></i>
+          <span id="badgeNotif" class="oculto absolute -top-1 -right-1 bg-[var(--dorado)] text-[var(--antracita)] text-[10px] rounded-full px-1.5"></span>
+        </button>
+        <button class="btn !py-2 !px-3" style="background: rgba(255,255,255,.1); color:#fff" onclick="cerrarSesionStaff()" title="Salir">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+      </div>
+    </div>
+    <!-- Navbar staff -->
+    <nav class="max-w-7xl mx-auto px-2 pb-2 flex gap-1 overflow-x-auto text-sm">
+      <div class="nav-item text-white/90 activo" data-staff-nav="Operaciones" onclick="navStaff('Operaciones')">Centro de Operaciones</div>
+      <div class="nav-item text-white/90" data-staff-nav="Reservas" onclick="navStaff('Reservas')">Reservas</div>
+      <div class="nav-item text-white/90" data-staff-nav="Pedidos" onclick="navStaff('Pedidos')">Pedidos</div>
+      <div class="nav-item text-white/90" data-staff-nav="Carta" onclick="navStaff('Carta')">Gestion de Carta</div>
+      <div class="nav-item text-white/90" data-staff-nav="Historial" onclick="navStaff('Historial')">Historial</div>
+      <div class="nav-item text-white/90" data-staff-nav="Bloqueos" onclick="navStaff('Bloqueos')">Bloqueos</div>
+      <div class="nav-item text-white/90" data-staff-nav="Config" onclick="navStaff('Config')">Configuracion</div>
+    </nav>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <div id="staffOperaciones"></div>
+    <div id="staffReservas" class="oculto"></div>
+    <div id="staffPedidos" class="oculto"></div>
+    <div id="staffCarta" class="oculto"></div>
+    <div id="staffHistorial" class="oculto"></div>
+    <div id="staffBloqueos" class="oculto"></div>
+    <div id="staffConfig" class="oculto"></div>
+  </main>
+</div>
+
+<!-- Contenedor de modales -->
+<div id="contenedorModal"></div>
+<!-- Contenedor de toasts -->
+<div id="contenedorToast" class="fixed bottom-4 right-4 z-[1500] space-y-2"></div>
+
+
+<!-- ===== JS ===== -->
+<script>
+/* ==========================================================================
+   LOGO DEL HOTEL
+   Cambia SOLO esta linea si algun dia cambia el archivo del logo en Drive.
+   Se usa el endpoint "thumbnail" de Drive (el mas fiable para imagenes
+   publicas). El archivo debe estar compartido como "Cualquiera con el enlace".
+   ========================================================================== */
+var LOGO_ID = '1dK-cbh6gRvogie8DsWPwv1tTpIRdRBxB';
+var LOGO_URL = 'https://drive.google.com/thumbnail?id=' + LOGO_ID + '&sz=w600';
+(function aplicarLogo() {
+  var imgs = document.querySelectorAll('[data-logo]');
+  for (var i = 0; i < imgs.length; i++) { imgs[i].src = LOGO_URL; }
+})();
+
+/* ==========================================================================
+   ESTADO GLOBAL DE LA APP
+   ========================================================================== */
+var APP = {
+  habitacion: '<?= HABITACION_QR ?>'.trim(),   // inyectada por Apps Script
+  idioma: (function () { try { return localStorage.getItem('cascadas_idioma') || 'es'; } catch (e) { return 'es'; } })(),
+  modo: null,             // 'huesped' | 'staff'
+  usuarioStaff: null,     // {Email, Rol, Nombre}
+  config: {},             // configuracion completa
+  servicios: [],          // servicios activos
+  categorias: [],         // categorias visibles
+  categoriasTodas: [],    // todas las categorias (gestion staff)
+  carta: null,            // carta completa en memoria {categorias, productosPorCategoria}
+  misReservas: [],        // reservas del huesped en memoria
+  fechaOps: null,         // fecha visible en el centro de operaciones
+  carrito: [],            // prepedido en construccion
+  reservaPrepedido: null, // reserva sobre la que se hace prepedido
+  cuentaRegresiva: null   // intervalo de la cuenta regresiva
+};
+
+/* ==========================================================================
+   WRAPPER DE API (google.script.run)
+   ========================================================================== */
+/**
+ * Llama a una funcion del backend devolviendo una promesa.
+ * Muestra loader global opcional y maneja errores con modal elegante.
+ */
+function llamarAPI(nombreFuncion, parametros, opciones) {
+  opciones = opciones || {};
+  return new Promise(function (resolve, reject) {
+    if (opciones.loader !== false) mostrarLoaderGlobal(true);
+    google.script.run
+      .withSuccessHandler(function (resultado) {
+        mostrarLoaderGlobal(false);
+        resolve(resultado);
+      })
+      .withFailureHandler(function (error) {
+        mostrarLoaderGlobal(false);
+        // Con silencioso:true no se muestra modal; el llamador decide que hacer.
+        if (!opciones.silencioso) {
+          mostrarModal({
+            titulo: t('ocurrio_problema'),
+            contenidoHTML: '<p class="text-sm">' + (error && error.message ? error.message : t('error_inesperado')) + '</p>',
+            botones: [{ texto: t('entendido'), clase: 'btn-primary', accion: cerrarModal }]
+          });
+        }
+        reject(error);
+      })[nombreFuncion].apply(null, parametros || []);
+  });
+}
+
+/* Loader global (overlay ligero) */
+function mostrarLoaderGlobal(mostrar) {
+  var existente = document.getElementById('loaderGlobal');
+  if (mostrar) {
+    if (existente) return;
+    var div = document.createElement('div');
+    div.id = 'loaderGlobal';
+    div.className = 'fixed inset-0 flex items-center justify-center z-[1400]';
+    div.style.background = 'rgba(0,0,0,.12)';
+    div.innerHTML = '<div class="spinner"></div>';
+    document.body.appendChild(div);
+  } else if (existente) {
+    existente.remove();
+  }
+}
+
+/* ==========================================================================
+   SISTEMA DE MODALES
+   ========================================================================== */
+function mostrarModal(config) {
+  var cerrable = config.cerrable !== false;
+  var botonesHTML = (config.botones || []).map(function (b, i) {
+    return '<button class="btn ' + (b.clase || 'btn-outline') + '" data-modal-btn="' + i + '">' + b.texto + '</button>';
+  }).join('');
+
+  var html =
+    '<div class="modal-overlay" id="modalOverlay">' +
+      '<div class="modal-box">' +
+        '<div class="flex items-center justify-between p-5 border-b" style="border-color: var(--borde)">' +
+          '<h3 class="text-xl">' + (config.titulo || '') + '</h3>' +
+          (cerrable ? '<button onclick="cerrarModal()" class="text-2xl opacity-50 hover:opacity-100">&times;</button>' : '') +
+        '</div>' +
+        '<div class="p-5">' + (config.contenidoHTML || '') + '</div>' +
+        (botonesHTML ? '<div class="flex flex-wrap gap-2 justify-end p-5 border-t" style="border-color: var(--borde)">' + botonesHTML + '</div>' : '') +
+      '</div>' +
+    '</div>';
+
+  document.getElementById('contenedorModal').innerHTML = html;
+
+  // Enlaza acciones de botones.
+  (config.botones || []).forEach(function (b, i) {
+    var el = document.querySelector('[data-modal-btn="' + i + '"]');
+    if (el) el.onclick = function () { if (b.accion) b.accion(); };
+  });
+
+  // Cerrar al hacer click en el backdrop.
+  if (cerrable) {
+    document.getElementById('modalOverlay').addEventListener('click', function (e) {
+      if (e.target.id === 'modalOverlay') cerrarModal();
+    });
+  }
+}
+
+function cerrarModal() {
+  document.getElementById('contenedorModal').innerHTML = '';
+  if (APP.cuentaRegresiva) { clearInterval(APP.cuentaRegresiva); APP.cuentaRegresiva = null; }
+}
+
+/* HTML de error para reemplazar spinners cuando una llamada falla. */
+function htmlError(mensaje, codigoReintento) {
+  return '<div class="card p-6 text-center fade-in">' +
+    '<i class="fa-solid fa-triangle-exclamation text-2xl mb-2" style="color: var(--dorado)"></i>' +
+    '<p class="text-sm opacity-70 mb-3">' + mensaje + '</p>' +
+    (codigoReintento ? '<button class="btn btn-outline" onclick="' + codigoReintento + '"><i class="fa-solid fa-rotate-right"></i> Reintentar</button>' : '') +
+  '</div>';
+}
+
+/* Toast de notificacion breve */
+function mostrarToast(mensaje, tipo) {
+  var color = tipo === 'error' ? 'var(--peligro)' : (tipo === 'exito' ? 'var(--verde-bosque)' : 'var(--antracita)');
+  var div = document.createElement('div');
+  div.className = 'card px-4 py-3 slide-up text-sm shadow-lg';
+  div.style.borderLeft = '4px solid ' + color;
+  div.innerHTML = mensaje;
+  document.getElementById('contenedorToast').appendChild(div);
+  setTimeout(function () { div.remove(); }, 3500);
+}
+
+/* Pop-up de aviso que PERMANECE hasta que se cierra (para nuevas reservas). */
+function mostrarPopupNotif(mensaje) {
+  var div = document.createElement('div');
+  div.className = 'card slide-up shadow-lg';
+  div.style.borderLeft = '4px solid var(--dorado)';
+  div.style.maxWidth = '340px';
+  div.innerHTML =
+    '<div class="flex items-start gap-3 p-4">' +
+      '<i class="fa-solid fa-bell mt-1" style="color: var(--dorado)"></i>' +
+      '<div class="flex-1 text-sm">' + mensaje + '</div>' +
+      '<button class="text-lg leading-none opacity-50 hover:opacity-100" onclick="this.closest(\'.card\').remove()">&times;</button>' +
+    '</div>';
+  document.getElementById('contenedorToast').appendChild(div);
+  // Respaldo: si nadie lo cierra, se va solo tras 30s para no acumular.
+  setTimeout(function () { if (div.parentElement) div.remove(); }, 30000);
+}
+
+/* ==========================================================================
+   UTILIDADES
+   ========================================================================== */
+function fmtMoneda(valor) {
+  var simbolo = APP.config.MONEDA_SIMBOLO || '$';
+  var n = Number(valor) || 0;
+  return simbolo + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function claseEstado(estado) {
+  if (!estado) return 'estado-Solicitada';
+  if (estado.indexOf('Cancelada') === 0) return 'estado-Cancelada';
+  if (estado.indexOf('Pendiente') === 0) return 'estado-Pendiente';
+  if (estado === 'En curso') return 'estado-Encurso';
+  return 'estado-' + estado.replace(/\s/g, '');
+}
+
+function escaparHTML(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function hoyISO() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function alternarModoOscuro() {
+  document.body.classList.toggle('dark-mode');
+}
+
+/* ==========================================================================
+   IDIOMA (ES / EN) — solo para la vista Huesped. El staff queda en espanol.
+   Los nombres de servicios, productos y categorias vienen de la base de datos
+   (en espanol) y no se traducen; si se traduce toda la interfaz que rodea.
+   ========================================================================== */
+var I18N = {
+  es: {
+    // Acceso
+    hotel_subtitle: 'Centro operacional del hotel',
+    soy_huesped: 'Soy Huesped', soy_personal: 'Soy Personal',
+    room_number: 'Numero de habitacion', enter: 'Ingresar',
+    ingresa_hab: 'Ingresa un numero de habitacion.',
+    // Cabecera / bienvenida
+    welcome_pre: 'Bienvenido a', room: 'Habitacion',
+    whatsapp_group: 'Grupo de WhatsApp',
+    instagram_seguir: 'Instagram',
+    nav_reservar: 'Reservar', nav_misreservas: 'Mis Reservas',
+    // Reservar
+    reservar_titulo: 'Reservar un servicio',
+    reservar_sub: 'Toca el servicio que quieras reservar.',
+    requiere_aprobacion: 'Requiere aprobacion', desde: 'Desde',
+    no_cargaron_servicios: 'No pudimos cargar los servicios.',
+    reintentar: 'Reintentar',
+    espera_reintenta: 'Si acabas de crear la base de datos, espera unos segundos y reintenta.',
+    detalle: 'Detalle:',
+    desayuno_continental: 'Desayuno continental', elige_opcion: 'Elige una opcion',
+    fecha: 'Fecha', personas: 'Personas', elige_fecha: 'Elige fecha',
+    ver_horarios: 'Ver horarios disponibles', notas_opcional: 'Notas (opcional)',
+    notas_ph: 'Preferencias, alergias, etc.', confirmar_reserva: 'Confirmar reserva',
+    selecciona_fecha: 'Selecciona una fecha.',
+    no_horarios_hoy: 'No quedan horarios para hoy. Prueba con otra fecha.',
+    no_horarios_fecha: 'No hay horarios disponibles para esa fecha.',
+    elige_opcion_serv: 'Elige una opcion del servicio.', elige_horario: 'Elige un horario.',
+    // Confirmacion de reserva
+    reserva_registrada: 'Reserva registrada',
+    tu_reserva_estado: 'Tu reserva de <b>{serv}</b> quedo en estado {estado}.',
+    dejar_pedido: '¿Quieres dejar tu pedido listo para que la cocina lo prepare a tiempo?',
+    solo_reserva: 'Solo la reserva', agregar_pedido_ahora: 'Agregar pedido ahora',
+    requiere_confirmacion: 'Este servicio requiere confirmacion del hotel.',
+    ver_mis_reservas: 'Ver mis reservas',
+    // Mis reservas
+    mis_reservas: 'Mis reservas', aun_no_reservas: 'Aun no tienes reservas.',
+    no_cargar_reservas: 'No pudimos cargar tus reservas.',
+    ver_modificar_pedido: 'Ver/modificar pedido',
+    agregar_pedido_reserva: 'Agregar pedido a esta reserva',
+    pers_abbr: 'pers.', cancelar: 'Cancelar', cancelar_reserva: 'Cancelar reserva',
+    cuentanos_motivo: 'Cuentanos el motivo (opcional):', motivo: 'Motivo',
+    volver: 'Volver', confirmar_cancelacion: 'Confirmar cancelacion',
+    // Carta
+    carta: 'Carta', no_cargar_carta: 'No pudimos cargar la carta.',
+    sin_productos: 'Sin productos disponibles.',
+    // Prepedido
+    pedido: 'Pedido', donde: '¿Donde?', en_restaurant: 'En el restaurant',
+    a_habitacion: 'A la habitacion',
+    hab_no_disponible: 'El pedido a la habitacion no esta disponible hoy.',
+    notas_pedido: 'Notas del pedido (opcional)',
+    notas_pedido_ph: 'Ej: filete a punto, sin cebolla, alergia a frutos secos...',
+    cerrar: 'Cerrar', guardar_pedido: 'Guardar pedido',
+    ventana_cerrada: 'Ventana de modificacion cerrada',
+    puedes_modificar: 'Puedes modificar por {m}m {s}s mas',
+    sin_productos_cat: 'Sin productos en esta categoria.',
+    ver_descripcion: 'Ver descripcion', toca_agregar: 'Toca + para agregar',
+    agrega_producto: 'Agrega al menos un producto.',
+    no_abrir_pedido: 'No pudimos abrir el pedido. Intenta de nuevo.',
+    // Avisos en vivo
+    aviso_cancelada: 'Tu reserva de <b>{serv}</b> fue cancelada por el hotel',
+    aviso_confirmada: '¡Tu reserva de <b>{serv}</b> fue confirmada! ✅',
+    aviso_modificada: 'Tu reserva de <b>{serv}</b> fue modificada: ahora {fecha} a las {hora}.',
+    ocurrio_problema: 'Ocurrio un problema', error_inesperado: 'Error inesperado.', entendido: 'Entendido',
+    rango_horario: '{ini} a {fin} hrs', hab_ph: 'Ej: 105',
+    recargo_habitacion: 'entrega a la habitacion',
+    prepedido_no_disponible: 'El restaurant no esta recibiendo pedidos anticipados hoy.',
+    tu_pedido: 'Tu pedido'
+  },
+  en: {
+    hotel_subtitle: 'Hotel operations center',
+    soy_huesped: "I'm a Guest", soy_personal: "I'm Staff",
+    room_number: 'Room number', enter: 'Enter',
+    ingresa_hab: 'Enter a room number.',
+    welcome_pre: 'Welcome to', room: 'Room',
+    whatsapp_group: 'WhatsApp Group',
+    instagram_seguir: 'Instagram',
+    nav_reservar: 'Book', nav_misreservas: 'My Bookings',
+    reservar_titulo: 'Book a service',
+    reservar_sub: "Tap the service you'd like to book.",
+    requiere_aprobacion: 'Requires approval', desde: 'From',
+    no_cargaron_servicios: "We couldn't load the services.",
+    reintentar: 'Retry',
+    espera_reintenta: 'If you just created the database, wait a few seconds and retry.',
+    detalle: 'Details:',
+    desayuno_continental: 'Continental breakfast', elige_opcion: 'Choose an option',
+    fecha: 'Date', personas: 'Guests', elige_fecha: 'Choose a date',
+    ver_horarios: 'See available times', notas_opcional: 'Notes (optional)',
+    notas_ph: 'Preferences, allergies, etc.', confirmar_reserva: 'Confirm booking',
+    selecciona_fecha: 'Select a date.',
+    no_horarios_hoy: 'No times left for today. Try another date.',
+    no_horarios_fecha: 'No times available for that date.',
+    elige_opcion_serv: 'Choose a service option.', elige_horario: 'Choose a time.',
+    reserva_registrada: 'Booking registered',
+    tu_reserva_estado: 'Your <b>{serv}</b> booking is now {estado}.',
+    dejar_pedido: 'Would you like to place your order now so the kitchen can prepare it on time?',
+    solo_reserva: 'Just the booking', agregar_pedido_ahora: 'Add order now',
+    requiere_confirmacion: 'This service requires hotel confirmation.',
+    ver_mis_reservas: 'See my bookings',
+    mis_reservas: 'My bookings', aun_no_reservas: "You don't have any bookings yet.",
+    no_cargar_reservas: "We couldn't load your bookings.",
+    ver_modificar_pedido: 'View/edit order',
+    agregar_pedido_reserva: 'Add an order to this booking',
+    pers_abbr: 'guests', cancelar: 'Cancel', cancelar_reserva: 'Cancel booking',
+    cuentanos_motivo: 'Tell us the reason (optional):', motivo: 'Reason',
+    volver: 'Back', confirmar_cancelacion: 'Confirm cancellation',
+    carta: 'Menu', no_cargar_carta: "We couldn't load the menu.",
+    sin_productos: 'No products available.',
+    pedido: 'Order', donde: 'Where?', en_restaurant: 'At the restaurant',
+    a_habitacion: 'To the room',
+    hab_no_disponible: 'Room delivery is not available today.',
+    notas_pedido: 'Order notes (optional)',
+    notas_pedido_ph: 'e.g. steak medium, no onion, nut allergy...',
+    cerrar: 'Close', guardar_pedido: 'Save order',
+    ventana_cerrada: 'Editing window closed',
+    puedes_modificar: 'You can edit for {m}m {s}s more',
+    sin_productos_cat: 'No products in this category.',
+    ver_descripcion: 'See description', toca_agregar: 'Tap + to add',
+    agrega_producto: 'Add at least one product.',
+    no_abrir_pedido: "We couldn't open the order. Please try again.",
+    aviso_cancelada: 'Your <b>{serv}</b> booking was cancelled by the hotel',
+    aviso_confirmada: 'Your <b>{serv}</b> booking was confirmed! ✅',
+    aviso_modificada: 'Your <b>{serv}</b> booking was changed: now {fecha} at {hora}.',
+    ocurrio_problema: 'Something went wrong', error_inesperado: 'Unexpected error.', entendido: 'Got it',
+    rango_horario: '{ini} to {fin} hrs', hab_ph: 'e.g. 105',
+    recargo_habitacion: 'room delivery',
+    prepedido_no_disponible: "The restaurant isn't taking pre-orders today.",
+    tu_pedido: 'Your order'
+  }
+};
+
+/* Traduce una clave; admite variables {x} para interpolar. */
+function t(clave, vars) {
+  var dic = I18N[APP.idioma] || I18N.es;
+  var s = (dic && dic[clave] != null) ? dic[clave] : (I18N.es[clave] != null ? I18N.es[clave] : clave);
+  if (vars) Object.keys(vars).forEach(function (k) {
+    // Reemplazo con funcion para no interpretar '$' de los valores.
+    s = s.replace(new RegExp('\\{' + k + '\\}', 'g'), function () { return String(vars[k]); });
+  });
+  return s;
+}
+
+/* Traduce el estado de una reserva (los estados viven en espanol en la BD). */
+function estadoLabel(estado) {
+  if (APP.idioma !== 'en' || !estado) return estado;
+  var map = {
+    'Solicitada': 'Requested', 'Pendiente aprobacion': 'Pending approval',
+    'Pendiente aprobación': 'Pending approval', 'Confirmada': 'Confirmed',
+    'En curso': 'In progress', 'Finalizada': 'Completed',
+    'Cancelada huesped': 'Cancelled by guest', 'Cancelada hotel': 'Cancelled by hotel',
+    'No asistio': 'No show', 'Rechazada': 'Rejected', 'Registrado': 'Registered'
+  };
+  return map[estado] || estado;
+}
+
+/* Nombre de un objeto (servicio/producto/categoria) segun el idioma activo.
+   Usa la version EN si existe; si no, cae al nombre original en espanol. */
+function nombreDe(o) {
+  if (!o) return '';
+  if (APP.idioma === 'en' && o.NombreEN) return o.NombreEN;
+  return o.Nombre || '';
+}
+
+/* Descripcion segun idioma (EN si existe, si no la original). */
+function descDe(o) {
+  if (!o) return '';
+  if (APP.idioma === 'en' && o.DescripcionEN) return o.DescripcionEN;
+  return o.Descripcion || '';
+}
+
+/* Traduce una etiqueta de producto (Vegano, Sin Gluten, etc.). */
+function etiquetaLabel(tag) {
+  if (APP.idioma !== 'en') return tag;
+  var map = {
+    'Vegano': 'Vegan', 'Vegetariano': 'Vegetarian', 'Sin Gluten': 'Gluten-free',
+    'Sin gluten': 'Gluten-free', 'Sin Lactosa': 'Lactose-free', 'Picante': 'Spicy',
+    'Recomendado': 'Recommended', 'Nuevo': 'New', 'Menu del dia': 'Daily menu'
+  };
+  return map[tag] || tag;
+}
+
+/* Nombre de servicio de una reserva, buscando la version EN por ID. */
+function nombreServicioReserva(r) {
+  var s = (APP.servicios || []).filter(function (x) { return x.ID === r.ServicioID; })[0];
+  if (s) return nombreDe(s);
+  return r.ServicioNombre || '';
+}
+
+/* True si el restaurant esta aceptando pedidos anticipados (config). */
+function prepedidoDisponible() {
+  return String(APP.config.PREPEDIDO_ACTIVO || 'TRUE').toUpperCase() !== 'FALSE';
+}
+
+/* Recargo configurable del pedido a la habitacion. */
+function recargoHabitacion() {
+  return Number(APP.config.PEDIDO_HABITACION_RECARGO) || 0;
+}
+
+/* Aplica el idioma a todos los textos estaticos marcados con data-i18n. */
+function aplicarIdioma() {
+  document.querySelectorAll('[data-i18n]').forEach(function (el) {
+    el.textContent = t(el.getAttribute('data-i18n'));
+  });
+  document.querySelectorAll('[data-i18n-ph]').forEach(function (el) {
+    el.setAttribute('placeholder', t(el.getAttribute('data-i18n-ph')));
+  });
+  document.querySelectorAll('[data-idioma-label]').forEach(function (el) {
+    el.textContent = (APP.idioma === 'en') ? 'ES' : 'EN';
+  });
+  document.documentElement.setAttribute('lang', APP.idioma);
+}
+
+/* Cambia el idioma, lo recuerda y refresca lo que el huesped este viendo. */
+function cambiarIdioma(idioma) {
+  APP.idioma = (idioma === 'en') ? 'en' : 'es';
+  try { localStorage.setItem('cascadas_idioma', APP.idioma); } catch (e) {}
+  aplicarIdioma();
+  // Vuelve a pintar la seccion visible del huesped (contenido dinamico).
+  if (APP.modo === 'huesped') {
+    if (!document.getElementById('seccionMisReservas').classList.contains('oculto')) renderMisReservas();
+    else renderReservar();
+    // La carta tambien, si esta abierta y ya cargo.
+    if (!document.getElementById('seccionCarta').classList.contains('oculto') && APP.carta) pintarCarta();
+  }
+}
+
+/* Alterna entre espanol e ingles (boton de la cabecera del huesped). */
+function alternarIdioma() {
+  cambiarIdioma(APP.idioma === 'en' ? 'es' : 'en');
+}
+
+/* ==========================================================================
+   ARRANQUE
+   ========================================================================== */
+window.addEventListener('DOMContentLoaded', function () {
+  // Extrae ?hab= del query string (respaldo si la plantilla no la inyecto).
+  var params = new URLSearchParams(window.location.search);
+  var habQuery = params.get('hab');
+  if (!APP.habitacion && habQuery) APP.habitacion = habQuery.trim();
+
+  // Si la habitacion ya se conoce (acceso por QR), pide el link de WhatsApp
+  // EN PARALELO con la carga inicial (en vez de esperar a que termine y
+  // recien ahi pedirlo): asi no se ve aparecer el boton un segundo despues.
+  if (APP.habitacion) {
+    APP.whatsappPromise = llamarAPI('obtenerWhatsappHabitacion', [APP.habitacion], { loader: false, silencioso: true }).catch(function () { return ''; });
+  }
+
+  // Carga TODO lo inicial en UNA sola llamada (config + servicios + categorias):
+  // cada viaje al servidor cuesta ~1-2s, asi que agruparlos acelera el arranque.
+  llamarAPI('obtenerDatosIniciales', [], { loader: false }).then(function (datos) {
+    APP.config = datos.config || {};
+    APP.servicios = datos.servicios || [];
+    APP.categorias = datos.categorias || [];
+    APP.categoriasTodas = datos.categoriasTodas || [];
+    if ((APP.config.MODO_OSCURO_DEFAULT || '').toString().toUpperCase() === 'TRUE') {
+      document.body.classList.add('dark-mode');
+    }
+    document.getElementById('cargaInicial').classList.add('oculto');
+    aplicarIdioma();
+
+    if (APP.habitacion) {
+      // Guarda en sessionStorage y entra como huesped.
+      sessionStorage.setItem('habitacion', APP.habitacion);
+      iniciarHuesped();
+    } else if (sessionStorage.getItem('staffEmail')) {
+      // Reanuda sesion staff previa.
+      reanudarStaff(sessionStorage.getItem('staffEmail'));
+    } else {
+      document.getElementById('vistaAcceso').classList.remove('oculto');
+    }
+  }).catch(function () {
+    document.getElementById('cargaInicial').classList.add('oculto');
+    document.getElementById('vistaAcceso').classList.remove('oculto');
+  });
+});
+
+/* ==========================================================================
+   ACCESO
+   ========================================================================== */
+function mostrarAccesoHuesped() {
+  document.getElementById('accesoHuesped').classList.remove('oculto');
+  document.getElementById('accesoStaff').classList.add('oculto');
+}
+function mostrarAccesoStaff() {
+  document.getElementById('accesoStaff').classList.remove('oculto');
+  document.getElementById('accesoHuesped').classList.add('oculto');
+}
+function entrarComoHuesped() {
+  var hab = (document.getElementById('inputHabManual').value || '').trim();
+  if (!hab) { mostrarToast(t('ingresa_hab'), 'error'); return; }
+  APP.habitacion = hab;
+  sessionStorage.setItem('habitacion', hab);
+  document.getElementById('vistaAcceso').classList.add('oculto');
+  iniciarHuesped();
+}
+function entrarComoStaff() {
+  var email = (document.getElementById('inputEmailStaff').value || '').trim();
+  if (!email) { mostrarToast('Ingresa tu correo.', 'error'); return; }
+  llamarAPI('autenticarStaff', [email]).then(function (res) {
+    if (!res.success) { mostrarToast(res.mensaje, 'error'); return; }
+    APP.usuarioStaff = res.usuario;
+    sessionStorage.setItem('staffEmail', email);
+    document.getElementById('vistaAcceso').classList.add('oculto');
+    iniciarStaff();
+  });
+}
+function reanudarStaff(email) {
+  llamarAPI('autenticarStaff', [email], { loader: false, silencioso: true }).then(function (res) {
+    if (res.success) { APP.usuarioStaff = res.usuario; iniciarStaff(); }
+    else { document.getElementById('vistaAcceso').classList.remove('oculto'); }
+  }).catch(function () {
+    document.getElementById('vistaAcceso').classList.remove('oculto');
+  });
+}
+function cerrarSesionStaff() {
+  sessionStorage.removeItem('staffEmail');
+  // Detiene los sondeos en segundo plano.
+  if (APP.pollNotificaciones) { clearInterval(APP.pollNotificaciones); APP.pollNotificaciones = null; }
+  // Reinicia estado y vuelve al selector de acceso SIN recargar (evita el blanco).
+  APP.usuarioStaff = null;
+  APP.modo = null;
+  cerrarModal();
+  document.getElementById('vistaStaff').classList.add('oculto');
+  document.getElementById('vistaHuesped').classList.add('oculto');
+  document.getElementById('accesoHuesped').classList.add('oculto');
+  document.getElementById('accesoStaff').classList.add('oculto');
+  var inputEmail = document.getElementById('inputEmailStaff');
+  if (inputEmail) inputEmail.value = '';
+  document.getElementById('vistaAcceso').classList.remove('oculto');
+}
+
+/* ==========================================================================
+   ===================  VISTA HUESPED  ===================
+   ========================================================================== */
+function iniciarHuesped() {
+  APP.modo = 'huesped';
+  document.getElementById('vistaHuesped').classList.remove('oculto');
+  document.getElementById('habLabel').textContent = APP.habitacion;
+  document.getElementById('bienvenidaHab').textContent = APP.habitacion;
+  document.getElementById('hotelNombreHeader').textContent = APP.config.HOTEL_NOMBRE || 'Cascadas';
+  document.getElementById('bienvenidaHotel').textContent = APP.config.HOTEL_NOMBRE || 'Cascadas Hotel';
+  aplicarIdioma();
+  actualizarHora();
+  setInterval(actualizarHora, 30000);
+
+  // Los servicios y categorias ya llegaron con obtenerDatosIniciales.
+  // Solo se piden de nuevo si por algun motivo no estan (respaldo).
+  if (APP.servicios && APP.servicios.length) {
+    renderReservar();
+  } else {
+    cargarServiciosHuesped();
+  }
+
+  // Sondeo para enterarse al instante si el hotel confirma/cancela/edita
+  // una reserva del huesped mientras tiene la app abierta.
+  iniciarPollHuesped();
+
+  // Boton del grupo de WhatsApp de la habitacion (si tiene link configurado).
+  // Si ya se pidio en paralelo al arrancar (acceso por QR), reusa esa promesa
+  // en vez de partir de cero; si no (ingreso manual del numero), la pide ahora.
+  var whatsappPromise = APP.whatsappPromise ||
+    llamarAPI('obtenerWhatsappHabitacion', [APP.habitacion], { loader: false, silencioso: true });
+  APP.whatsappPromise = null;
+  whatsappPromise
+    .then(function (link) {
+      var box = document.getElementById('whatsappBox');
+      if (box && link) { box.href = link; box.classList.remove('oculto'); }
+      // Si esta habitacion no tiene WhatsApp, Instagram ocupa el ancho completo.
+      var insta = document.getElementById('instagramBox');
+      if (insta && !link) insta.classList.add('col-span-2');
+    }).catch(function () {});
+}
+
+function iniciarPollHuesped() {
+  // Foto inicial (sin avisar) para tener linea base.
+  llamarAPI('obtenerReservas', [{ habitacion: APP.habitacion }], { loader: false, silencioso: true })
+    .then(function (reservas) { actualizarSnapshotHuesped(filtrarReservasHuesped(reservas || [])); })
+    .catch(function () {});
+  if (!APP.pollHuesped) APP.pollHuesped = setInterval(pollHuesped, 20000);
+}
+
+function pollHuesped() {
+  llamarAPI('obtenerReservas', [{ habitacion: APP.habitacion }], { loader: false, silencioso: true })
+    .then(function (reservas) {
+      var lista = filtrarReservasHuesped(reservas || []);
+      var previo = APP.snapshotReservas || {};
+      var huboCambio = false;
+
+      lista.forEach(function (r) {
+        var prev = previo[r.ID];
+        if (!prev) return; // reserva nueva creada por el propio huesped: sin aviso
+        if (_esEstadoCanceladoJS(r.Estado) && !_esEstadoCanceladoJS(prev.estado)) {
+          mostrarPopupNotif(t('aviso_cancelada', { serv: escaparHTML(nombreServicioReserva(r)) }) +
+            (r.MotivoCancelacion ? ': ' + escaparHTML(r.MotivoCancelacion) : '.'));
+          huboCambio = true;
+        } else if (r.Estado === 'Confirmada' && prev.estado !== 'Confirmada') {
+          mostrarPopupNotif(t('aviso_confirmada', { serv: escaparHTML(nombreServicioReserva(r)) }));
+          huboCambio = true;
+        } else if ((r.Fecha !== prev.fecha || r.HoraInicio !== prev.hora) && !_esEstadoCanceladoJS(r.Estado)) {
+          mostrarPopupNotif(t('aviso_modificada', { serv: escaparHTML(nombreServicioReserva(r)), fecha: r.Fecha, hora: r.HoraInicio }));
+          huboCambio = true;
+        }
+      });
+
+      APP.misReservas = lista;
+      actualizarSnapshotHuesped(lista);
+      // Si estoy viendo "Mis Reservas", refrescalo para reflejar el cambio.
+      if (huboCambio && !document.getElementById('seccionMisReservas').classList.contains('oculto')) {
+        document.getElementById('seccionMisReservas').innerHTML =
+          '<h3 class="text-2xl mb-4" style="color: var(--verde-bosque)">' + t('mis_reservas') + '</h3>' +
+          (lista.length ? lista.map(tarjetaReserva).join('') : '<div class="card p-8 text-center"><p class="text-sm opacity-60">' + t('aun_no_reservas') + '</p></div>');
+      }
+    }).catch(function () {});
+}
+
+/* Estado cancelado (lado cliente). */
+function _esEstadoCanceladoJS(estado) {
+  return estado === 'Cancelada huesped' || estado === 'Cancelada hotel';
+}
+
+/* Carga los servicios activos de forma aislada y refresca la vista Reservar. */
+function cargarServiciosHuesped() {
+  APP.errorServicios = null;
+  llamarAPI('obtenerServiciosActivos', [], { loader: false }).then(function (servicios) {
+    APP.servicios = servicios || [];
+    renderReservar();
+  }).catch(function (err) {
+    // Guarda el error real para mostrarlo en pantalla y poder diagnosticar.
+    APP.errorServicios = (err && err.message) ? err.message : 'Error desconocido';
+    APP.servicios = [];
+    renderReservar();
+  });
+}
+
+function actualizarHora() {
+  var ahora = new Date();
+  var h = ahora.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+  var el = document.getElementById('bienvenidaHora');
+  if (el) el.textContent = h;
+}
+
+function navHuesped(seccion) {
+  document.querySelectorAll('[data-huesped-nav]').forEach(function (el) {
+    el.classList.toggle('activo', el.getAttribute('data-huesped-nav') === seccion);
+  });
+  document.getElementById('seccionReservar').classList.toggle('oculto', seccion !== 'Reservar');
+  document.getElementById('seccionMisReservas').classList.toggle('oculto', seccion !== 'MisReservas');
+  document.getElementById('huespedBienvenida').classList.toggle('oculto', seccion !== 'Reservar');
+  document.getElementById('huespedContacto').classList.toggle('oculto', seccion !== 'Reservar');
+
+  if (seccion === 'MisReservas') renderMisReservas();
+}
+
+/* ---------- Reservar ---------- */
+
+/* Icono FontAwesome para cada servicio: usa el guardado en la hoja; si no,
+   respaldo por ID conocido, luego por categoria. */
+function iconoServicio(s) {
+  if (s.Icono) return s.Icono;
+  var porID = {
+    S001: 'fa-bowl-food', S002: 'fa-mug-saucer', S003: 'fa-utensils',
+    S004: 'fa-wine-glass', S005: 'fa-hot-tub-person', S006: 'fa-bicycle', S007: 'fa-spa'
+  };
+  if (porID[s.ID]) return porID[s.ID];
+  if (s.Categoria === 'Gastronomia') return 'fa-utensils';
+  if (s.Categoria === 'Bienestar') return 'fa-spa';
+  if (s.Categoria === 'Actividad') return 'fa-person-hiking';
+  return 'fa-calendar-check';
+}
+
+/* Paleta de iconos para el selector visual del formulario de servicios. */
+var ICONOS_SERVICIO = [
+  'fa-utensils','fa-bowl-food','fa-mug-saucer','fa-wine-glass','fa-martini-glass','fa-champagne-glasses',
+  'fa-spa','fa-hot-tub-person','fa-hands','fa-dumbbell','fa-person-swimming','fa-bicycle',
+  'fa-person-hiking','fa-mountain-sun','fa-fish','fa-horse','fa-car','fa-van-shuttle',
+  'fa-golf-ball-tee','fa-table-tennis-paddle-ball','fa-music','fa-camera','fa-fire','fa-leaf',
+  'fa-heart','fa-star','fa-gift','fa-bell-concierge','fa-key','fa-suitcase-rolling',
+  'fa-bed','fa-shirt','fa-baby','fa-dog','fa-tree','fa-umbrella-beach'
+];
+
+function renderReservar() {
+  APP.servicioActivoHuesped = null;
+  APP.horaSeleccionada = null;
+
+  // Estado si por algun motivo no cargaron los servicios.
+  if (!APP.servicios || !APP.servicios.length) {
+    var detalleError = APP.errorServicios
+      ? '<p class="caja-error text-xs mt-3">' + t('detalle') + ' ' + escaparHTML(APP.errorServicios) + '</p>'
+      : '<p class="text-xs opacity-40 mt-2">' + t('espera_reintenta') + '</p>';
+    document.getElementById('seccionReservar').innerHTML =
+      '<div class="card p-8 text-center fade-in">' +
+        '<i class="fa-solid fa-triangle-exclamation text-3xl mb-3" style="color: var(--dorado)"></i>' +
+        '<p class="text-sm opacity-70 mb-1">' + t('no_cargaron_servicios') + '</p>' +
+        '<button class="btn btn-primary mt-3" onclick="recargarServiciosHuesped()"><i class="fa-solid fa-rotate-right"></i> ' + t('reintentar') + '</button>' +
+        detalleError +
+      '</div>';
+    return;
+  }
+
+  // Tarjetas-boton por servicio.
+  var tarjetas = APP.servicios.map(function (s) {
+    // Badge sin posicion absoluta: va debajo del texto para no tapar el icono.
+    var badge = s.RequiereAprobacion
+      ? '<span class="pill estado-Pendiente mt-2 inline-block">' + t('requiere_aprobacion') + '</span>' : '';
+    // Precio: si hay variantes, muestra "Desde <menor precio>".
+    var precioMostrar = s.CostoBase;
+    if (s.Variantes && s.Variantes.length) {
+      precioMostrar = s.Variantes.reduce(function (min, v) { return Math.min(min, v.precio); }, Infinity);
+    }
+    var precio = precioMostrar > 0 ? '<p class="text-xs font-semibold mt-1" style="color: var(--dorado)">' + t('desde') + ' ' + fmtMoneda(precioMostrar) + '</p>' : '';
+    return '<button class="tarjeta-servicio card p-5 text-left flex flex-col" data-serv="' + s.ID + '" onclick="seleccionarServicioHuesped(\'' + s.ID + '\')">' +
+      '<div class="icono-servicio"><i class="fa-solid ' + iconoServicio(s) + '"></i></div>' +
+      '<p class="font-semibold text-base leading-tight">' + escaparHTML(nombreDe(s)) + '</p>' +
+      '<p class="text-xs opacity-60 mt-1 leading-snug">' + escaparHTML(descDe(s)) + '</p>' +
+      precio + badge +
+    '</button>';
+  }).join('');
+
+  var html =
+    '<div class="fade-in">' +
+      '<h3 class="text-2xl mb-1 px-1" style="color: var(--verde-bosque)">' + t('reservar_titulo') + '</h3>' +
+      '<p class="text-sm opacity-60 mb-4 px-1">' + t('reservar_sub') + '</p>' +
+      '<div class="grid grid-cols-2 gap-3">' + tarjetas + '</div>' +
+
+      // Panel de reserva (aparece al elegir un servicio).
+      '<div id="panelReserva" class="oculto"></div>' +
+    '</div>';
+
+  document.getElementById('seccionReservar').innerHTML = html;
+}
+
+/* Recarga servicios desde el backend (boton reintentar). */
+function recargarServiciosHuesped() {
+  cargarServiciosHuesped();
+}
+
+/* Al tocar una tarjeta de servicio: abre el panel con fecha/personas/horarios. */
+function seleccionarServicioHuesped(servicioID) {
+  var s = APP.servicios.filter(function (x) { return x.ID === servicioID; })[0];
+  if (!s) return;
+  APP.servicioActivoHuesped = s;
+  APP.horaSeleccionada = null;
+
+  // Resalta la tarjeta elegida.
+  document.querySelectorAll('.tarjeta-servicio').forEach(function (t) {
+    t.classList.toggle('activa', t.getAttribute('data-serv') === servicioID);
+  });
+
+  APP.varianteHuesped = '';
+
+  // Caja informativa del Desayuno Habitacion (lee del propio servicio S002).
+  var cajaDesayuno = '';
+  if (s.ID === 'S002') {
+    var costo = fmtMoneda(s.CostoBase || 0);
+    cajaDesayuno = '<div class="caja-info mb-4 p-3 text-sm">' +
+      '<p class="font-semibold mb-1"><i class="fa-solid fa-mug-saucer"></i> ' + t('desayuno_continental') + ' (' + costo + ')</p>' +
+      '<p class="text-xs">' + escaparHTML(descDe(s)) + '</p></div>';
+  }
+
+  // Selector de variantes (ej. masaje relajacion/descontracturante).
+  var cajaVariantes = '';
+  if (s.Variantes && s.Variantes.length) {
+    cajaVariantes = '<label class="lbl">' + t('elige_opcion') + '</label>' +
+      '<div class="grid grid-cols-1 gap-2 mb-3">' +
+        s.Variantes.map(function (v, i) {
+          return '<button type="button" class="btn btn-outline justify-between !py-3 var-opcion" data-var="' + escaparHTML(v.nombre) + '" onclick="seleccionarVarianteHuesped(this, \'' + escaparHTML(v.nombre).replace(/'/g, "\\'") + '\')">' +
+            '<span>' + escaparHTML(v.nombre) + '</span><span class="font-semibold">' + fmtMoneda(v.precio) + '</span></button>';
+        }).join('') +
+      '</div>';
+  }
+
+  // Personas: si el aforo es 1 (ej. masaje), es fijo en 1 y no se muestra.
+  var cap = s.Capacidad || 1;
+  var camposFechaPersonas;
+  if (cap <= 1) {
+    camposFechaPersonas =
+      '<div class="mb-3"><label class="lbl">' + t('fecha') + '</label><input id="resFecha" class="input" placeholder="' + t('elige_fecha') + '"></div>' +
+      '<input type="hidden" id="resPersonas" value="1">';
+  } else {
+    var porDefecto = Math.min(2, cap);
+    // En movil se apilan (grid-cols-1); en pantallas anchas van lado a lado.
+    camposFechaPersonas =
+      '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">' +
+        '<div><label class="lbl">' + t('fecha') + '</label><input id="resFecha" class="input" placeholder="' + t('elige_fecha') + '"></div>' +
+        '<div><label class="lbl">' + t('personas') + '</label><input id="resPersonas" type="number" min="1" max="' + cap + '" value="' + porDefecto + '" class="input"></div>' +
+      '</div>';
+  }
+
+  var panel = document.getElementById('panelReserva');
+  panel.className = 'card p-5 sm:p-6 mt-4 slide-up';
+  panel.innerHTML =
+    '<div class="flex items-center gap-3 mb-4">' +
+      '<div class="icono-servicio !mb-0 !w-11 !h-11 text-lg shrink-0"><i class="fa-solid ' + iconoServicio(s) + '"></i></div>' +
+      '<div><p class="font-semibold text-lg leading-tight">' + escaparHTML(nombreDe(s)) + '</p>' +
+      '<p class="text-xs opacity-60">' + t('rango_horario', { ini: s.HorarioInicio, fin: s.HorarioFin }) + '</p></div>' +
+    '</div>' +
+    cajaDesayuno +
+    cajaVariantes +
+    camposFechaPersonas +
+    '<button class="btn btn-outline w-full mb-3" onclick="buscarHorarios()"><i class="fa-solid fa-clock"></i> ' + t('ver_horarios') + '</button>' +
+    '<div id="resHorarios" class="grid grid-cols-3 gap-2 mb-3"></div>' +
+    '<label class="lbl">' + t('notas_opcional') + '</label>' +
+    '<textarea id="resNotas" class="input mb-4" rows="2" placeholder="' + t('notas_ph') + '"></textarea>' +
+    '<button class="btn btn-primary w-full" id="btnConfirmarReserva" onclick="confirmarReserva()" disabled>' +
+      '<i class="fa-solid fa-check"></i> ' + t('confirmar_reserva') + '</button>';
+
+  // Flatpickr: los huespedes solo pueden reservar hasta N dias hacia adelante.
+  var maxDias = Number(APP.config.MAX_DIAS_RESERVA_HUESPED);
+  if (!maxDias && maxDias !== 0) maxDias = 3;
+  var tope = new Date(); tope.setDate(tope.getDate() + maxDias);
+  // disableMobile: obliga a usar el calendario propio de Flatpickr en iOS/Android.
+  // Sin esto, el movil usa el selector nativo (input type=date), que no respeta
+  // width:100% y se desborda de la tarjeta. altInput muestra la fecha en formato
+  // amigable (d-m-Y) mientras el valor real que se envia sigue en Y-m-d.
+  flatpickr('#resFecha', {
+    locale: (APP.idioma === 'en' ? 'default' : 'es'),
+    minDate: 'today', maxDate: tope, defaultDate: 'today',
+    dateFormat: 'Y-m-d', altInput: true, altFormat: 'd-m-Y', disableMobile: true
+  });
+
+  // Lleva la vista al panel.
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+/* Selecciona una variante (huesped) y resalta el boton. */
+function seleccionarVarianteHuesped(el, nombre) {
+  document.querySelectorAll('.var-opcion').forEach(function (b) {
+    b.classList.remove('btn-dorado'); b.classList.add('btn-outline');
+  });
+  el.classList.remove('btn-outline'); el.classList.add('btn-dorado');
+  APP.varianteHuesped = nombre;
+}
+
+function buscarHorarios() {
+  var s = APP.servicioActivoHuesped;
+  if (!s) return;
+  var fecha = document.getElementById('resFecha').value;
+  var personas = document.getElementById('resPersonas').value;
+  if (!fecha) { mostrarToast(t('selecciona_fecha'), 'error'); return; }
+
+  var cont = document.getElementById('resHorarios');
+  cont.innerHTML = '<div class="col-span-3 flex justify-center py-3"><div class="spinner"></div></div>';
+  APP.horaSeleccionada = null;
+  document.getElementById('btnConfirmarReserva').disabled = true;
+
+  llamarAPI('consultarDisponibilidad', [s.ID, fecha, personas], { loader: false }).then(function (res) {
+    if (!res.success || !res.bloques.length) {
+      var esHoy = fecha === hoyISO();
+      cont.innerHTML = '<p class="col-span-3 text-sm opacity-60 text-center py-3">' +
+        (esHoy ? t('no_horarios_hoy') : t('no_horarios_fecha')) + '</p>';
+      return;
+    }
+    cont.innerHTML = res.bloques.map(function (b) {
+      return '<button class="btn btn-outline !py-2 text-sm" onclick="seleccionarHora(this,\'' + b.hora + '\')">' + b.hora + '</button>';
+    }).join('');
+  });
+}
+
+function seleccionarHora(el, hora) {
+  document.querySelectorAll('#resHorarios button').forEach(function (b) {
+    b.classList.remove('btn-dorado'); b.classList.add('btn-outline');
+  });
+  el.classList.remove('btn-outline'); el.classList.add('btn-dorado');
+  APP.horaSeleccionada = hora;
+  document.getElementById('btnConfirmarReserva').disabled = false;
+}
+
+function confirmarReserva() {
+  var s = APP.servicioActivoHuesped;
+  if (!s) return;
+  if (s.Variantes && s.Variantes.length && !APP.varianteHuesped) {
+    mostrarToast(t('elige_opcion_serv'), 'error'); return;
+  }
+  if (!APP.horaSeleccionada) { mostrarToast(t('elige_horario'), 'error'); return; }
+  var datos = {
+    habitacion: APP.habitacion,
+    servicioID: s.ID,
+    variante: APP.varianteHuesped || '',
+    fecha: document.getElementById('resFecha').value,
+    horaInicio: APP.horaSeleccionada,
+    personas: document.getElementById('resPersonas').value,
+    notas: document.getElementById('resNotas').value,
+    solicitadoPor: 'Huesped Hab ' + APP.habitacion
+  };
+  llamarAPI('crearReserva', [datos]).then(function (res) {
+    if (!res.success) { mostrarToast(res.mensaje, 'error'); return; }
+
+    var encabezadoExito = '<div class="text-center"><i class="fa-solid fa-circle-check text-4xl mb-3" style="color: var(--verde-bosque)"></i>' +
+      '<p class="text-sm">' + t('tu_reserva_estado', {
+        serv: escaparHTML(nombreDe(s)),
+        estado: '<span class="pill ' + claseEstado(res.estado) + '">' + estadoLabel(res.estado) + '</span>'
+      }) + '</p>';
+
+    if (s.PermitePrepedido && prepedidoDisponible()) {
+      // Restaurant (almuerzo/cena): ofrece dejar el pedido listo de una vez.
+      var reservaNueva = {
+        ID: res.id, ServicioID: s.ID, ServicioNombre: s.Nombre, Estado: res.estado,
+        Fecha: datos.fecha, HoraInicio: datos.horaInicio, Personas: datos.personas, PrepedidoID: ''
+      };
+      mostrarModal({
+        titulo: t('reserva_registrada'),
+        contenidoHTML: encabezadoExito +
+          '<p class="text-sm mt-3 opacity-80">' + t('dejar_pedido') + '</p></div>',
+        botones: [
+          { texto: t('solo_reserva'), clase: 'btn-outline', accion: function () { cerrarModal(); navHuesped('MisReservas'); } },
+          { texto: t('agregar_pedido_ahora'), clase: 'btn-primary', accion: function () { abrirPrepedido(res.id, reservaNueva); } }
+        ]
+      });
+    } else {
+      mostrarModal({
+        titulo: t('reserva_registrada'),
+        contenidoHTML: encabezadoExito +
+          (s.RequiereAprobacion ? '<p class="text-xs opacity-60 mt-2">' + t('requiere_confirmacion') + '</p>' : '') + '</div>',
+        botones: [{ texto: t('ver_mis_reservas'), clase: 'btn-primary', accion: function () { cerrarModal(); navHuesped('MisReservas'); } }]
+      });
+    }
+    renderReservar();
+  });
+}
+
+/* ---------- Mis Reservas ---------- */
+function renderMisReservas() {
+  var cont = document.getElementById('seccionMisReservas');
+  cont.innerHTML = '<div class="flex justify-center py-8"><div class="spinner"></div></div>';
+  llamarAPI('obtenerReservas', [{ habitacion: APP.habitacion }], { loader: false }).then(function (reservas) {
+    APP.misReservas = filtrarReservasHuesped(reservas || []);
+    actualizarSnapshotHuesped(APP.misReservas);
+    if (!APP.misReservas.length) {
+      cont.innerHTML = '<div class="card p-8 text-center"><i class="fa-regular fa-calendar text-3xl opacity-30 mb-2"></i>' +
+        '<p class="text-sm opacity-60">' + t('aun_no_reservas') + '</p></div>';
+      return;
+    }
+    cont.innerHTML = '<h3 class="text-2xl mb-4" style="color: var(--verde-bosque)">' + t('mis_reservas') + '</h3>' +
+      APP.misReservas.map(tarjetaReserva).join('');
+  }).catch(function () {
+    cont.innerHTML = htmlError(t('no_cargar_reservas'), 'renderMisReservas()');
+  });
+}
+
+/* El huesped ve sus reservas de hoy en adelante (incluidas canceladas/editadas
+   recientes, para enterarse), pero no el historial viejo del huesped anterior. */
+/* Horas que una reserva sigue visible para el huesped despues de terminar. */
+var GRACIA_RESERVA_HORAS = 2;
+
+function filtrarReservasHuesped(reservas) {
+  var ahora = Date.now();
+  var graciaMs = GRACIA_RESERVA_HORAS * 60 * 60 * 1000;
+  var hoy = hoyISO();
+  return reservas.filter(function (r) {
+    var fecha = String(r.Fecha || '');
+    var horaFin = String(r.HoraFin || r.HoraInicio || '');
+    // Momento de fin de la reserva (hora local del dispositivo).
+    var fin = new Date(fecha + 'T' + (horaFin || '00:00') + ':00');
+    if (isNaN(fin.getTime())) return fecha >= hoy; // respaldo si el dato viene raro
+    // Se muestra hasta 2 horas despues de su hora de fin; luego se "borra".
+    return (fin.getTime() + graciaMs) > ahora;
+  }).sort(function (a, b) { return (a.Fecha + a.HoraInicio) < (b.Fecha + b.HoraInicio) ? -1 : 1; });
+}
+
+/* Guarda una "foto" del estado de las reservas para detectar cambios. */
+function actualizarSnapshotHuesped(reservas) {
+  APP.snapshotReservas = {};
+  reservas.forEach(function (r) {
+    APP.snapshotReservas[r.ID] = { estado: r.Estado, fecha: r.Fecha, hora: r.HoraInicio };
+  });
+}
+
+function tarjetaReserva(r) {
+  var puedeCancelar = ['Solicitada', 'Pendiente aprobacion', 'Confirmada'].indexOf(r.Estado) !== -1;
+  // El prepedido aplica a servicios con PermitePrepedido (almuerzo/cena),
+  // desde que se solicita la reserva hasta que se confirma.
+  var servicio = (APP.servicios || []).filter(function (s) { return s.ID === r.ServicioID; })[0];
+  var esGastroPrepedible = servicio && servicio.PermitePrepedido && prepedidoDisponible() &&
+    ['Solicitada', 'Confirmada'].indexOf(r.Estado) !== -1;
+  var linkPrepedido = '';
+  if (esGastroPrepedible) {
+    var texto = r.PrepedidoID ? t('ver_modificar_pedido') : t('agregar_pedido_reserva');
+    linkPrepedido = '<a class="text-xs text-gray-400 hover:text-gray-600 underline cursor-pointer mt-2 inline-block" ' +
+      'onclick="abrirPrepedido(\'' + r.ID + '\')">' + texto + '</a>';
+  }
+  return '<div class="card p-4 mb-3 fade-in">' +
+    '<div class="flex items-start justify-between gap-2">' +
+      '<div>' +
+        '<p class="font-semibold">' + escaparHTML(nombreServicioReserva(r)) + (r.Variante ? ' <span class="text-xs font-normal opacity-70">· ' + escaparHTML(r.Variante) + '</span>' : '') + '</p>' +
+        '<p class="text-sm opacity-60">' + r.Fecha + ' · ' + r.HoraInicio + ' · ' + r.Personas + ' ' + t('pers_abbr') + '</p>' +
+        (r.Notas ? '<p class="text-xs opacity-50 mt-1"><i class="fa-solid fa-note-sticky"></i> ' + escaparHTML(r.Notas) + '</p>' : '') +
+        linkPrepedido +
+      '</div>' +
+      '<span class="pill ' + claseEstado(r.Estado) + '">' + estadoLabel(r.Estado) + '</span>' +
+    '</div>' +
+    (puedeCancelar ? '<div class="mt-3 text-right"><button class="btn btn-outline !py-2 text-sm" onclick="cancelarReservaHuesped(\'' + r.ID + '\')">' + t('cancelar') + '</button></div>' : '') +
+  '</div>';
+}
+
+function cancelarReservaHuesped(id) {
+  mostrarModal({
+    titulo: t('cancelar_reserva'),
+    contenidoHTML: '<p class="text-sm mb-2">' + t('cuentanos_motivo') + '</p>' +
+      '<input id="motivoCancel" class="input" placeholder="' + t('motivo') + '">',
+    botones: [
+      { texto: t('volver'), clase: 'btn-outline', accion: cerrarModal },
+      { texto: t('confirmar_cancelacion'), clase: 'btn-peligro', accion: function () {
+          var motivo = document.getElementById('motivoCancel').value;
+          llamarAPI('cancelarReserva', [id, motivo, false]).then(function (res) {
+            cerrarModal();
+            mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+            if (res.success) renderMisReservas();
+          });
+      }}
+    ]
+  });
+}
+
+/* ---------- Carta Digital (acordeon, sin fotos) ---------- */
+
+/**
+ * Garantiza que la carta completa este en memoria (APP.carta).
+ * Se pide UNA sola vez al servidor y queda cacheada para toda la sesion.
+ * @return {Promise}
+ */
+function asegurarCarta() {
+  if (APP.carta) return Promise.resolve(APP.carta);
+  return llamarAPI('obtenerCartaCompleta', [], { loader: false, silencioso: true }).then(function (c) {
+    APP.carta = c;
+    return c;
+  });
+}
+
+function renderCarta() {
+  var cont = document.getElementById('seccionCarta');
+  if (!APP.carta) {
+    cont.innerHTML = '<div class="flex justify-center py-8"><div class="spinner"></div></div>';
+    asegurarCarta().then(pintarCarta).catch(function () {
+      cont.innerHTML = htmlError(t('no_cargar_carta'), 'renderCarta()');
+    });
+  } else {
+    pintarCarta();
+  }
+}
+
+/* Pinta el acordeon completo desde memoria: abrir categorias es instantaneo. */
+function pintarCarta() {
+  var cont = document.getElementById('seccionCarta');
+  cont.innerHTML = '<h3 class="text-2xl mb-4" style="color: var(--verde-bosque)">' + t('carta') + '</h3>' +
+    APP.carta.categorias.map(function (c) {
+      var productos = APP.carta.productosPorCategoria[c.ID] || [];
+      var cuerpo = productos.length
+        ? '<div class="p-4 pt-0 space-y-3">' + productos.map(tarjetaProductoCarta).join('') + '</div>'
+        : '<div class="p-4 pt-0 text-sm opacity-50">' + t('sin_productos') + '</div>';
+      return '<div class="card mb-2 overflow-hidden">' +
+        '<div class="acordeon-header flex items-center justify-between p-4" onclick="toggleAcordeon(this,\'' + c.ID + '\')">' +
+          '<span class="font-semibold"><i class="fa-solid ' + c.IconoFontAwesome + ' mr-2" style="color:' + c.Color + '"></i>' + escaparHTML(nombreDe(c)) +
+          ' <span class="text-xs opacity-40 font-normal">(' + productos.length + ')</span></span>' +
+          '<i class="fa-solid fa-chevron-down transition-transform"></i>' +
+        '</div>' +
+        '<div class="acordeon-body" id="cat-' + c.ID + '">' + cuerpo + '</div>' +
+      '</div>';
+    }).join('');
+}
+
+function toggleAcordeon(header, categoriaID) {
+  var body = document.getElementById('cat-' + categoriaID);
+  var chevron = header.querySelector('.fa-chevron-down');
+  var abierto = body.classList.contains('abierto');
+  body.classList.toggle('abierto', !abierto);
+  chevron.style.transform = abierto ? '' : 'rotate(180deg)';
+}
+
+function tarjetaProductoCarta(p) {
+  var etiquetas = (p.Etiquetas || '').split(',').filter(function (e) { return e.trim(); })
+    .map(function (e) { return '<span class="pill pill-etiqueta">' + escaparHTML(etiquetaLabel(e.trim())) + '</span>'; }).join(' ');
+  var desc = descDe(p);
+  return '<div class="flex justify-between gap-3 border-b pb-2" style="border-color: var(--borde)">' +
+    '<div>' +
+      '<p class="font-medium">' + escaparHTML(nombreDe(p)) + '</p>' +
+      (desc ? '<p class="text-xs opacity-60">' + escaparHTML(desc) + '</p>' : '') +
+      (etiquetas ? '<div class="mt-1 space-x-1">' + etiquetas + '</div>' : '') +
+    '</div>' +
+    '<div class="whitespace-nowrap font-semibold" style="color: var(--verde-bosque)">' + fmtMoneda(p.Precio) + '</div>' +
+  '</div>';
+}
+
+/* ---------- Prepedido (modal) ---------- */
+
+/**
+ * Abre el modal de prepedido para una reserva.
+ * @param {string} reservaID
+ * @param {Object} reservaObj Opcional: la reserva ya conocida (recien creada),
+ *   para no volver a pedirla al servidor.
+ */
+function abrirPrepedido(reservaID, reservaObj) {
+  // Si el restaurant no acepta prepedidos hoy, no se abre el modal.
+  if (!prepedidoDisponible()) { mostrarToast(t('prepedido_no_disponible'), 'error'); return; }
+  APP.reservaPrepedido = reservaID;
+  // Origen: 'ops' si lo abrio abrirPrepedidoOps; si no, huesped.
+  if (APP.prepedidoOrigen !== 'ops') APP.prepedidoOrigen = 'huesped';
+  APP.carrito = [];
+
+  // La reserva ya esta en memoria (recien creada o listada en Mis Reservas).
+  var reserva = reservaObj ||
+    (APP.misReservas || []).filter(function (r) { return r.ID === reservaID; })[0] || null;
+
+  // En paralelo: pedido existente (si lo hay) + carta en memoria.
+  Promise.all([
+    llamarAPI('obtenerPedidosPorReserva', [reservaID], { loader: true }),
+    asegurarCarta()
+  ]).then(function (resultados) {
+    var existente = resultados[0];
+    APP.pedidoNotasPrevias = (existente && existente.pedido) ? (existente.pedido.Notas || '') : '';
+    APP.pedidoEntrega = (existente && existente.pedido && existente.pedido.Entrega === 'Habitacion') ? 'Habitacion' : 'Restaurant';
+    if (existente && existente.detalles) {
+      APP.carrito = existente.detalles.map(function (d) {
+        return { productoID: d.ProductoID, nombre: d.Nombre, precio: d.PrecioUnitario, cantidad: d.Cantidad };
+      });
+    }
+    renderModalPrepedido(reserva);
+  }).catch(function () {
+    mostrarToast(t('no_abrir_pedido'), 'error');
+  });
+}
+
+function renderModalPrepedido(reserva) {
+  // Solo categorias que tienen productos (oculta vacias como "Fondos").
+  var categoriasConProductos = APP.carta.categorias.filter(function (c) {
+    var arr = APP.carta.productosPorCategoria[c.ID];
+    return arr && arr.length;
+  });
+
+  // Chips de categoria en fila horizontal (scroll lateral, sin ocupar alto).
+  var categoriasHTML = categoriasConProductos.map(function (c, i) {
+    return '<button class="chip-cat btn ' + (i === 0 ? 'btn-dorado' : 'btn-outline') + ' !py-1.5 !px-3 text-xs shrink-0" data-cat="' + c.ID + '" onclick="cargarProductosPrepedido(\'' + c.ID + '\', this)">' + escaparHTML(nombreDe(c)) + '</button>';
+  }).join('');
+
+  var notasPrevias = (APP.pedidoNotasPrevias || '');
+  // Interruptor de configuracion: si esta apagado, no se puede pedir a la habitacion.
+  var habDisponible = String(APP.config.PEDIDO_HABITACION_ACTIVO || 'TRUE').toUpperCase() !== 'FALSE';
+  var entregaHab = habDisponible && APP.pedidoEntrega === 'Habitacion';
+  if (!habDisponible) APP.pedidoEntrega = 'Restaurant';
+  var contenido =
+    '<div id="contadorPrepedido" class="text-xs mb-2 text-center opacity-70"></div>' +
+    // Selector: comer en el restaurant o pedir a la habitacion.
+    '<label class="lbl">' + t('donde') + '</label>' +
+    '<div class="grid grid-cols-2 gap-2 ' + (habDisponible ? 'mb-3' : 'mb-1') + '">' +
+      '<button type="button" id="entRest" class="btn ' + (entregaHab ? 'btn-outline' : 'btn-dorado') + '" onclick="elegirEntrega(\'Restaurant\')"><i class="fa-solid fa-utensils"></i> ' + t('en_restaurant') + '</button>' +
+      '<button type="button" id="entHab" class="btn ' + (entregaHab ? 'btn-dorado' : 'btn-outline') + '"' +
+        (habDisponible ? ' onclick="elegirEntrega(\'Habitacion\')"' : ' disabled style="opacity:.45;cursor:not-allowed"') +
+        '><i class="fa-solid fa-bell-concierge"></i> ' + t('a_habitacion') +
+        (recargoHabitacion() > 0 ? ' <span class="text-xs opacity-80">(+' + fmtMoneda(recargoHabitacion()) + ')</span>' : '') + '</button>' +
+    '</div>' +
+    (habDisponible ? '' : '<p class="text-xs mb-3" style="color:#A6524B"><i class="fa-solid fa-circle-info"></i> ' + t('hab_no_disponible') + '</p>') +
+    // Carrito visible: lo que ya se pidio, sin tener que recorrer categorias.
+    '<div id="carritoPrepedido" class="oculto mb-3"></div>' +
+    '<div class="flex gap-2 mb-3 overflow-x-auto pb-1" style="scrollbar-width:thin">' + categoriasHTML + '</div>' +
+    '<div id="listaProductosPrepedido" class="space-y-1"></div>' +
+    // Notas del pedido (ej. punto de la carne, sin sal, etc.)
+    '<div class="mt-4"><label class="lbl"><i class="fa-solid fa-pen-to-square"></i> ' + t('notas_pedido') + '</label>' +
+      '<textarea id="notasPedido" class="input" rows="2" placeholder="' + t('notas_pedido_ph') + '">' + escaparHTML(notasPrevias) + '</textarea></div>' +
+    // Barra de total fija abajo del modal.
+    '<div class="sticky bottom-0 -mx-5 px-5 pt-3 pb-1 mt-3 border-t" style="border-color: var(--borde); background: var(--blanco);">' +
+      '<div id="resumenPrepedido" class="flex items-center justify-between text-sm"></div>' +
+    '</div>';
+
+  mostrarModal({
+    titulo: t('pedido'),
+    contenidoHTML: contenido,
+    botones: [
+      { texto: t('cerrar'), clase: 'btn-outline', accion: cerrarModal },
+      { texto: t('guardar_pedido'), clase: 'btn-primary', accion: guardarPrepedido }
+    ]
+  });
+
+  // Carga la primera categoria con productos de una vez.
+  if (categoriasConProductos[0]) cargarProductosPrepedido(categoriasConProductos[0].ID, null);
+  renderCarritoPrepedido();
+  iniciarContadorPrepedido(reserva);
+}
+
+function iniciarContadorPrepedido(reserva) {
+  if (!reserva) return;
+  var limite = Number(APP.config.PREPEDIDO_MINUTOS_LIMITE) || 30;
+  var cont = document.getElementById('contadorPrepedido');
+  function tick() {
+    if (!cont) return;
+    var objetivo = new Date(reserva.Fecha + 'T' + reserva.HoraInicio + ':00');
+    var limiteMs = objetivo.getTime() - limite * 60000;
+    var restante = limiteMs - Date.now();
+    if (restante <= 0) {
+      cont.innerHTML = '<span style="color: var(--peligro)"><i class="fa-solid fa-lock"></i> ' + t('ventana_cerrada') + '</span>';
+    } else {
+      var min = Math.floor(restante / 60000);
+      var seg = Math.floor((restante % 60000) / 1000);
+      cont.innerHTML = '<i class="fa-regular fa-clock"></i> ' + t('puedes_modificar', { m: min, s: seg });
+    }
+  }
+  tick();
+  if (APP.cuentaRegresiva) clearInterval(APP.cuentaRegresiva);
+  APP.cuentaRegresiva = setInterval(tick, 1000);
+}
+
+function cargarProductosPrepedido(categoriaID, chip) {
+  APP.prepedidoCatActual = categoriaID;
+  // Resalta el chip activo.
+  document.querySelectorAll('.chip-cat').forEach(function (b) {
+    var sel = b.getAttribute('data-cat') === categoriaID;
+    b.classList.toggle('btn-dorado', sel); b.classList.toggle('btn-outline', !sel);
+  });
+
+  var lista = document.getElementById('listaProductosPrepedido');
+  var productos = (APP.carta && APP.carta.productosPorCategoria[categoriaID]) || [];
+  if (!productos.length) { lista.innerHTML = '<p class="text-xs opacity-50 text-center py-4">' + t('sin_productos_cat') + '</p>'; return; }
+  lista.innerHTML = productos.map(function (p) {
+    var enCarrito = APP.carrito.filter(function (i) { return i.productoID === p.ID; })[0];
+    var cant = enCarrito ? enCarrito.cantidad : 0;
+    var nombreEsc = escaparHTML(nombreDe(p)).replace(/'/g, "\\'");
+    var control = cant > 0
+      ? '<div class="flex items-center gap-2">' +
+          '<button class="btn btn-outline !py-1 !px-3" onclick="cambiarCantidad(\'' + p.ID + '\',-1)">−</button>' +
+          '<b class="w-5 text-center">' + cant + '</b>' +
+          '<button class="btn btn-dorado !py-1 !px-3" onclick="cambiarCantidad(\'' + p.ID + '\',1)">+</button>' +
+        '</div>'
+      : '<button class="btn btn-outline !py-1 !px-3 text-xs" onclick="agregarAlCarrito(\'' + p.ID + '\',\'' + nombreEsc + '\',' + p.Precio + ')"><i class="fa-solid fa-plus"></i></button>';
+    // Lupa: solo si el producto tiene descripcion. Abre/cierra el detalle.
+    var lupa = descDe(p)
+      ? '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="toggleDescProducto(\'' + p.ID + '\')" title="' + t('ver_descripcion') + '"><i class="fa-solid fa-magnifying-glass"></i></button>'
+      : '';
+    return '<div class="py-2 border-b" style="border-color: var(--borde)">' +
+      '<div class="flex items-center justify-between gap-2">' +
+        '<div class="min-w-0"><p class="font-medium text-sm">' + escaparHTML(nombreDe(p)) + '</p><p class="text-xs opacity-60">' + fmtMoneda(p.Precio) + '</p></div>' +
+        '<div class="flex items-center gap-1 shrink-0">' + lupa + control + '</div>' +
+      '</div>' +
+      (descDe(p) ? '<div id="desc-' + p.ID + '" class="oculto caja-info text-xs mt-2 p-2">' + escaparHTML(descDe(p)) + '</div>' : '') +
+    '</div>';
+  }).join('');
+}
+
+/* Elige donde se entrega el pedido (restaurant o habitacion). */
+function elegirEntrega(donde) {
+  // Seguridad: si el pedido a la habitacion esta apagado, siempre restaurant.
+  if (donde === 'Habitacion' && String(APP.config.PEDIDO_HABITACION_ACTIVO || 'TRUE').toUpperCase() === 'FALSE') return;
+  APP.pedidoEntrega = donde;
+  var rest = document.getElementById('entRest'), hab = document.getElementById('entHab');
+  var esHab = donde === 'Habitacion';
+  if (rest) { rest.classList.toggle('btn-dorado', !esHab); rest.classList.toggle('btn-outline', esHab); }
+  if (hab) { hab.classList.toggle('btn-dorado', esHab); hab.classList.toggle('btn-outline', !esHab); }
+  // El total cambia si hay recargo por entrega a la habitacion.
+  renderCarritoPrepedido();
+}
+
+/* Muestra/oculta la descripcion completa de un plato en el prepedido. */
+function toggleDescProducto(productoID) {
+  var el = document.getElementById('desc-' + productoID);
+  if (el) el.classList.toggle('oculto');
+}
+
+function agregarAlCarrito(productoID, nombre, precio) {
+  var item = APP.carrito.filter(function (i) { return i.productoID === productoID; })[0];
+  if (item) item.cantidad += 1;
+  else APP.carrito.push({ productoID: productoID, nombre: nombre, precio: precio, cantidad: 1 });
+  cargarProductosPrepedido(APP.prepedidoCatActual); // refresca el stepper del producto
+  renderCarritoPrepedido();
+}
+
+function cambiarCantidad(productoID, delta) {
+  var item = APP.carrito.filter(function (i) { return i.productoID === productoID; })[0];
+  if (!item) return;
+  item.cantidad += delta;
+  if (item.cantidad <= 0) APP.carrito = APP.carrito.filter(function (i) { return i.productoID !== productoID; });
+  cargarProductosPrepedido(APP.prepedidoCatActual);
+  renderCarritoPrepedido();
+}
+
+/* Pinta la lista detallada del carrito (arriba) y la barra de total (abajo). */
+function renderCarritoPrepedido() {
+  pintarListaCarrito();
+
+  var cont = document.getElementById('resumenPrepedido');
+  if (!cont) return;
+  var total = 0, unidades = 0;
+  APP.carrito.forEach(function (i) { total += i.precio * i.cantidad; unidades += i.cantidad; });
+  if (!unidades) {
+    cont.innerHTML = '<span class="opacity-50 text-xs"><i class="fa-solid fa-basket-shopping mr-1"></i> ' + t('toca_agregar') + '</span>';
+    return;
+  }
+  // El recargo por entrega a la habitacion se suma y se muestra desglosado.
+  var recargo = (APP.pedidoEntrega === 'Habitacion') ? recargoHabitacion() : 0;
+  var detalleRecargo = recargo > 0
+    ? ' <span class="text-xs opacity-60">+ ' + t('recargo_habitacion') + ' ' + fmtMoneda(recargo) + '</span>' : '';
+  cont.innerHTML = '<span class="opacity-70"><i class="fa-solid fa-basket-shopping mr-1"></i> ' + unidades + ' item' + (unidades > 1 ? 's' : '') + detalleRecargo + '</span>' +
+    '<span class="font-semibold text-base">' + fmtMoneda(total + recargo) + '</span>';
+}
+
+/* Lista detallada del carrito: cada producto con su stepper y subtotal,
+   visible arriba de las categorias (sin tener que ir a buscarlo). */
+function pintarListaCarrito() {
+  var cont = document.getElementById('carritoPrepedido');
+  if (!cont) return;
+  if (!APP.carrito.length) { cont.classList.add('oculto'); cont.innerHTML = ''; return; }
+  cont.classList.remove('oculto');
+
+  var filas = APP.carrito.map(function (i) {
+    return '<div class="flex items-center justify-between gap-2 py-2 border-b" style="border-color: var(--borde)">' +
+      '<div class="min-w-0 flex-1"><p class="text-sm font-medium truncate">' + escaparHTML(i.nombre) + '</p>' +
+        '<p class="text-xs opacity-60">' + fmtMoneda(i.precio) + ' c/u</p></div>' +
+      '<div class="flex items-center gap-2 shrink-0">' +
+        '<button class="btn btn-outline !py-1 !px-3" onclick="cambiarCantidad(\'' + i.productoID + '\',-1)">−</button>' +
+        '<b class="w-5 text-center">' + i.cantidad + '</b>' +
+        '<button class="btn btn-dorado !py-1 !px-3" onclick="cambiarCantidad(\'' + i.productoID + '\',1)">+</button>' +
+      '</div>' +
+      '<div class="text-sm font-semibold w-16 text-right shrink-0">' + fmtMoneda(i.precio * i.cantidad) + '</div>' +
+    '</div>';
+  }).join('');
+
+  cont.innerHTML =
+    '<div class="caja-info p-3">' +
+      '<p class="lbl !mb-2"><i class="fa-solid fa-basket-shopping"></i> ' + t('tu_pedido') + '</p>' +
+      '<div style="max-height:220px; overflow-y:auto">' + filas + '</div>' +
+    '</div>';
+}
+
+function guardarPrepedido() {
+  if (!APP.carrito.length) { mostrarToast(t('agrega_producto'), 'error'); return; }
+  var items = APP.carrito.map(function (i) { return { productoID: i.productoID, cantidad: i.cantidad }; });
+  var notasEl = document.getElementById('notasPedido');
+  var notas = notasEl ? notasEl.value : '';
+  var entrega = APP.pedidoEntrega === 'Habitacion' ? 'Habitacion' : 'Restaurant';
+  llamarAPI('crearPedido', [APP.reservaPrepedido, items, notas, entrega]).then(function (res) {
+    mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+    if (res.success) {
+      cerrarModal();
+      // Refresca la vista correcta segun desde donde se abrio.
+      if (APP.prepedidoOrigen === 'ops') renderOperaciones();
+      else renderMisReservas();
+      APP.prepedidoOrigen = null;
+    }
+  });
+}
+
+/* ==========================================================================
+   ===================  VISTA STAFF  ===================
+   ========================================================================== */
+function iniciarStaff() {
+  APP.modo = 'staff';
+  document.getElementById('vistaStaff').classList.remove('oculto');
+  document.getElementById('staffRol').textContent = APP.usuarioStaff.Rol;
+
+  // Ajusta visibilidad de pestanas segun rol.
+  ajustarNavPorRol();
+
+  // El staff usa TODAS las categorias (incluidas ocultas) para gestion.
+  // Ya llegaron con obtenerDatosIniciales; no hay que volver a pedirlas.
+  if (APP.categoriasTodas && APP.categoriasTodas.length) {
+    APP.categorias = APP.categoriasTodas;
+  }
+
+  navStaff('Operaciones');
+  iniciarNotificaciones();
+}
+
+function ajustarNavPorRol() {
+  var rol = APP.usuarioStaff.Rol;
+  // Historial: ADMIN y RECEPCION.
+  var historial = document.querySelector('[data-staff-nav="Historial"]');
+  if (historial) historial.classList.toggle('oculto', ['ADMINISTRADOR', 'RECEPCION'].indexOf(rol) === -1);
+  // Config y Bloqueos: RECEPCION y ADMIN.
+  ['Config', 'Bloqueos'].forEach(function (nav) {
+    var el = document.querySelector('[data-staff-nav="' + nav + '"]');
+    if (el) el.classList.toggle('oculto', ['ADMINISTRADOR', 'RECEPCION'].indexOf(rol) === -1);
+  });
+  // Carta: COCINA y ADMIN (RECEPCION solo lectura permitida tambien).
+}
+
+function navStaff(seccion) {
+  document.querySelectorAll('[data-staff-nav]').forEach(function (el) {
+    el.classList.toggle('activo', el.getAttribute('data-staff-nav') === seccion);
+  });
+  ['Operaciones', 'Reservas', 'Pedidos', 'Carta', 'Historial', 'Bloqueos', 'Config'].forEach(function (s) {
+    document.getElementById('staff' + s).classList.toggle('oculto', s !== seccion);
+  });
+  APP.staffVistaActual = seccion; // recordar la vista para refrescos automaticos
+  if (seccion === 'Operaciones') renderOperaciones();
+  if (seccion === 'Reservas') renderReservasStaff();
+  if (seccion === 'Pedidos') renderPedidosStaff();
+  if (seccion === 'Carta') renderCartaStaff();
+  if (seccion === 'Historial') renderHistorial();
+  if (seccion === 'Bloqueos') renderBloqueos();
+  if (seccion === 'Config') renderConfig();
+}
+
+/* ---------- Notificaciones (campana, tiempo casi real) ----------
+   Estrategia: se hace polling liviano cada 20s. La primera carga fija una
+   "linea base" (IDs conocidos) SIN avisar, para que al abrir la app no salgan
+   mil pop ups por reservas viejas. Solo las que lleguen mientras la app esta
+   abierta muestran un toast. El panel se abre al instante desde memoria. */
+
+function iniciarNotificaciones() {
+  llamarAPI('obtenerNotificaciones', [APP.usuarioStaff.Rol, '', false], { loader: false, silencioso: true })
+    .then(function (notifs) {
+      APP.notifsCache = notifs || [];
+      APP.notifIdsConocidos = {};
+      APP.notifsCache.forEach(function (n) { APP.notifIdsConocidos[n.ID] = true; });
+      actualizarBadgeNotif();
+    }).catch(function () {});
+  if (!APP.pollNotificaciones) APP.pollNotificaciones = setInterval(pollNotificaciones, 20000);
+}
+
+function pollNotificaciones() {
+  llamarAPI('obtenerNotificaciones', [APP.usuarioStaff.Rol, '', false], { loader: false, silencioso: true })
+    .then(function (notifs) {
+      notifs = notifs || [];
+      // Nuevas = las que aun no conociamos.
+      var nuevas = notifs.filter(function (n) { return !APP.notifIdsConocidos[n.ID]; });
+      notifs.forEach(function (n) { APP.notifIdsConocidos[n.ID] = true; });
+      APP.notifsCache = notifs;
+      actualizarBadgeNotif();
+
+      // Refresca el Centro de Operaciones (si esta visible y sin modal abierto)
+      // en el MISMO camino que dispara los pop-ups, para que nunca quede desfasado.
+      var modalAbierto = document.getElementById('contenedorModal').innerHTML.trim() !== '';
+      if (APP.staffVistaActual === 'Operaciones' && !modalAbierto) {
+        cargarOpsContenido();
+      }
+
+      var nuevasNoLeidas = nuevas.filter(function (n) { return !n.Leida; });
+      if (nuevasNoLeidas.length === 0) return;
+
+      // Pop-up por cada aviso nuevo (con tope para no inundar).
+      if (nuevasNoLeidas.length <= 3) {
+        nuevasNoLeidas.forEach(function (n) {
+          var res = parseNotifReserva(n.Mensaje);
+          if (res) mostrarPopupReserva(res);
+          else mostrarPopupNotif(escaparHTML(n.Mensaje));
+        });
+      } else {
+        mostrarPopupNotif('<b>' + nuevasNoLeidas.length + ' nuevas notificaciones</b><br>Abre la campana para verlas.');
+      }
+    }).catch(function () {});
+}
+
+/* Interpreta el mensaje estructurado "RES|hab|servicio|fecha|hora|estado". */
+function parseNotifReserva(mensaje) {
+  if (!mensaje || mensaje.indexOf('RES|') !== 0) return null;
+  var p = mensaje.split('|');
+  return { hab: p[1] || '', servicio: p[2] || '', fecha: p[3] || '', hora: p[4] || '', estado: p[5] || '' };
+}
+
+/* Fecha corta legible: "12 jul". */
+function fechaCorta(iso) {
+  if (!iso) return '';
+  var d = new Date(iso + 'T12:00:00');
+  return d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' });
+}
+
+/* Pop-up GRANDE y notorio para una reserva nueva. */
+function mostrarPopupReserva(d) {
+  var div = document.createElement('div');
+  div.className = 'card slide-up shadow-lg';
+  div.style.borderLeft = '6px solid var(--grafito)';
+  div.style.maxWidth = '360px';
+  div.innerHTML =
+    '<div class="p-5">' +
+      '<div class="flex items-center justify-between mb-2">' +
+        '<span class="pill" style="background:var(--grafito);color:#fff"><i class="fa-solid fa-bell mr-1"></i> NUEVA RESERVA</span>' +
+        '<button class="text-2xl leading-none opacity-50 hover:opacity-100" onclick="this.closest(\'.card\').remove()">&times;</button>' +
+      '</div>' +
+      '<p class="font-bold leading-none" style="font-size:2.2rem;color:var(--grafito)">' + escaparHTML(etiquetaHab(d.hab)) + '</p>' +
+      '<p class="text-lg font-semibold mt-1">' + escaparHTML(d.servicio) + '</p>' +
+      '<p class="text-base mt-2"><i class="fa-regular fa-calendar mr-1"></i> ' + escaparHTML(fechaCorta(d.fecha)) +
+        ' &nbsp;·&nbsp; <i class="fa-regular fa-clock mr-1"></i> <b>' + escaparHTML(d.hora) + '</b></p>' +
+      '<p class="mt-2"><span class="pill ' + claseEstado(d.estado) + '">' + escaparHTML(d.estado) + '</span></p>' +
+    '</div>';
+  document.getElementById('contenedorToast').appendChild(div);
+  setTimeout(function () { if (div.parentElement) div.remove(); }, 45000);
+}
+
+function actualizarBadgeNotif() {
+  var badge = document.getElementById('badgeNotif');
+  if (!badge) return;
+  var noLeidas = (APP.notifsCache || []).filter(function (n) { return !n.Leida; }).length;
+  if (noLeidas) { badge.textContent = noLeidas; badge.classList.remove('oculto'); }
+  else badge.classList.add('oculto');
+}
+/* Alias por compatibilidad: refrescar tras una accion (marca leida, etc.). */
+function refrescarBadgeNotif() { actualizarBadgeNotif(); }
+
+function abrirPanelNotificaciones() {
+  mostrarModal({
+    titulo: '<i class="fa-solid fa-bell mr-1" style="color: var(--dorado)"></i> Notificaciones',
+    contenidoHTML: '<div id="listaNotifs" class="max-h-96 overflow-y-auto"></div>',
+    botones: [
+      { texto: 'Marcar todas como leidas', clase: 'btn-outline', accion: marcarTodasLeidas },
+      { texto: 'Cerrar', clase: 'btn-primary', accion: cerrarModal }
+    ]
+  });
+  // Pinta al instante desde memoria; refresca en segundo plano.
+  pintarListaNotificaciones();
+  llamarAPI('obtenerNotificaciones', [APP.usuarioStaff.Rol, '', false], { loader: false, silencioso: true })
+    .then(function (notifs) {
+      APP.notifsCache = notifs || [];
+      (notifs || []).forEach(function (n) { APP.notifIdsConocidos[n.ID] = true; });
+      actualizarBadgeNotif();
+      pintarListaNotificaciones();
+    }).catch(function () {});
+}
+
+function pintarListaNotificaciones() {
+  var lista = document.getElementById('listaNotifs');
+  if (!lista) return;
+  var notifs = APP.notifsCache || [];
+  if (!notifs.length) {
+    lista.innerHTML = '<p class="text-sm opacity-60 text-center py-6"><i class="fa-regular fa-bell-slash mr-1"></i> No hay notificaciones.</p>';
+    return;
+  }
+  lista.innerHTML = notifs.slice(0, 50).map(function (n) {
+    var noLeida = !n.Leida;
+    // Formatea las reservas (mensaje estructurado) de forma legible.
+    var res = parseNotifReserva(n.Mensaje);
+    var texto = res
+      ? 'Nueva reserva · <b>' + escaparHTML(etiquetaHab(res.hab)) + '</b> · ' + escaparHTML(res.servicio) + ' · ' + escaparHTML(fechaCorta(res.fecha)) + ' ' + escaparHTML(res.hora)
+      : escaparHTML(n.Mensaje);
+    var icono = res ? 'fa-calendar-check' : (n.Tipo === 'capacidad' ? 'fa-triangle-exclamation' : 'fa-circle-info');
+    return '<div class="flex items-start gap-2 py-2 border-b" style="border-color: var(--borde);' + (noLeida ? '' : 'opacity:.55;') + '">' +
+      '<i class="fa-solid ' + icono + ' mt-1 text-sm" style="color: var(--dorado)"></i>' +
+      '<div class="flex-1">' +
+        '<p class="text-sm' + (noLeida ? ' font-semibold' : '') + '">' + texto + '</p>' +
+        '<p class="text-[11px] opacity-50">' + escaparHTML(n.Timestamp) + '</p>' +
+      '</div>' +
+      (noLeida ? '<button class="btn btn-outline !py-1 !px-2 text-xs" title="Marcar leida" onclick="marcarLeidaUI(\'' + n.ID + '\', this)"><i class="fa-solid fa-check"></i></button>' : '') +
+    '</div>';
+  }).join('');
+}
+
+function marcarLeidaUI(id, boton) {
+  boton.disabled = true;
+  llamarAPI('marcarNotificacionLeida', [id], { loader: false, silencioso: true }).then(function () {
+    (APP.notifsCache || []).forEach(function (n) { if (n.ID === id) n.Leida = true; });
+    boton.parentElement.style.opacity = '.55';
+    boton.remove();
+    actualizarBadgeNotif();
+  }).catch(function () { boton.disabled = false; });
+}
+
+function marcarTodasLeidas() {
+  llamarAPI('marcarTodasNotificacionesLeidas', [APP.usuarioStaff.Rol], { loader: false }).then(function () {
+    (APP.notifsCache || []).forEach(function (n) { n.Leida = true; });
+    pintarListaNotificaciones();
+    actualizarBadgeNotif();
+  });
+}
+
+/* ---------- Centro de Operaciones ---------- */
+
+/* Cambia el dia mostrado en el centro de operaciones (delta en dias). */
+function cambiarDiaOps(delta) {
+  var d = new Date((APP.fechaOps || hoyISO()) + 'T12:00:00');
+  d.setDate(d.getDate() + delta);
+  renderOperaciones(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'));
+}
+
+/* Nombre legible del dia: "Miercoles 9 de julio". */
+function nombreDia(fechaISO) {
+  var d = new Date(fechaISO + 'T12:00:00');
+  var texto = d.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+function renderOperaciones(fecha) {
+  APP.fechaOps = fecha || APP.fechaOps || hoyISO();
+  fecha = APP.fechaOps;
+  var esHoy = fecha === hoyISO();
+
+  var cont = document.getElementById('staffOperaciones');
+  // Barra de navegacion de fechas (siempre visible, el contenido carga abajo).
+  cont.innerHTML =
+    '<div class="flex flex-wrap items-center justify-between gap-3 mb-4">' +
+      '<h2 class="text-2xl" style="color:var(--verde-bosque)">Centro de Operaciones</h2>' +
+      '<div class="flex items-center gap-2 flex-wrap">' +
+        '<button class="btn btn-primary !py-2 !px-3 text-sm" onclick="abrirNuevaReservaStaff()"><i class="fa-solid fa-plus"></i> Nueva Reserva</button>' +
+        '<button class="btn btn-outline !py-2 !px-3" onclick="cambiarDiaOps(-1)" title="Dia anterior"><i class="fa-solid fa-chevron-left"></i></button>' +
+        '<input id="fechaOps" class="input !w-40 text-center cursor-pointer" readonly>' +
+        '<button class="btn btn-outline !py-2 !px-3" onclick="cambiarDiaOps(1)" title="Dia siguiente"><i class="fa-solid fa-chevron-right"></i></button>' +
+        (esHoy ? '' : '<button class="btn btn-dorado !py-2 !px-3 text-sm" onclick="renderOperaciones(hoyISO())">Hoy</button>') +
+      '</div>' +
+    '</div>' +
+    '<p class="text-sm opacity-60 mb-4 -mt-2">' + nombreDia(fecha) + (esHoy ? ' · Hoy' : '') + '</p>' +
+    '<div id="opsContenido"><div class="flex justify-center py-8"><div class="spinner"></div></div></div>';
+
+  // Calendario para saltar a cualquier fecha.
+  flatpickr('#fechaOps', {
+    locale: 'es', dateFormat: 'Y-m-d', defaultDate: fecha,
+    onChange: function (sel, fechaStr) { if (fechaStr && fechaStr !== APP.fechaOps) renderOperaciones(fechaStr); }
+  });
+
+  cargarOpsContenido();
+}
+
+/* Carga (o refresca) SOLO el contenido del centro de operaciones, sin tocar la
+   barra de fechas. Se usa al abrir y en el refresco automatico. */
+function cargarOpsContenido() {
+  var fecha = APP.fechaOps || hoyISO();
+  var esHoy = fecha === hoyISO();
+  var zona = document.getElementById('opsContenido');
+  if (!zona) return;
+  llamarAPI('obtenerCentroOperaciones', [fecha], { loader: false, silencioso: true }).then(function (data) {
+    var alertasHTML = (data.alertas || []).length ?
+      '<div class="card p-4 mb-4" style="border-left:4px solid var(--dorado)"><p class="font-semibold mb-2"><i class="fa-solid fa-triangle-exclamation" style="color:var(--dorado)"></i> Alertas</p>' +
+      data.alertas.map(function (a) { return '<p class="text-sm opacity-80">· ' + escaparHTML(a) + '</p>'; }).join('') + '</div>' : '';
+
+    // Guarda datos de cada reserva para el editor (sin otra llamada).
+    APP.reservasCache = APP.reservasCache || {};
+
+    // Indexa pedidos por reserva para mostrarlos DENTRO de cada reserva.
+    APP.pedidosOps = data.pedidos || [];
+    var pedidoPorReserva = {};
+    APP.pedidosOps.forEach(function (p) { if (p.ReservaID) pedidoPorReserva[p.ReservaID] = p; });
+
+    // Resumen del dia: cuantas reservas por servicio (deteccion rapida).
+    var conteo = {}, servPorNombre = {};
+    (data.bloques || []).forEach(function (b) {
+      b.items.forEach(function (it) {
+        conteo[it.servicioNombre] = (conteo[it.servicioNombre] || 0) + 1;
+        servPorNombre[it.servicioNombre] = it.servicioID;
+      });
+    });
+    var resumenHTML = Object.keys(conteo).length
+      ? '<div class="flex flex-wrap gap-2 mb-4">' + Object.keys(conteo).map(function (nom) {
+          var col = colorDeServicio(servPorNombre[nom], nom);
+          var ic = iconoServicio((APP.servicios || []).filter(function (x) { return x.ID === servPorNombre[nom]; })[0] || { ID: '', Categoria: '' });
+          return '<span class="pill inline-flex items-center gap-1" style="background:' + col + '40; color:' + col + '; border-color:' + col + '99;">' +
+            '<i class="fa-solid ' + ic + '"></i> ' + escaparHTML(nom) + ' <b>' + conteo[nom] + '</b></span>';
+        }).join('') + '</div>'
+      : '';
+
+    var timelineHTML = (data.bloques || []).length ? data.bloques.map(function (b) {
+      return '<div class="flex gap-3 mb-4">' +
+        '<div class="w-14 text-right font-semibold shrink-0" style="color:var(--verde-bosque)">' + b.hora + '</div>' +
+        '<div class="flex-1 border-l-2 pl-3 pb-2" style="border-color: var(--borde)">' +
+          b.items.map(function (it) {
+            APP.reservasCache[it.reservaID] = {
+              servicioID: it.servicioID, fecha: fecha, horaInicio: it.horaInicio,
+              personas: it.personas, notas: it.notas
+            };
+            var esComida = servicioPermitePedido(it.servicioID);
+            var pedido = pedidoPorReserva[it.reservaID];
+
+            var acciones = '';
+            if (['Solicitada', 'Pendiente aprobacion'].indexOf(it.estado) !== -1) {
+              acciones += '<button class="btn btn-primary !py-1 !px-2 text-xs" onclick="confirmarReservaStaff(\'' + it.reservaID + '\',\'ops\')" title="Confirmar"><i class="fa-solid fa-check"></i></button>';
+            }
+            if (['Solicitada', 'Pendiente aprobacion', 'Confirmada', 'En curso'].indexOf(it.estado) !== -1) {
+              acciones += '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="abrirEditarReserva(\'' + it.reservaID + '\',\'ops\')" title="Editar"><i class="fa-solid fa-pen"></i></button>';
+              // Agregar/editar pedido para servicios de comida (recepcion).
+              if (esComida) {
+                acciones += '<button class="btn btn-dorado !py-1 !px-2 text-xs" onclick="abrirPrepedidoOps(\'' + it.reservaID + '\',\'' + it.horaInicio + '\')" title="' + (pedido ? 'Editar pedido' : 'Agregar pedido') + '"><i class="fa-solid fa-utensils"></i></button>';
+              }
+              acciones += '<button class="btn btn-peligro !py-1 !px-2 text-xs" onclick="cancelarReservaStaff(\'' + it.reservaID + '\',\'ops\')" title="Cancelar"><i class="fa-solid fa-xmark"></i></button>';
+            }
+
+            // Detalle del pedido, dentro de la misma reserva.
+            var pedidoHTML = '';
+            if (pedido) {
+              var esHab = pedido.Entrega === 'Habitacion';
+              // Badge de entrega bien visible (recalcado si es a la habitacion).
+              var badgeEntrega = esHab
+                ? '<span class="pill" style="background:#8B3A3A;color:#fff;font-size:.7rem"><i class="fa-solid fa-bell-concierge"></i> A LA HABITACION</span>'
+                : '<span class="pill estado-Finalizada"><i class="fa-solid fa-utensils"></i> En restaurant</span>';
+              pedidoHTML = '<div class="mt-2 pt-2 border-t text-xs" style="border-color:var(--borde)' + (esHab ? ';background:#8B3A3A14;border-radius:8px;padding:8px' : '') + '">' +
+                '<div class="flex items-center justify-between mb-1"><p class="font-semibold"><i class="fa-solid fa-utensils" style="color:var(--dorado)"></i> Pedido</p>' + badgeEntrega + '</div>' +
+                pedido.Detalles.map(function (d) {
+                  return '<div class="flex justify-between"><span>' + d.Cantidad + 'x ' + escaparHTML(d.Nombre) + (d.Notas ? ' <i class="opacity-50">(' + escaparHTML(d.Notas) + ')</i>' : '') + '</span><span>' + fmtMoneda(d.Subtotal) + '</span></div>';
+                }).join('') +
+                (pedido.Notas ? '<p class="opacity-70 mt-1"><i class="fa-solid fa-note-sticky"></i> ' + escaparHTML(pedido.Notas) + '</p>' : '') +
+                '<div class="flex justify-between font-semibold mt-1"><span>Total</span><span>' + fmtMoneda(pedido.Total) + '</span></div>' + '</div>';
+            }
+
+            // Identificacion visual del servicio: color propio + icono en circulo.
+            var col = colorDeServicio(it.servicioID, it.servicioNombre);
+            var icono = iconoServicio((APP.servicios || []).filter(function (x) { return x.ID === it.servicioID; })[0] || { ID: it.servicioID, Categoria: '' });
+            return '<div class="card p-3 mb-2" style="border-left:6px solid ' + col + '; background:' + col + '40;">' +
+              '<div class="flex items-start gap-3">' +
+                '<div class="shrink-0 flex items-center justify-center rounded-full" style="width:44px;height:44px;font-size:1.15rem;background:' + col + ';color:#fff;box-shadow:inset 0 -2px 4px rgba(0,0,0,.3)"><i class="fa-solid ' + icono + '"></i></div>' +
+                '<div class="flex-1 min-w-0">' +
+                  '<div class="flex items-start justify-between gap-2">' +
+                    '<p class="font-bold text-xl leading-tight" style="color:var(--grafito)">' + etiquetaHab(it.habitacion) + '</p>' +
+                    '<span class="pill ' + claseEstado(it.estado) + '">' + it.estado + '</span>' +
+                  '</div>' +
+                  '<p class="font-semibold text-base leading-tight" style="color:' + col + '">' + escaparHTML(it.servicioNombre) + (it.variante ? ' · ' + escaparHTML(it.variante) : '') + '</p>' +
+                  '<p class="text-xs opacity-70 mt-0.5">' + it.personas + ' pers.' + (it.notas ? ' · ' + escaparHTML(it.notas) : '') + '</p>' +
+                '</div>' +
+              '</div>' + pedidoHTML +
+              (acciones ? '<div class="flex flex-wrap gap-1 justify-end mt-2">' + acciones + '</div>' : '') +
+            '</div>';
+          }).join('') +
+        '</div></div>';
+    }).join('') : '<div class="card p-8 text-center opacity-60 text-sm"><i class="fa-regular fa-calendar text-2xl block mb-2 opacity-50"></i>Sin actividad registrada para ' + (esHoy ? 'hoy' : 'este dia') + '.</div>';
+
+    // Solo el contenido se reemplaza; la barra de fechas queda intacta.
+    zona.innerHTML = alertasHTML + resumenHTML + timelineHTML;
+  }).catch(function () {
+    zona.innerHTML = htmlError('No pudimos cargar el centro de operaciones.', 'renderOperaciones()');
+  });
+}
+
+/* Etiqueta de la "habitacion" (o pasante/grupo si es externo). */
+function etiquetaHab(hab) {
+  var h = String(hab || '');
+  if (/^\d+$/.test(h)) return 'Hab ' + h;   // numero de habitacion
+  return escaparHTML(h);                     // pasante / grupo (texto libre)
+}
+
+/* Paleta para el selector de color en el formulario de servicios y como
+   respaldo. Colores distinguibles entre si, acordes al estilo sobrio. */
+var PALETA_SERVICIOS = ['#3E6FA3', '#2E8A86', '#7E4EA3', '#4E8A5B', '#9C4A63', '#556070',
+  '#C0603E', '#5B5FB0', '#8B3A5A', '#3A7D8C', '#6E7F3E', '#A6524B'];
+
+/* Color de un servicio: usa el guardado (columna Color); si no, uno estable
+   derivado del nombre como respaldo. */
+function colorDeServicio(servicioID, nombre) {
+  var s = (APP.servicios || []).filter(function (x) { return x.ID === servicioID; })[0];
+  if (s && s.Color) return s.Color;
+  var base = (s && s.Nombre) || nombre || servicioID || '';
+  var h = 0;
+  for (var i = 0; i < base.length; i++) h = (h * 31 + base.charCodeAt(i)) >>> 0;
+  return PALETA_SERVICIOS[h % PALETA_SERVICIOS.length];
+}
+
+/* True si el servicio permite pedido (comida): usa APP.servicios. */
+function servicioPermitePedido(servicioID) {
+  var s = (APP.servicios || []).filter(function (x) { return x.ID === servicioID; })[0];
+  return s && s.PermitePrepedido;
+}
+
+/* Abre el prepedido desde operaciones para una reserva (recepcion). */
+function abrirPrepedidoOps(reservaID, hora) {
+  APP.prepedidoOrigen = 'ops';
+  abrirPrepedido(reservaID, { ID: reservaID, Fecha: APP.fechaOps, HoraInicio: hora });
+}
+
+/* Refresca la vista staff correcta despues de una accion sobre reservas. */
+function refrescarVistaStaff(origen) {
+  if (origen === 'ops') renderOperaciones();
+  else aplicarFiltrosReservas();
+}
+
+/* ---------- Editar reserva (recepcion/admin) ---------- */
+function abrirEditarReserva(reservaID, origen) {
+  var r = (APP.reservasCache || {})[reservaID];
+  if (!r) { mostrarToast('No encontramos los datos de la reserva.', 'error'); return; }
+  APP.edicionOrigen = origen || 'tabla';
+  APP.edicionReservaID = reservaID;
+  APP.edicionServicioID = r.servicioID;
+  APP.edicionHoraActual = r.horaInicio;
+
+  mostrarModal({
+    titulo: 'Editar reserva',
+    contenidoHTML:
+      '<div class="grid grid-cols-2 gap-4 mb-3">' +
+        '<div><label class="lbl">Fecha</label><input id="edFecha" class="input" value="' + r.fecha + '"></div>' +
+        '<div><label class="lbl">Personas</label><input id="edPersonas" type="number" min="1" class="input" value="' + r.personas + '"></div>' +
+      '</div>' +
+      '<label class="lbl">Hora</label>' +
+      '<div class="flex gap-2 mb-3">' +
+        '<select id="edHora" class="input flex-1"><option value="' + r.horaInicio + '">' + r.horaInicio + ' (actual)</option></select>' +
+        '<button class="btn btn-outline !py-2 !px-3" onclick="buscarHorariosEdicion()" title="Ver horarios disponibles"><i class="fa-solid fa-clock"></i></button>' +
+      '</div>' +
+      '<label class="lbl">Notas</label>' +
+      '<textarea id="edNotas" class="input" rows="2">' + escaparHTML(r.notas || '') + '</textarea>',
+    botones: [
+      { texto: 'Cancelar', clase: 'btn-outline', accion: cerrarModal },
+      { texto: 'Guardar cambios', clase: 'btn-primary', accion: guardarEdicionReserva }
+    ]
+  });
+  flatpickr('#edFecha', { locale: 'es', dateFormat: 'Y-m-d', minDate: 'today', defaultDate: r.fecha,
+    onChange: function () { buscarHorariosEdicion(true); } });
+  // Carga los horarios disponibles de inmediato (sin tener que apretar el reloj).
+  buscarHorariosEdicion(true);
+}
+
+function buscarHorariosEdicion(silencioso) {
+  var fecha = document.getElementById('edFecha').value;
+  var personas = document.getElementById('edPersonas').value;
+  var select = document.getElementById('edHora');
+  var horaActual = APP.edicionHoraActual || select.value;
+  llamarAPI('consultarDisponibilidad', [APP.edicionServicioID, fecha, personas], { loader: false, silencioso: true })
+    .then(function (res) {
+      var opciones = '<option value="' + horaActual + '">' + horaActual + ' (actual)</option>';
+      (res.bloques || []).forEach(function (b) {
+        if (b.hora !== horaActual) opciones += '<option value="' + b.hora + '">' + b.hora + '</option>';
+      });
+      select.innerHTML = opciones;
+      if (!silencioso) mostrarToast((res.bloques || []).length + ' horarios disponibles.', 'exito');
+    })
+    .catch(function () { if (!silencioso) mostrarToast('No pudimos consultar horarios.', 'error'); });
+}
+
+function guardarEdicionReserva() {
+  var datos = {
+    fecha: document.getElementById('edFecha').value,
+    horaInicio: document.getElementById('edHora').value,
+    personas: document.getElementById('edPersonas').value,
+    notas: document.getElementById('edNotas').value
+  };
+  llamarAPI('modificarReserva', [APP.edicionReservaID, datos]).then(function (res) {
+    mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+    if (res.success) { cerrarModal(); refrescarVistaStaff(APP.edicionOrigen); }
+  });
+}
+
+/* ---------- Nueva reserva creada por recepcion ---------- */
+function abrirNuevaReservaStaff() {
+  function pintar() {
+    var habOpts = APP.habitacionesStaff.map(function (h) {
+      return '<option value="' + h.Numero + '">' + h.Numero + '</option>';
+    }).join('');
+    var servOpts = APP.servicios.map(function (s) {
+      return '<option value="' + s.ID + '">' + escaparHTML(s.Nombre) + '</option>';
+    }).join('');
+    mostrarModal({
+      titulo: 'Nueva reserva (recepcion)',
+      contenidoHTML:
+        '<label class="lbl">Para quien es</label>' +
+        '<div class="grid grid-cols-3 gap-2 mb-3">' +
+          '<button type="button" class="btn btn-dorado tipo-cliente" data-tipo="habitacion" onclick="seleccionarTipoCliente(\'habitacion\')">Habitacion</button>' +
+          '<button type="button" class="btn btn-outline tipo-cliente" data-tipo="pasante" onclick="seleccionarTipoCliente(\'pasante\')">Pasante</button>' +
+          '<button type="button" class="btn btn-outline tipo-cliente" data-tipo="grupo" onclick="seleccionarTipoCliente(\'grupo\')">Grupo</button>' +
+        '</div>' +
+        '<div class="grid grid-cols-2 gap-4 mb-3">' +
+          '<div id="nrHabBox"><label class="lbl">Habitacion</label><select id="nrHab" class="input">' + habOpts + '</select></div>' +
+          '<div id="nrNombreBox" class="oculto"><label class="lbl" id="nrNombreLbl">Nombre</label><input id="nrNombre" class="input" placeholder="Ej: Familia Perez"></div>' +
+          '<div><label class="lbl">Servicio</label><select id="nrServicio" class="input" onchange="alCambiarServicioStaff()">' + servOpts + '</select></div>' +
+          '<div><label class="lbl">Fecha</label><input id="nrFecha" class="input"></div>' +
+          '<div><label class="lbl">Personas</label><input id="nrPersonas" type="number" min="1" value="2" class="input"></div>' +
+        '</div>' +
+        '<div id="nrVarianteBox" class="mb-3 oculto"><label class="lbl">Opcion</label><select id="nrVariante" class="input"></select></div>' +
+        '<button class="btn btn-outline w-full mb-2" onclick="buscarHorariosNuevaReserva()"><i class="fa-solid fa-clock"></i> Ver horarios disponibles</button>' +
+        '<div id="nrHorarios" class="grid grid-cols-3 gap-2 mb-3"></div>' +
+        '<label class="lbl">Notas</label>' +
+        '<textarea id="nrNotas" class="input" rows="2" placeholder="Preferencias, ocasion especial, etc."></textarea>' +
+        '<p class="text-xs opacity-50 mt-2">La reserva quedara Confirmada de inmediato (salvo servicios que requieren aprobacion). Recepcion no tiene limite de dias.</p>',
+      botones: [
+        { texto: 'Cancelar', clase: 'btn-outline', accion: cerrarModal },
+        { texto: 'Crear reserva', clase: 'btn-primary', accion: crearReservaDesdeStaff }
+      ]
+    });
+    APP.tipoClienteNR = 'habitacion';
+    APP.horaNR = '';
+    // Sin maxDate: recepcion puede agendar cuando quiera. Al cambiar la fecha
+    // o las personas, recarga los horarios automaticamente.
+    flatpickr('#nrFecha', { locale: 'es', dateFormat: 'Y-m-d', minDate: 'today', defaultDate: APP.fechaOps || 'today',
+      onChange: function () { buscarHorariosNuevaReserva(); } });
+    var pers = document.getElementById('nrPersonas');
+    if (pers) pers.addEventListener('change', buscarHorariosNuevaReserva);
+    // alCambiarServicioStaff ya dispara la carga de horarios.
+    alCambiarServicioStaff();
+  }
+  // Las habitaciones se piden una sola vez y quedan en memoria.
+  if (APP.habitacionesStaff) { pintar(); }
+  else {
+    llamarAPI('obtenerHabitaciones', [], { loader: true }).then(function (habs) {
+      APP.habitacionesStaff = habs || [];
+      pintar();
+    });
+  }
+}
+
+/* Cambia el tipo de cliente de la nueva reserva (habitacion/pasante/grupo). */
+function seleccionarTipoCliente(tipo) {
+  APP.tipoClienteNR = tipo;
+  document.querySelectorAll('.tipo-cliente').forEach(function (b) {
+    var sel = b.getAttribute('data-tipo') === tipo;
+    b.classList.toggle('btn-dorado', sel); b.classList.toggle('btn-outline', !sel);
+  });
+  var esHab = tipo === 'habitacion';
+  document.getElementById('nrHabBox').classList.toggle('oculto', !esHab);
+  document.getElementById('nrNombreBox').classList.toggle('oculto', esHab);
+  document.getElementById('nrNombreLbl').textContent = tipo === 'grupo' ? 'Nombre del grupo' : 'Nombre del pasante';
+}
+
+/* Muestra/oculta el selector de variante segun el servicio elegido (staff). */
+function alCambiarServicioStaff() {
+  var servicioID = document.getElementById('nrServicio').value;
+  var s = (APP.servicios || []).filter(function (x) { return x.ID === servicioID; })[0];
+  var box = document.getElementById('nrVarianteBox');
+  var sel = document.getElementById('nrVariante');
+  if (s && s.Variantes && s.Variantes.length) {
+    sel.innerHTML = s.Variantes.map(function (v) {
+      return '<option value="' + escaparHTML(v.nombre) + '">' + escaparHTML(v.nombre) + ' · ' + fmtMoneda(v.precio) + '</option>';
+    }).join('');
+    box.classList.remove('oculto');
+  } else {
+    sel.innerHTML = ''; box.classList.add('oculto');
+  }
+  // Al cambiar de servicio, invalida la hora elegida y recarga horarios.
+  APP.horaNR = '';
+  if (document.getElementById('nrHorarios')) buscarHorariosNuevaReserva();
+}
+
+/* Selecciona una hora en la grilla de la nueva reserva (staff). */
+function seleccionarHoraNR(el, hora) {
+  document.querySelectorAll('#nrHorarios button').forEach(function (b) {
+    b.classList.remove('btn-dorado'); b.classList.add('btn-outline');
+  });
+  el.classList.remove('btn-outline'); el.classList.add('btn-dorado');
+  APP.horaNR = hora;
+}
+
+function buscarHorariosNuevaReserva() {
+  var servicioID = document.getElementById('nrServicio').value;
+  var fecha = document.getElementById('nrFecha').value;
+  var personas = document.getElementById('nrPersonas').value;
+  var cont = document.getElementById('nrHorarios');
+  if (!cont) return;
+  if (!fecha) { cont.innerHTML = '<p class="col-span-3 text-xs opacity-50 text-center py-2">Elige una fecha.</p>'; return; }
+  APP.horaNR = '';
+  cont.innerHTML = '<div class="col-span-3 flex justify-center py-2"><div class="spinner"></div></div>';
+  llamarAPI('consultarDisponibilidad', [servicioID, fecha, personas], { loader: false, silencioso: true })
+    .then(function (res) {
+      if (!res.success || !res.bloques.length) {
+        cont.innerHTML = '<p class="col-span-3 text-xs opacity-60 text-center py-2">Sin horarios disponibles.</p>';
+        return;
+      }
+      cont.innerHTML = res.bloques.map(function (b) {
+        return '<button type="button" class="btn btn-outline !py-2 text-sm" onclick="seleccionarHoraNR(this,\'' + b.hora + '\')">' + b.hora + '</button>';
+      }).join('');
+    })
+    .catch(function () { cont.innerHTML = '<p class="col-span-3 text-xs opacity-60 text-center py-2">No pudimos consultar horarios.</p>'; });
+}
+
+function crearReservaDesdeStaff() {
+  var hora = APP.horaNR || '';
+  if (!hora) { mostrarToast('Elige un horario.', 'error'); return; }
+  var varBox = document.getElementById('nrVarianteBox');
+  var variante = (varBox && !varBox.classList.contains('oculto')) ? document.getElementById('nrVariante').value : '';
+
+  var tipo = APP.tipoClienteNR || 'habitacion';
+  var habitacion;
+  if (tipo === 'habitacion') {
+    habitacion = document.getElementById('nrHab').value;
+  } else {
+    var nombre = (document.getElementById('nrNombre').value || '').trim();
+    if (!nombre) { mostrarToast('Escribe el nombre del ' + (tipo === 'grupo' ? 'grupo' : 'pasante') + '.', 'error'); return; }
+    // Prefijo para distinguir en operaciones (ej. "Pasante: Juan").
+    habitacion = (tipo === 'grupo' ? 'Grupo: ' : 'Pasante: ') + nombre;
+  }
+
+  var datos = {
+    habitacion: habitacion,
+    tipoCliente: tipo,
+    servicioID: document.getElementById('nrServicio').value,
+    variante: variante,
+    fecha: document.getElementById('nrFecha').value,
+    horaInicio: hora,
+    personas: document.getElementById('nrPersonas').value,
+    notas: document.getElementById('nrNotas').value,
+    solicitadoPor: 'Recepcion (' + (APP.usuarioStaff.Nombre || APP.usuarioStaff.Email) + ')',
+    emailStaff: APP.usuarioStaff.Email
+  };
+  llamarAPI('crearReserva', [datos]).then(function (res) {
+    mostrarToast(res.mensaje + (res.estado ? ' Estado: ' + res.estado + '.' : ''), res.success ? 'exito' : 'error');
+    if (res.success) { cerrarModal(); renderOperaciones(); }
+  });
+}
+
+/* ---------- Gestion de Reservas ---------- */
+function renderReservasStaff() {
+  var cont = document.getElementById('staffReservas');
+  var serviciosOpts = '<option value="">Todos los servicios</option>' + APP.servicios.map(function (s) {
+    return '<option value="' + s.ID + '">' + escaparHTML(s.Nombre) + '</option>';
+  }).join('');
+  cont.innerHTML =
+    '<h2 class="text-2xl mb-4" style="color:var(--verde-bosque)">Gestion de Reservas</h2>' +
+    '<div class="card p-4 mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">' +
+      '<div><label class="lbl">Desde</label><input id="filtroDesde" class="input"></div>' +
+      '<div><label class="lbl">Hasta</label><input id="filtroHasta" class="input"></div>' +
+      '<div><label class="lbl">Habitacion</label><input id="filtroHab" class="input" placeholder="Ej: 105"></div>' +
+      '<div><label class="lbl">Servicio</label><select id="filtroServicio" class="input">' + serviciosOpts + '</select></div>' +
+    '</div>' +
+    '<div class="mb-3"><button class="btn btn-primary" onclick="aplicarFiltrosReservas()"><i class="fa-solid fa-filter"></i> Filtrar</button></div>' +
+    '<div class="card p-4 overflow-x-auto"><div id="tablaReservas"></div></div>';
+
+  flatpickr('#filtroDesde', { locale: 'es', dateFormat: 'Y-m-d' });
+  flatpickr('#filtroHasta', { locale: 'es', dateFormat: 'Y-m-d' });
+  aplicarFiltrosReservas();
+}
+
+function aplicarFiltrosReservas() {
+  var filtros = {
+    fechaDesde: document.getElementById('filtroDesde').value || '',
+    fechaHasta: document.getElementById('filtroHasta').value || '',
+    habitacion: document.getElementById('filtroHab').value || '',
+    servicioID: document.getElementById('filtroServicio').value || ''
+  };
+  var tabla = document.getElementById('tablaReservas');
+  tabla.innerHTML = '<div class="flex justify-center py-6"><div class="spinner"></div></div>';
+  llamarAPI('obtenerReservas', [filtros], { loader: false }).then(function (reservas) {
+    if (!reservas.length) { tabla.innerHTML = '<p class="text-sm opacity-60 py-4 text-center">Sin reservas.</p>'; return; }
+    tabla.innerHTML = '<table class="tabla"><thead><tr>' +
+      '<th>Fecha</th><th>Hora</th><th>Hab</th><th>Servicio</th><th>Pers.</th><th>Estado</th><th>Acciones</th>' +
+      '</tr></thead><tbody>' + reservas.map(filaReservaStaff).join('') + '</tbody></table>';
+  }).catch(function () {
+    tabla.innerHTML = htmlError('No pudimos cargar las reservas.', 'aplicarFiltrosReservas()');
+  });
+}
+
+function filaReservaStaff(r) {
+  // Cachea los datos para el modal de edicion.
+  APP.reservasCache = APP.reservasCache || {};
+  APP.reservasCache[r.ID] = {
+    servicioID: r.ServicioID, fecha: r.Fecha, horaInicio: r.HoraInicio,
+    personas: r.Personas, notas: r.Notas
+  };
+  var acciones = '';
+  if (['Solicitada', 'Pendiente aprobacion'].indexOf(r.Estado) !== -1) {
+    acciones += '<button class="btn btn-primary !py-1 !px-2 text-xs mr-1" onclick="confirmarReservaStaff(\'' + r.ID + '\')" title="Confirmar"><i class="fa-solid fa-check"></i></button>';
+  }
+  if (['Solicitada', 'Pendiente aprobacion', 'Confirmada'].indexOf(r.Estado) !== -1) {
+    acciones += '<button class="btn btn-outline !py-1 !px-2 text-xs mr-1" onclick="abrirEditarReserva(\'' + r.ID + '\')" title="Editar"><i class="fa-solid fa-pen"></i></button>';
+    acciones += '<button class="btn btn-peligro !py-1 !px-2 text-xs mr-1" onclick="cancelarReservaStaff(\'' + r.ID + '\')" title="Cancelar"><i class="fa-solid fa-xmark"></i></button>';
+  }
+  if (r.PrepedidoID) {
+    acciones += '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="verPedidoStaff(\'' + r.ID + '\')" title="Ver pedido"><i class="fa-solid fa-utensils"></i></button>';
+  }
+  return '<tr>' +
+    '<td>' + r.Fecha + '</td><td>' + r.HoraInicio + '</td><td>' + r.Habitacion + '</td>' +
+    '<td>' + escaparHTML(r.ServicioNombre) + '</td><td>' + r.Personas + '</td>' +
+    '<td><span class="pill ' + claseEstado(r.Estado) + '">' + r.Estado + '</span></td>' +
+    '<td class="whitespace-nowrap">' + (acciones || '—') + '</td>' +
+  '</tr>';
+}
+
+function confirmarReservaStaff(id, origen) {
+  llamarAPI('cambiarEstadoReserva', [id, 'Confirmada']).then(function (res) {
+    mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+    if (res.success) refrescarVistaStaff(origen);
+  });
+}
+function cancelarReservaStaff(id, origen) {
+  mostrarModal({
+    titulo: 'Cancelar reserva (hotel)',
+    contenidoHTML: '<input id="motivoCancelStaff" class="input" placeholder="Motivo de cancelacion">',
+    botones: [
+      { texto: 'Volver', clase: 'btn-outline', accion: cerrarModal },
+      { texto: 'Cancelar reserva', clase: 'btn-peligro', accion: function () {
+        var motivo = document.getElementById('motivoCancelStaff').value;
+        llamarAPI('cancelarReserva', [id, motivo, true]).then(function (res) {
+          cerrarModal(); mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+          if (res.success) refrescarVistaStaff(origen);
+        });
+      }}
+    ]
+  });
+}
+function verPedidoStaff(reservaID) {
+  llamarAPI('obtenerPedidosPorReserva', [reservaID]).then(function (data) {
+    if (!data) { mostrarToast('Sin pedido asociado.', 'error'); return; }
+    var det = data.detalles.map(function (d) {
+      return '<div class="flex justify-between text-sm"><span>' + d.Cantidad + 'x ' + escaparHTML(d.Nombre) + '</span><span>' + fmtMoneda(d.Subtotal) + '</span></div>';
+    }).join('');
+    mostrarModal({
+      titulo: 'Pedido Hab ' + data.pedido.Habitacion,
+      contenidoHTML: det + '<div class="flex justify-between font-semibold mt-3 pt-2 border-t" style="border-color:var(--borde)"><span>Total</span><span>' + fmtMoneda(data.pedido.Total) + '</span></div>',
+      botones: [{ texto: 'Cerrar', clase: 'btn-primary', accion: cerrarModal }]
+    });
+  });
+}
+
+/* ---------- Gestion de Pedidos ---------- */
+function renderPedidosStaff() {
+  var cont = document.getElementById('staffPedidos');
+  cont.innerHTML = '<div class="flex justify-center py-8"><div class="spinner"></div></div>';
+  llamarAPI('obtenerPedidosDelDia', [hoyISO()], { loader: false }).then(function (pedidos) {
+    if (!pedidos.length) { cont.innerHTML = '<h2 class="text-2xl mb-4" style="color:var(--verde-bosque)">Pedidos de hoy</h2><div class="card p-8 text-center opacity-60 text-sm">Sin pedidos.</div>'; return; }
+    cont.innerHTML = '<h2 class="text-2xl mb-4" style="color:var(--verde-bosque)">Pedidos de hoy</h2>' +
+      pedidos.map(function (p) {
+        return '<div class="card p-4 mb-3">' +
+          '<div class="flex justify-between items-center mb-2"><p class="font-semibold">Hab ' + p.Habitacion + (p.HoraReserva ? ' · ' + p.HoraReserva : '') + '</p>' +
+          '<span class="pill estado-Confirmada">' + escaparHTML(p.Estado) + '</span></div>' +
+          p.Detalles.map(function (d) {
+            return '<div class="flex justify-between text-sm"><span>' + d.Cantidad + 'x ' + escaparHTML(d.Nombre) + (d.Notas ? ' <i class="opacity-50">(' + escaparHTML(d.Notas) + ')</i>' : '') + '</span><span>' + fmtMoneda(d.Subtotal) + '</span></div>';
+          }).join('') +
+          '<div class="flex justify-between font-semibold mt-2 pt-2 border-t" style="border-color:var(--borde)"><span>Total</span><span>' + fmtMoneda(p.Total) + '</span></div>' +
+        '</div>';
+      }).join('');
+  }).catch(function () {
+    cont.innerHTML = htmlError('No pudimos cargar los pedidos.', 'renderPedidosStaff()');
+  });
+}
+
+/* ---------- Gestion de Carta ---------- */
+function renderCartaStaff() {
+  var cont = document.getElementById('staffCarta');
+  var esAdmin = APP.usuarioStaff.Rol === 'ADMINISTRADOR';
+  var catOpts = '<option value="">Todas las categorias</option>' + APP.categorias.map(function (c) {
+    return '<option value="' + c.ID + '">' + escaparHTML(c.Nombre) + '</option>';
+  }).join('');
+  cont.innerHTML =
+    '<div class="flex flex-wrap items-center justify-between gap-2 mb-4">' +
+      '<h2 class="text-2xl" style="color:var(--verde-bosque)">Gestion de Carta</h2>' +
+      '<button class="btn btn-dorado" onclick="abrirFormProducto()"><i class="fa-solid fa-plus"></i> Nuevo Plato</button>' +
+    '</div>' +
+    '<div class="card p-4 mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">' +
+      '<div><label class="lbl">Categoria</label><select id="filtroCatCarta" class="input" onchange="filtrarCarta()">' + catOpts + '</select></div>' +
+      '<div class="md:col-span-2"><label class="lbl">Buscar por nombre</label><input id="buscarCarta" class="input" oninput="filtrarCarta()" placeholder="Ej: ceviche"></div>' +
+    '</div>' +
+    '<div class="card p-4 overflow-x-auto"><div id="tablaCarta"></div></div>' +
+    (esAdmin ? '<div class="mt-6"><div class="flex items-center justify-between mb-3"><h3 class="text-xl" style="color:var(--verde-bosque)">Categorias</h3>' +
+      '<button class="btn btn-outline" onclick="abrirFormCategoria()"><i class="fa-solid fa-plus"></i> Nueva Categoria</button></div>' +
+      '<div class="card p-4 overflow-x-auto"><div id="tablaCategorias"></div></div></div>' : '');
+
+  cargarTablaCarta();
+  if (esAdmin) cargarTablaCategorias();
+}
+
+function cargarTablaCarta() {
+  var tabla = document.getElementById('tablaCarta');
+  tabla.innerHTML = '<div class="flex justify-center py-6"><div class="spinner"></div></div>';
+  llamarAPI('obtenerProductosGestion', [], { loader: false }).then(function (productos) {
+    APP.productosGestion = productos;
+    filtrarCarta();
+  }).catch(function () {
+    tabla.innerHTML = htmlError('No pudimos cargar la carta.', 'cargarTablaCarta()');
+  });
+}
+
+function filtrarCarta() {
+  var productos = APP.productosGestion || [];
+  var cat = document.getElementById('filtroCatCarta').value;
+  var busqueda = (document.getElementById('buscarCarta').value || '').toLowerCase();
+  var catNombre = {};
+  APP.categorias.forEach(function (c) { catNombre[c.ID] = c.Nombre; });
+
+  var filtrados = productos.filter(function (p) {
+    if (cat && p.CategoriaID !== cat) return false;
+    if (busqueda && p.Nombre.toLowerCase().indexOf(busqueda) === -1) return false;
+    return true;
+  });
+
+  var tabla = document.getElementById('tablaCarta');
+  if (!filtrados.length) { tabla.innerHTML = '<p class="text-sm opacity-60 py-4 text-center">Sin productos.</p>'; return; }
+  tabla.innerHTML = '<table class="tabla"><thead><tr>' +
+    '<th>Nombre</th><th>Categoria</th><th>Precio</th><th>Disponible</th><th>Visible</th><th>Orden</th><th>Acciones</th>' +
+    '</tr></thead><tbody>' + filtrados.map(function (p) {
+      return '<tr>' +
+        '<td>' + escaparHTML(p.Nombre) + '</td>' +
+        '<td class="text-xs opacity-70">' + escaparHTML(catNombre[p.CategoriaID] || p.CategoriaID) + '</td>' +
+        '<td>' + fmtMoneda(p.Precio) + '</td>' +
+        '<td><label class="switch"><input type="checkbox" ' + (p.Disponible ? 'checked' : '') + ' onchange="toggleDisponible(\'' + p.ID + '\', this.checked)"><span class="slider"></span></label></td>' +
+        '<td>' + (p.Visible ? '<i class="fa-solid fa-eye" style="color:var(--verde-bosque)"></i>' : '<i class="fa-solid fa-eye-slash opacity-40"></i>') + '</td>' +
+        '<td>' + p.Orden + '</td>' +
+        '<td class="whitespace-nowrap">' +
+          '<button class="btn btn-outline !py-1 !px-2 text-xs mr-1" onclick="abrirFormProducto(\'' + p.ID + '\')" title="Editar"><i class="fa-solid fa-pen"></i></button>' +
+          '<button class="btn btn-peligro !py-1 !px-2 text-xs" onclick="eliminarProductoStaff(\'' + p.ID + '\')" title="Ocultar"><i class="fa-solid fa-trash"></i></button>' +
+        '</td>' +
+      '</tr>';
+    }).join('') + '</tbody></table>';
+}
+
+function toggleDisponible(productoID, nuevoEstado) {
+  llamarAPI('toggleDisponibleProducto', [productoID, nuevoEstado, APP.usuarioStaff.Email], { loader: false }).then(function (res) {
+    mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+    if (res.success && APP.productosGestion) {
+      APP.productosGestion.forEach(function (p) { if (p.ID === productoID) p.Disponible = nuevoEstado; });
+    }
+  });
+}
+
+function eliminarProductoStaff(productoID) {
+  mostrarModal({
+    titulo: 'Ocultar producto',
+    contenidoHTML: '<p class="text-sm">El producto se ocultara de la carta (soft delete). Podras reactivarlo despues. Se conserva el historial de pedidos.</p>',
+    botones: [
+      { texto: 'Cancelar', clase: 'btn-outline', accion: cerrarModal },
+      { texto: 'Ocultar', clase: 'btn-peligro', accion: function () {
+        llamarAPI('eliminarProducto', [productoID, APP.usuarioStaff.Email]).then(function (res) {
+          cerrarModal(); mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+          if (res.success) cargarTablaCarta();
+        });
+      }}
+    ]
+  });
+}
+
+function abrirFormProducto(productoID) {
+  var catOpts = APP.categorias.map(function (c) { return '<option value="' + c.ID + '">' + escaparHTML(c.Nombre) + '</option>'; }).join('');
+
+  function pintarForm(p) {
+    p = p || { CategoriaID: APP.categorias[0] ? APP.categorias[0].ID : '', Disponible: true, Visible: true, Orden: 0, TiempoPreparacionMin: 0, EsMenuDelDia: false, Etiquetas: '', Precio: 0, Nombre: '', Descripcion: '', NombreEN: '', DescripcionEN: '' };
+    var etiquetasSel = (p.Etiquetas || '').split(',').map(function (e) { return e.trim(); });
+    function chkEtiqueta(nombre) { return etiquetasSel.indexOf(nombre) !== -1 ? 'checked' : ''; }
+
+    var form =
+      '<input type="hidden" id="prodID" value="' + (p.ID || '') + '">' +
+      '<label class="lbl">Categoria</label><select id="prodCat" class="input mb-2">' + catOpts + '</select>' +
+      '<label class="lbl">Nombre</label><input id="prodNombre" class="input mb-2" value="' + escaparHTML(p.Nombre) + '">' +
+      '<label class="lbl"><i class="fa-solid fa-language"></i> Nombre (ingles)</label><input id="prodNombreEN" class="input mb-2" placeholder="English name" value="' + escaparHTML(p.NombreEN || '') + '">' +
+      '<label class="lbl">Descripcion</label><textarea id="prodDesc" class="input mb-2" rows="2">' + escaparHTML(p.Descripcion) + '</textarea>' +
+      '<label class="lbl"><i class="fa-solid fa-language"></i> Descripcion (ingles)</label><textarea id="prodDescEN" class="input mb-2" rows="2" placeholder="English description">' + escaparHTML(p.DescripcionEN || '') + '</textarea>' +
+      '<div class="grid grid-cols-2 gap-2">' +
+        '<div><label class="lbl">Precio</label><input id="prodPrecio" type="number" class="input mb-2" value="' + p.Precio + '"></div>' +
+        '<div><label class="lbl">Orden</label><input id="prodOrden" type="number" class="input mb-2" value="' + p.Orden + '"></div>' +
+      '</div>' +
+      '<div class="grid grid-cols-2 gap-2">' +
+        '<div><label class="lbl">Tiempo prep. (min)</label><input id="prodTiempo" type="number" class="input mb-2" value="' + p.TiempoPreparacionMin + '"></div>' +
+        '<div><label class="lbl">Etiquetas</label>' +
+          '<div class="flex flex-col gap-1 text-sm">' +
+            '<label><input type="checkbox" class="etq" value="Vegano" ' + chkEtiqueta('Vegano') + '> Vegano</label>' +
+            '<label><input type="checkbox" class="etq" value="Sin Gluten" ' + chkEtiqueta('Sin Gluten') + '> Sin Gluten</label>' +
+            '<label><input type="checkbox" class="etq" value="Picante" ' + chkEtiqueta('Picante') + '> Picante</label>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="flex gap-6 mt-3">' +
+        '<label class="flex items-center gap-2 text-sm"><span class="switch"><input type="checkbox" id="prodDisp" ' + (p.Disponible ? 'checked' : '') + '><span class="slider"></span></span> Disponible</label>' +
+        '<label class="flex items-center gap-2 text-sm"><span class="switch"><input type="checkbox" id="prodVis" ' + (p.Visible ? 'checked' : '') + '><span class="slider"></span></span> Visible</label>' +
+        '<label class="flex items-center gap-2 text-sm"><span class="switch"><input type="checkbox" id="prodMenu" ' + (p.EsMenuDelDia ? 'checked' : '') + '><span class="slider"></span></span> Menu del dia</label>' +
+      '</div>';
+
+    mostrarModal({
+      titulo: productoID ? 'Editar plato' : 'Nuevo plato',
+      contenidoHTML: form,
+      botones: [
+        { texto: 'Cancelar', clase: 'btn-outline', accion: cerrarModal },
+        { texto: 'Guardar', clase: 'btn-primary', accion: guardarProductoStaff }
+      ]
+    });
+    if (p.CategoriaID) document.getElementById('prodCat').value = p.CategoriaID;
+  }
+
+  if (productoID) {
+    llamarAPI('obtenerProductoParaEditar', [productoID]).then(pintarForm);
+  } else {
+    pintarForm(null);
+  }
+}
+
+function guardarProductoStaff() {
+  var etiquetas = Array.prototype.slice.call(document.querySelectorAll('.etq:checked')).map(function (e) { return e.value; }).join(', ');
+  var datos = {
+    id: document.getElementById('prodID').value,
+    categoriaID: document.getElementById('prodCat').value,
+    nombre: document.getElementById('prodNombre').value,
+    nombreEN: document.getElementById('prodNombreEN').value,
+    descripcion: document.getElementById('prodDesc').value,
+    descripcionEN: document.getElementById('prodDescEN').value,
+    precio: document.getElementById('prodPrecio').value,
+    orden: document.getElementById('prodOrden').value,
+    tiempoPreparacionMin: document.getElementById('prodTiempo').value,
+    etiquetas: etiquetas,
+    disponible: document.getElementById('prodDisp').checked,
+    visible: document.getElementById('prodVis').checked,
+    esMenuDelDia: document.getElementById('prodMenu').checked,
+    email: APP.usuarioStaff.Email
+  };
+  if (!datos.nombre) { mostrarToast('El nombre es obligatorio.', 'error'); return; }
+  llamarAPI('guardarProducto', [datos]).then(function (res) {
+    mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+    if (res.success) { cerrarModal(); cargarTablaCarta(); }
+  });
+}
+
+/* ---------- Categorias (solo Admin) ---------- */
+function cargarTablaCategorias() {
+  var tabla = document.getElementById('tablaCategorias');
+  if (!tabla) return;
+  llamarAPI('obtenerCategoriasTodas', [], { loader: false }).then(function (cats) {
+    APP.categorias = cats;
+    tabla.innerHTML = '<table class="tabla"><thead><tr><th>Nombre</th><th>Orden</th><th>Visible</th><th>Icono</th><th>Acciones</th></tr></thead><tbody>' +
+      cats.map(function (c) {
+        return '<tr>' +
+          '<td><i class="fa-solid ' + c.IconoFontAwesome + '" style="color:' + c.Color + '"></i> ' + escaparHTML(c.Nombre) + '</td>' +
+          '<td>' + c.Orden + '</td>' +
+          '<td>' + (c.Visible ? '<i class="fa-solid fa-eye" style="color:var(--verde-bosque)"></i>' : '<i class="fa-solid fa-eye-slash opacity-40"></i>') + '</td>' +
+          '<td class="text-xs opacity-60">' + c.IconoFontAwesome + '</td>' +
+          '<td><button class="btn btn-outline !py-1 !px-2 text-xs mr-1" onclick="abrirFormCategoria(\'' + c.ID + '\')"><i class="fa-solid fa-pen"></i></button>' +
+          '<button class="btn btn-peligro !py-1 !px-2 text-xs" onclick="eliminarCategoriaStaff(\'' + c.ID + '\')"><i class="fa-solid fa-trash"></i></button></td>' +
+        '</tr>';
+      }).join('') + '</tbody></table>';
+  }).catch(function () {
+    tabla.innerHTML = htmlError('No pudimos cargar las categorias.', 'cargarTablaCategorias()');
+  });
+}
+
+function abrirFormCategoria(categoriaID) {
+  var cat = null;
+  if (categoriaID) cat = APP.categorias.filter(function (c) { return c.ID === categoriaID; })[0];
+  cat = cat || { Nombre: '', NombreEN: '', Orden: 0, Visible: true, IconoFontAwesome: 'fa-utensils', Color: '#414143' };
+  var form =
+    '<input type="hidden" id="catID" value="' + (categoriaID || '') + '">' +
+    '<label class="lbl">Nombre</label><input id="catNombre" class="input mb-2" value="' + escaparHTML(cat.Nombre) + '">' +
+    '<label class="lbl"><i class="fa-solid fa-language"></i> Nombre (ingles)</label><input id="catNombreEN" class="input mb-2" placeholder="English name" value="' + escaparHTML(cat.NombreEN || '') + '">' +
+    '<div class="grid grid-cols-2 gap-2">' +
+      '<div><label class="lbl">Orden</label><input id="catOrden" type="number" class="input mb-2" value="' + cat.Orden + '"></div>' +
+      '<div><label class="lbl">Icono (FontAwesome)</label><input id="catIcono" class="input mb-2" value="' + escaparHTML(cat.IconoFontAwesome) + '"></div>' +
+    '</div>' +
+    '<label class="lbl">Color</label><input id="catColor" type="color" class="input mb-2 h-11" value="' + cat.Color + '">' +
+    '<label class="flex items-center gap-2 text-sm mt-2"><span class="switch"><input type="checkbox" id="catVisible" ' + (cat.Visible ? 'checked' : '') + '><span class="slider"></span></span> Visible</label>';
+  mostrarModal({
+    titulo: categoriaID ? 'Editar categoria' : 'Nueva categoria',
+    contenidoHTML: form,
+    botones: [
+      { texto: 'Cancelar', clase: 'btn-outline', accion: cerrarModal },
+      { texto: 'Guardar', clase: 'btn-primary', accion: guardarCategoriaStaff }
+    ]
+  });
+}
+
+function guardarCategoriaStaff() {
+  var datos = {
+    id: document.getElementById('catID').value,
+    nombre: document.getElementById('catNombre').value,
+    nombreEN: document.getElementById('catNombreEN').value,
+    orden: document.getElementById('catOrden').value,
+    iconoFontAwesome: document.getElementById('catIcono').value,
+    color: document.getElementById('catColor').value,
+    visible: document.getElementById('catVisible').checked,
+    email: APP.usuarioStaff.Email
+  };
+  llamarAPI('guardarCategoria', [datos]).then(function (res) {
+    mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+    if (res.success) { cerrarModal(); cargarTablaCategorias(); }
+  });
+}
+
+function eliminarCategoriaStaff(categoriaID) {
+  mostrarModal({
+    titulo: 'Ocultar categoria',
+    contenidoHTML: '<p class="text-sm">La categoria se ocultara (soft delete).</p>',
+    botones: [
+      { texto: 'Cancelar', clase: 'btn-outline', accion: cerrarModal },
+      { texto: 'Ocultar', clase: 'btn-peligro', accion: function () {
+        llamarAPI('eliminarCategoria', [categoriaID, APP.usuarioStaff.Email]).then(function (res) {
+          cerrarModal(); mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+          if (res.success) cargarTablaCategorias();
+        });
+      }}
+    ]
+  });
+}
+
+/* ---------- Historial de Pedidos ---------- */
+function renderHistorial() {
+  var cont = document.getElementById('staffHistorial');
+  var serviciosOpts = '<option value="">Todos</option>' + APP.servicios.map(function (s) {
+    return '<option value="' + s.ID + '">' + escaparHTML(s.Nombre) + '</option>';
+  }).join('');
+  cont.innerHTML =
+    '<h2 class="text-2xl mb-1" style="color:var(--verde-bosque)">Historial de Pedidos</h2>' +
+    '<p class="text-sm opacity-60 mb-4">Consulta interna. No genera comprobantes. Cada busqueda queda registrada para auditoria.</p>' +
+    '<div class="card p-4 mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">' +
+      '<div><label class="lbl">Habitacion</label><input id="hisHab" class="input" placeholder="Ej: 105"></div>' +
+      '<div><label class="lbl">Desde</label><input id="hisDesde" class="input"></div>' +
+      '<div><label class="lbl">Hasta</label><input id="hisHasta" class="input"></div>' +
+      '<div><label class="lbl">Servicio</label><select id="hisServicio" class="input">' + serviciosOpts + '</select></div>' +
+      '<div class="md:col-span-4"><label class="lbl">Producto (nombre)</label><input id="hisProducto" class="input" placeholder="Ej: ceviche"></div>' +
+    '</div>' +
+    '<div class="mb-3"><button class="btn btn-primary" onclick="buscarHistorial()"><i class="fa-solid fa-magnifying-glass"></i> Buscar</button></div>' +
+    '<div class="card p-4 overflow-x-auto"><div id="tablaHistorial"><p class="text-sm opacity-60 py-4 text-center">Ingresa filtros y busca.</p></div></div>';
+  flatpickr('#hisDesde', { locale: 'es', dateFormat: 'Y-m-d' });
+  flatpickr('#hisHasta', { locale: 'es', dateFormat: 'Y-m-d' });
+}
+
+function buscarHistorial() {
+  // Resuelve productoID por nombre (si se ingreso).
+  var nombreProd = (document.getElementById('hisProducto').value || '').toLowerCase();
+  var productoID = '';
+  if (nombreProd && APP.productosGestion) {
+    var encontrado = APP.productosGestion.filter(function (p) { return p.Nombre.toLowerCase().indexOf(nombreProd) !== -1; })[0];
+    if (encontrado) productoID = encontrado.ID;
+  }
+  var filtros = {
+    habitacion: document.getElementById('hisHab').value || '',
+    fechaDesde: document.getElementById('hisDesde').value || '',
+    fechaHasta: document.getElementById('hisHasta').value || '',
+    servicioID: document.getElementById('hisServicio').value || '',
+    productoID: productoID,
+    usuarioConsulta: APP.usuarioStaff.Email
+  };
+  var tabla = document.getElementById('tablaHistorial');
+  tabla.innerHTML = '<div class="flex justify-center py-6"><div class="spinner"></div></div>';
+  // Asegura productos cargados para la resolucion de nombre proxima vez.
+  if (!APP.productosGestion) {
+    llamarAPI('obtenerProductosGestion', [], { loader: false }).then(function (p) { APP.productosGestion = p; });
+  }
+  llamarAPI('buscarHistorialPedidos', [filtros], { loader: false }).then(function (resultados) {
+    if (!resultados.length) { tabla.innerHTML = '<p class="text-sm opacity-60 py-4 text-center">Sin resultados.</p>'; return; }
+    tabla.innerHTML = '<table class="tabla"><thead><tr><th>Fecha</th><th>Hab</th><th>Servicio</th><th>Productos</th><th>Total</th><th>Estado</th></tr></thead><tbody>' +
+      resultados.map(function (r) {
+        return '<tr><td>' + r.Fecha + '</td><td>' + r.Habitacion + '</td><td>' + escaparHTML(r.ServicioNombre) + '</td>' +
+          '<td class="text-xs">' + escaparHTML(r.Resumen) + '</td><td>' + fmtMoneda(r.Total) + '</td>' +
+          '<td><span class="pill estado-Finalizada">' + escaparHTML(r.Estado) + '</span></td></tr>';
+      }).join('') + '</tbody></table>';
+  }).catch(function () {
+    tabla.innerHTML = htmlError('No pudimos completar la busqueda.', 'buscarHistorial()');
+  });
+}
+
+/* ---------- Bloqueos ---------- */
+function renderBloqueos() {
+  var cont = document.getElementById('staffBloqueos');
+  var serviciosOpts = '<option value="">Todos los servicios</option>' + APP.servicios.map(function (s) {
+    return '<option value="' + s.ID + '">' + escaparHTML(s.Nombre) + '</option>';
+  }).join('');
+  cont.innerHTML =
+    '<h2 class="text-2xl mb-4" style="color:var(--verde-bosque)">Bloqueos y Eventos</h2>' +
+    '<div class="card p-4 mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">' +
+      '<div><label class="lbl">Tipo</label><select id="blqTipo" class="input"><option>Mantencion</option><option>Evento privado</option><option>Cierre</option><option>Bloqueo</option></select></div>' +
+      '<div><label class="lbl">Servicio</label><select id="blqServicio" class="input">' + serviciosOpts + '</select></div>' +
+      '<div><label class="lbl">Motivo</label><input id="blqMotivo" class="input" placeholder="Motivo"></div>' +
+      '<div><label class="lbl">Fecha inicio</label><input id="blqFechaIni" class="input"></div>' +
+      '<div><label class="lbl">Fecha fin</label><input id="blqFechaFin" class="input"></div>' +
+      '<div class="grid grid-cols-2 gap-2"><div><label class="lbl">Hora inicio</label><input id="blqHoraIni" class="input" placeholder="HH:MM"></div>' +
+        '<div><label class="lbl">Hora fin</label><input id="blqHoraFin" class="input" placeholder="HH:MM"></div></div>' +
+    '</div>' +
+    '<div class="mb-4"><button class="btn btn-primary" onclick="crearBloqueoStaff()"><i class="fa-solid fa-lock"></i> Crear bloqueo</button></div>' +
+    '<div class="card p-4 overflow-x-auto"><div id="tablaBloqueos"></div></div>';
+  flatpickr('#blqFechaIni', { locale: 'es', dateFormat: 'Y-m-d', minDate: 'today' });
+  flatpickr('#blqFechaFin', { locale: 'es', dateFormat: 'Y-m-d', minDate: 'today' });
+  cargarTablaBloqueos();
+}
+
+function crearBloqueoStaff() {
+  var datos = {
+    tipo: document.getElementById('blqTipo').value,
+    servicioID: document.getElementById('blqServicio').value,
+    motivo: document.getElementById('blqMotivo').value,
+    fechaInicio: document.getElementById('blqFechaIni').value,
+    fechaFin: document.getElementById('blqFechaFin').value,
+    horaInicio: document.getElementById('blqHoraIni').value,
+    horaFin: document.getElementById('blqHoraFin').value,
+    email: APP.usuarioStaff.Email
+  };
+  if (!datos.fechaInicio) { mostrarToast('Selecciona la fecha de inicio.', 'error'); return; }
+  llamarAPI('crearBloqueo', [datos]).then(function (res) {
+    mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+    if (res.success) cargarTablaBloqueos();
+  });
+}
+
+function cargarTablaBloqueos() {
+  var tabla = document.getElementById('tablaBloqueos');
+  var hoy = hoyISO();
+  var enUnAno = (new Date().getFullYear() + 1) + '-12-31';
+  llamarAPI('obtenerBloqueos', [hoy, enUnAno, ''], { loader: false }).then(function (bloqueos) {
+    if (!bloqueos.length) { tabla.innerHTML = '<p class="text-sm opacity-60 py-4 text-center">Sin bloqueos vigentes.</p>'; return; }
+    var servNombre = {}; APP.servicios.forEach(function (s) { servNombre[s.ID] = s.Nombre; });
+    tabla.innerHTML = '<table class="tabla"><thead><tr><th>Tipo</th><th>Servicio</th><th>Desde</th><th>Hasta</th><th>Horario</th><th>Motivo</th></tr></thead><tbody>' +
+      bloqueos.map(function (b) {
+        return '<tr><td>' + escaparHTML(b.Tipo) + '</td><td>' + escaparHTML(servNombre[b.ServicioID] || 'Todos') + '</td>' +
+          '<td>' + b.FechaInicio + '</td><td>' + b.FechaFin + '</td>' +
+          '<td>' + (b.HoraInicio || '—') + ' - ' + (b.HoraFin || '—') + '</td>' +
+          '<td class="text-xs">' + escaparHTML(b.Motivo) + '</td></tr>';
+      }).join('') + '</tbody></table>';
+  }).catch(function () {
+    tabla.innerHTML = htmlError('No pudimos cargar los bloqueos.', 'cargarTablaBloqueos()');
+  });
+}
+
+/* ---------- Configuracion ---------- */
+function renderConfig() {
+  var cont = document.getElementById('staffConfig');
+  cont.innerHTML = '<div class="flex justify-center py-8"><div class="spinner"></div></div>';
+  // Config general + servicios (para editar precios/aforo/horarios reales) +
+  // URL del Sheet y datos del portal de reservas por habitacion.
+  Promise.all([
+    llamarAPI('obtenerConfiguracionCompleta', [], { loader: false, silencioso: true }),
+    llamarAPI('obtenerServiciosGestion', [], { loader: false, silencioso: true }),
+    llamarAPI('obtenerUrlSheet', [], { loader: false, silencioso: true }),
+    llamarAPI('obtenerDatosPortal', [], { loader: false, silencioso: true })
+  ]).then(function (r) {
+    APP.config = r[0] || {};
+    APP.serviciosConfig = r[1] || [];
+    APP.urlSheet = r[2] || '';
+    APP.portal = r[3] || { base: '', mensaje: '', habitaciones: [] };
+    pintarConfig();
+  }).catch(function () {
+    cont.innerHTML = htmlError('No pudimos cargar la configuracion.', 'renderConfig()');
+  });
+}
+
+/* Utilidad: true si una clave de config esta en TRUE. */
+function cfgActivo(clave) {
+  return (APP.config[clave] || '').toString().toUpperCase() === 'TRUE';
+}
+
+function pintarConfig() {
+  var cont = document.getElementById('staffConfig');
+  var c = APP.config;
+
+  // ---- Seccion RESERVAS ----
+  var pasoActual = String(Number(c.RESERVA_PASO_MINUTOS) || 30);
+  var reservas =
+    tarjetaConfig('Reservas y pedidos', 'fa-clock',
+      campoOpciones('Intervalo entre horarios', 'RESERVA_PASO_MINUTOS', pasoActual,
+        [['15', 'Cada 15 min'], ['30', 'Cada 30 min'], ['60', 'Cada hora']],
+        'Cada cuanto se ofrecen horas al reservar.') +
+      campoNumero('Maximo de dias que un huesped puede reservar', 'MAX_DIAS_RESERVA_HUESPED',
+        c.MAX_DIAS_RESERVA_HUESPED, 'Recepcion no tiene limite. Los huespedes solo hasta estos dias hacia adelante.') +
+      campoNumero('Limite para modificar pedido (min antes)', 'PREPEDIDO_MINUTOS_LIMITE',
+        c.PREPEDIDO_MINUTOS_LIMITE, 'Hasta cuantos minutos antes el huesped puede cambiar su pedido.') +
+      campoToggle('Prepedido disponible', 'PREPEDIDO_ACTIVO',
+        String(c.PREPEDIDO_ACTIVO || 'TRUE').toUpperCase() !== 'FALSE',
+        'Si lo apagas, el restaurant no acepta pedidos anticipados (ni nuevos ni cambios).') +
+      campoToggle('Pedido a la habitacion disponible', 'PEDIDO_HABITACION_ACTIVO',
+        String(c.PEDIDO_HABITACION_ACTIVO || 'TRUE').toUpperCase() !== 'FALSE',
+        'Si lo apagas, los huespedes solo podran pedir para el restaurant.') +
+      campoMoneda('Recargo pedido a la habitacion', 'PEDIDO_HABITACION_RECARGO',
+        Number(c.PEDIDO_HABITACION_RECARGO) || 0,
+        'Se suma automaticamente al total cuando el pedido se entrega en la habitacion. Deja 0 para no cobrar recargo.'));
+
+  // ---- Seccion SERVICIOS Y PRECIOS (edita la hoja Servicios de verdad) ----
+  // Solo servicios activos (oculta "Cena", fusionada en Almuerzo/Cena).
+  var serviciosActivos = (APP.serviciosConfig || []).filter(function (s) { return s.Activo; });
+  var filasServ = serviciosActivos.map(function (s) {
+    var variantesTxt = (s.Variantes && s.Variantes.length)
+      ? s.Variantes.map(function (v) { return escaparHTML(v.nombre) + ' ' + fmtMoneda(v.precio); }).join(' · ')
+      : (s.CostoBase > 0 ? fmtMoneda(s.CostoBase) : 'Sin costo');
+    return '<div class="card p-4 mb-3 flex items-center justify-between gap-3">' +
+      '<div class="flex items-center gap-3 min-w-0">' +
+        '<div class="icono-servicio !mb-0 !w-10 !h-10 text-base shrink-0"><i class="fa-solid ' + iconoServicio(s) + '"></i></div>' +
+        '<div class="min-w-0"><p class="font-semibold truncate">' + escaparHTML(s.Nombre) + (s.Activo ? '' : ' <span class="pill estado-Cancelada">Inactivo</span>') + '</p>' +
+        '<p class="text-xs opacity-60 truncate">' + variantesTxt + ' · ' + s.HorarioInicio + '-' + s.HorarioFin + '</p></div>' +
+      '</div>' +
+      '<button class="btn btn-outline !py-1 !px-3 text-xs shrink-0" onclick="abrirFormServicio(\'' + s.ID + '\')"><i class="fa-solid fa-pen"></i> Editar</button>' +
+    '</div>';
+  }).join('');
+  var servicios =
+    '<div class="mb-6"><div class="flex items-center justify-between mb-3">' +
+      '<div class="flex items-center gap-2"><i class="fa-solid fa-sliders" style="color:var(--dorado)"></i><h3 class="text-xl">Servicios y precios</h3></div>' +
+      '<button class="btn btn-dorado !py-2 !px-3 text-sm" onclick="abrirFormServicio()"><i class="fa-solid fa-plus"></i> Nuevo servicio</button>' +
+    '</div>' +
+    '<p class="text-xs opacity-60 mb-3">Toca "Editar" para cambiar precio, aforo, horario, icono y opciones. Esto es lo que usa el motor de reservas.</p>' +
+    filasServ + '</div>';
+
+  // ---- Boton directo a la base de datos (Google Sheet) ----
+  var botonSheet = APP.urlSheet
+    ? '<a href="' + escaparHTML(APP.urlSheet) + '" target="_blank" rel="noopener" class="btn btn-outline !py-2 !px-3 text-sm shrink-0"><i class="fa-solid fa-table"></i> Abrir base de datos (Sheet)</a>'
+    : '';
+
+  cont.innerHTML =
+    '<div class="flex items-start justify-between gap-3 mb-1 flex-wrap">' +
+      '<h2 class="text-2xl" style="color:var(--verde-bosque)">Configuracion</h2>' + botonSheet +
+    '</div>' +
+    '<p class="text-sm opacity-60 mb-5">Los cambios se guardan al instante. El IVA (19%) y ajustes tecnicos se manejan solos.</p>' +
+    reservas + pintarPortal() + servicios;
+}
+
+/* ---------- Enlaces de reserva por habitacion (?hab=NUMERO) ---------- */
+function pintarPortal() {
+  var p = APP.portal || { base: '', mensaje: '', habitaciones: [] };
+  var habs = p.habitaciones || [];
+  var opts = habs.map(function (n) { return '<option value="' + escaparHTML(n) + '">Habitacion ' + escaparHTML(n) + '</option>'; }).join('');
+
+  var avisoBase = p.base
+    ? '<p class="text-xs opacity-55 mt-1">Base detectada: <span class="mono">' + escaparHTML(p.base) + '</span></p>'
+    : '<p class="text-xs mt-1" style="color:var(--rojo,#b23)">No se pudo detectar la URL sola. Pega abajo la URL del portal (la que termina en <b>/exec</b>).</p>';
+
+  var contenido =
+    '<p class="text-xs opacity-60 mb-3">Comparte con cada huesped el enlace directo de su habitacion. Al abrirlo, entra al portal ya identificado en esa habitacion (igual que el codigo QR).</p>' +
+    // URL base (editable, se guarda en Configuracion). Si esta vacia se autodetecta.
+    '<label class="lbl">URL del portal (opcional, se autodetecta)</label>' +
+    '<input class="input mono" id="portalBase" value="' + escaparHTML(p.base || '') + '" placeholder="https://script.google.com/macros/s/.../exec" onchange="guardarPortalBase(this.value)">' +
+    avisoBase +
+    // Mensaje opcional
+    '<label class="lbl mt-3">Mensaje opcional (se copia junto al enlace)</label>' +
+    '<textarea class="input" id="portalMensaje" rows="3" onchange="guardarConfigValor(\'PORTAL_MENSAJE\', this.value)">' + escaparHTML(p.mensaje || '') + '</textarea>' +
+    // Selector de habitacion + vista previa + botones de copiar
+    '<label class="lbl mt-3">Habitacion</label>' +
+    '<div class="flex gap-2 items-center flex-wrap">' +
+      '<select class="input" id="portalHab" style="max-width:180px" onchange="actualizarPreviewEnlace()">' + opts + '</select>' +
+    '</div>' +
+    '<div class="card p-3 mt-3" style="background:var(--fondo,#f7f6f3)">' +
+      '<p class="text-xs opacity-60 mb-1">Enlace de la habitacion seleccionada:</p>' +
+      '<p class="mono text-sm break-all" id="portalPreview" style="word-break:break-all">-</p>' +
+    '</div>' +
+    '<div class="flex gap-2 mt-3 flex-wrap">' +
+      '<button class="btn btn-dorado !py-2 !px-3 text-sm" onclick="copiarEnlaceHab(false)"><i class="fa-solid fa-link"></i> Copiar enlace</button>' +
+      '<button class="btn btn-outline !py-2 !px-3 text-sm" onclick="copiarEnlaceHab(true)"><i class="fa-solid fa-comment-dots"></i> Copiar mensaje + enlace</button>' +
+    '</div>';
+
+  var card = tarjetaConfig('Enlaces de reserva por habitacion', 'fa-link', contenido);
+  // Programa el preview inicial cuando el DOM ya exista.
+  setTimeout(actualizarPreviewEnlace, 0);
+  return card;
+}
+
+/* Devuelve la base actual (campo editable o la autodetectada). */
+function _portalBaseActual() {
+  var inp = document.getElementById('portalBase');
+  var manual = inp ? inp.value.trim() : '';
+  return manual || (APP.portal && APP.portal.base) || '';
+}
+/* Construye el enlace ?hab=NUMERO para una habitacion. */
+function _enlaceHab(num) {
+  var base = _portalBaseActual();
+  if (!base) return '';
+  return base + (base.indexOf('?') >= 0 ? '&' : '?') + 'hab=' + encodeURIComponent(num);
+}
+function actualizarPreviewEnlace() {
+  var sel = document.getElementById('portalHab');
+  var prev = document.getElementById('portalPreview');
+  if (!sel || !prev) return;
+  var url = _enlaceHab(sel.value);
+  prev.textContent = url || '(define primero la URL del portal arriba)';
+}
+function guardarPortalBase(valor) {
+  guardarConfigValor('PORTAL_BASE_URL', (valor || '').trim());
+  if (APP.portal) APP.portal.base = (valor || '').trim();
+  actualizarPreviewEnlace();
+}
+function copiarEnlaceHab(conMensaje) {
+  var sel = document.getElementById('portalHab');
+  if (!sel || !sel.value) { mostrarToast('Elige una habitacion', 'error'); return; }
+  var url = _enlaceHab(sel.value);
+  if (!url) { mostrarToast('Primero define la URL del portal (termina en /exec)', 'error'); return; }
+  var texto = url;
+  if (conMensaje) {
+    var msgInp = document.getElementById('portalMensaje');
+    var msg = msgInp ? msgInp.value.trim() : '';
+    texto = (msg ? msg + '\n' : '') + url;
+  }
+  copiarTexto(texto);
+}
+/* Copia texto al portapapeles con respaldo para navegadores viejos. */
+function copiarTexto(texto) {
+  var ok = function () { mostrarToast('Copiado ✓', 'exito'); };
+  var fallback = function () {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = texto; ta.style.cssText = 'position:fixed;left:-9999px;top:0;';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      var r = document.execCommand('copy'); document.body.removeChild(ta);
+      if (r) ok(); else mostrarToast('No se pudo copiar automatico', 'error');
+    } catch (e) { mostrarToast('No se pudo copiar automatico', 'error'); }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(texto).then(ok, fallback);
+  } else { fallback(); }
+}
+
+/* ---------- Formulario de servicio (crear / editar) ---------- */
+function abrirFormServicio(servicioID) {
+  var s = servicioID ? (APP.serviciosConfig || []).filter(function (x) { return x.ID === servicioID; })[0] : null;
+  s = s || { ID: '', Nombre: '', Categoria: 'Bienestar', Descripcion: '', Icono: 'fa-bell-concierge',
+    CostoBase: 0, Capacidad: 1, DuracionMinutos: 60, HorarioInicio: '10:00', HorarioFin: '20:00',
+    RequiereAprobacion: false, PermitePrepedido: false, UsoExclusivo: false, Activo: true, Variantes: [] };
+
+  APP.formServicioID = servicioID || '';
+  APP.formIcono = s.Icono || 'fa-bell-concierge';
+  APP.formColor = s.Color || PALETA_SERVICIOS[0];
+  APP.formVariantes = (s.Variantes || []).map(function (v) { return { nombre: v.nombre, precio: v.precio }; });
+
+  var catActual = s.Categoria || 'Bienestar';
+  var cats = ['Gastronomia', 'Bienestar', 'Actividad'];
+  var catOpts = cats.map(function (c) { return '<option value="' + c + '"' + (c === catActual ? ' selected' : '') + '>' + c + '</option>'; }).join('');
+
+  var form =
+    '<div class="grid grid-cols-2 gap-3">' +
+      '<div class="col-span-2"><label class="lbl">Nombre del servicio</label><input id="fsNombre" class="input" value="' + escaparHTML(s.Nombre) + '"></div>' +
+      '<div class="col-span-2"><label class="lbl"><i class="fa-solid fa-language"></i> Nombre (ingles)</label><input id="fsNombreEN" class="input" placeholder="English name" value="' + escaparHTML(s.NombreEN || '') + '"></div>' +
+      '<div><label class="lbl">Categoria</label><select id="fsCategoria" class="input">' + catOpts + '</select></div>' +
+      '<div><label class="lbl">Aforo (personas)</label><input id="fsCapacidad" type="number" min="1" class="input" value="' + s.Capacidad + '"></div>' +
+      '<div><label class="lbl">Duracion (min)</label><input id="fsDuracion" type="number" min="5" step="5" class="input" value="' + s.DuracionMinutos + '"></div>' +
+      '<div><label class="lbl">Precio base</label><input id="fsPrecio" type="number" class="input" value="' + s.CostoBase + '"></div>' +
+      '<div><label class="lbl">Abre</label><input id="fsAbre" class="input text-center" value="' + s.HorarioInicio + '" placeholder="10:00"></div>' +
+      '<div><label class="lbl">Cierra</label><input id="fsCierra" class="input text-center" value="' + s.HorarioFin + '" placeholder="20:00"></div>' +
+    '</div>' +
+    '<div class="mt-2"><label class="lbl">Descripcion</label><textarea id="fsDescripcion" class="input" rows="2">' + escaparHTML(s.Descripcion || '') + '</textarea></div>' +
+    '<div class="mt-2"><label class="lbl"><i class="fa-solid fa-language"></i> Descripcion (ingles)</label><textarea id="fsDescripcionEN" class="input" rows="2" placeholder="English description">' + escaparHTML(s.DescripcionEN || '') + '</textarea></div>' +
+
+    // Selector visual de iconos
+    '<label class="lbl mt-3">Icono</label>' +
+    '<div id="fsIconos" class="grid grid-cols-8 gap-2 mb-2">' +
+      ICONOS_SERVICIO.map(function (ic) {
+        return '<button type="button" class="fs-icono btn btn-outline !p-0 !min-h-0 h-10' + (ic === APP.formIcono ? ' btn-dorado' : '') + '" data-ic="' + ic + '" onclick="seleccionarIconoServicio(\'' + ic + '\')"><i class="fa-solid ' + ic + '"></i></button>';
+      }).join('') +
+    '</div>' +
+
+    // Selector de color (tinte del servicio en el centro de operaciones)
+    '<label class="lbl mt-3">Color (tinte en operaciones)</label>' +
+    '<div id="fsColores" class="flex flex-wrap gap-2 mb-2">' +
+      PALETA_SERVICIOS.map(function (cl) {
+        return '<button type="button" class="fs-color" data-cl="' + cl + '" onclick="seleccionarColorServicio(\'' + cl + '\')" ' +
+          'style="width:30px;height:30px;border-radius:50%;background:' + cl + ';border:3px solid ' + (cl === APP.formColor ? 'var(--grafito)' : 'transparent') + ';box-shadow:0 1px 3px rgba(0,0,0,.3)"></button>';
+      }).join('') +
+    '</div>' +
+
+    // Interruptores
+    '<div class="grid grid-cols-2 gap-2 mt-3">' +
+      switchLinea('Activo', 'fsActivo', s.Activo) +
+      switchLinea('Requiere aprobacion', 'fsAprob', s.RequiereAprobacion) +
+      switchLinea('Permite pedido (restaurant)', 'fsPedido', s.PermitePrepedido) +
+      switchLinea('Uso exclusivo (1 a la vez)', 'fsExcl', s.UsoExclusivo) +
+    '</div>' +
+
+    // Variantes
+    '<div class="mt-4"><div class="flex items-center justify-between mb-1"><label class="lbl !mb-0">Opciones / variantes (precio distinto)</label>' +
+      '<button type="button" class="btn btn-outline !py-1 !px-2 text-xs" onclick="agregarVarianteForm()"><i class="fa-solid fa-plus"></i></button></div>' +
+      '<p class="text-xs opacity-55 mb-2">Ej: masaje Relajacion / Descontracturante. Si no usas, dejalo vacio.</p>' +
+      '<div id="fsVariantes"></div>' +
+    '</div>';
+
+  var botones = [{ texto: 'Cancelar', clase: 'btn-outline', accion: cerrarModal }];
+  if (servicioID) {
+    botones.push({ texto: 'Guardar', clase: 'btn-primary', accion: guardarFormServicio });
+  } else {
+    botones.push({ texto: 'Crear servicio', clase: 'btn-primary', accion: guardarFormServicio });
+  }
+
+  mostrarModal({ titulo: servicioID ? 'Editar servicio' : 'Nuevo servicio', contenidoHTML: form, botones: botones });
+  pintarVariantesForm();
+}
+
+function switchLinea(etiqueta, id, activo) {
+  return '<label class="flex items-center justify-between gap-2 text-sm py-1"><span>' + etiqueta + '</span>' +
+    '<span class="switch"><input type="checkbox" id="' + id + '" ' + (activo ? 'checked' : '') + '><span class="slider"></span></span></label>';
+}
+function seleccionarIconoServicio(ic) {
+  APP.formIcono = ic;
+  document.querySelectorAll('#fsIconos .fs-icono').forEach(function (b) {
+    var sel = b.getAttribute('data-ic') === ic;
+    b.classList.toggle('btn-dorado', sel); b.classList.toggle('btn-outline', !sel);
+  });
+}
+function seleccionarColorServicio(cl) {
+  APP.formColor = cl;
+  document.querySelectorAll('#fsColores .fs-color').forEach(function (b) {
+    b.style.borderColor = b.getAttribute('data-cl') === cl ? 'var(--grafito)' : 'transparent';
+  });
+}
+function agregarVarianteForm() {
+  APP.formVariantes.push({ nombre: '', precio: 0 });
+  pintarVariantesForm();
+}
+function quitarVarianteForm(i) {
+  APP.formVariantes.splice(i, 1);
+  pintarVariantesForm();
+}
+function pintarVariantesForm() {
+  // Guarda lo escrito antes de repintar.
+  leerVariantesForm();
+  var cont = document.getElementById('fsVariantes');
+  if (!cont) return;
+  cont.innerHTML = APP.formVariantes.map(function (v, i) {
+    return '<div class="flex gap-2 mb-2">' +
+      '<input class="input flex-1 fs-var-nombre" placeholder="Nombre" value="' + escaparHTML(v.nombre) + '">' +
+      '<input class="input !w-28 fs-var-precio" type="number" placeholder="Precio" value="' + (v.precio || 0) + '">' +
+      '<button type="button" class="btn btn-peligro !px-3" onclick="quitarVarianteForm(' + i + ')"><i class="fa-solid fa-trash"></i></button>' +
+    '</div>';
+  }).join('');
+}
+function leerVariantesForm() {
+  var cont = document.getElementById('fsVariantes');
+  if (!cont) return;
+  var nombres = cont.querySelectorAll('.fs-var-nombre');
+  var precios = cont.querySelectorAll('.fs-var-precio');
+  for (var i = 0; i < nombres.length; i++) {
+    if (APP.formVariantes[i]) {
+      APP.formVariantes[i].nombre = nombres[i].value;
+      APP.formVariantes[i].precio = Number(precios[i].value) || 0;
+    }
+  }
+}
+function guardarFormServicio() {
+  leerVariantesForm();
+  var variantes = APP.formVariantes.filter(function (v) { return v.nombre && v.nombre.trim(); });
+  var datos = {
+    nombre: document.getElementById('fsNombre').value.trim(),
+    nombreEN: document.getElementById('fsNombreEN').value.trim(),
+    categoria: document.getElementById('fsCategoria').value,
+    descripcion: document.getElementById('fsDescripcion').value,
+    descripcionEN: document.getElementById('fsDescripcionEN').value,
+    icono: APP.formIcono,
+    costoBase: document.getElementById('fsPrecio').value,
+    capacidad: document.getElementById('fsCapacidad').value,
+    duracionMinutos: document.getElementById('fsDuracion').value,
+    horarioInicio: document.getElementById('fsAbre').value.trim(),
+    horarioFin: document.getElementById('fsCierra').value.trim(),
+    requiereAprobacion: document.getElementById('fsAprob').checked,
+    permitePrepedido: document.getElementById('fsPedido').checked,
+    usoExclusivo: document.getElementById('fsExcl').checked,
+    activo: document.getElementById('fsActivo').checked,
+    color: APP.formColor,
+    variantes: variantes
+  };
+  if (!datos.nombre) { mostrarToast('El nombre es obligatorio.', 'error'); return; }
+  if (!/^\d{1,2}:\d{2}$/.test(datos.horarioInicio) || !/^\d{1,2}:\d{2}$/.test(datos.horarioFin)) {
+    mostrarToast('Los horarios deben ser tipo 10:00.', 'error'); return;
+  }
+
+  var fn, args;
+  if (APP.formServicioID) {
+    datos.id = APP.formServicioID;
+    fn = 'guardarServicioConfig'; args = [datos, APP.usuarioStaff.Email];
+  } else {
+    fn = 'guardarServicioNuevo'; args = [datos, APP.usuarioStaff.Email];
+  }
+  llamarAPI(fn, args).then(function (res) {
+    mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+    if (res.success) {
+      cerrarModal();
+      // Refresca servicios en memoria (config y app) y repinta.
+      APP.carta = null; // por si cambio algo de la carta asociada
+      llamarAPI('obtenerServiciosGestion', [], { loader: false, silencioso: true }).then(function (serv) {
+        APP.serviciosConfig = serv || [];
+        APP.servicios = serv.filter(function (x) { return x.Activo; });
+        pintarConfig();
+      });
+    }
+  });
+}
+
+/* ---------- Bloques reutilizables de configuracion ---------- */
+function tarjetaConfig(titulo, icono, contenido) {
+  return '<div class="card p-5 mb-5">' +
+    '<div class="flex items-center gap-2 mb-4"><i class="fa-solid ' + icono + '" style="color:var(--dorado)"></i>' +
+    '<h3 class="text-xl">' + titulo + '</h3></div>' + contenido + '</div>';
+}
+function campoToggle(etiqueta, clave, activo, ayuda) {
+  return '<div class="flex items-center justify-between gap-3 py-2 border-b" style="border-color:var(--borde)">' +
+    '<div><p class="text-sm font-medium">' + etiqueta + '</p>' + (ayuda ? '<p class="text-xs opacity-55">' + ayuda + '</p>' : '') + '</div>' +
+    '<label class="switch"><input type="checkbox" ' + (activo ? 'checked' : '') + ' onchange="guardarConfigBool(\'' + clave + '\', this.checked)"><span class="slider"></span></label></div>';
+}
+function campoTexto(etiqueta, clave, valor) {
+  return '<div class="py-2"><label class="lbl">' + etiqueta + '</label>' +
+    '<input class="input" value="' + escaparHTML(valor || '') + '" onchange="guardarConfigValor(\'' + clave + '\', this.value)"></div>';
+}
+function campoNumero(etiqueta, clave, valor, ayuda) {
+  return '<div class="py-2"><label class="lbl">' + etiqueta + '</label>' +
+    '<input type="number" class="input" value="' + (valor || 0) + '" onchange="guardarConfigValor(\'' + clave + '\', this.value)">' +
+    (ayuda ? '<p class="text-xs opacity-55 mt-1">' + ayuda + '</p>' : '') + '</div>';
+}
+function campoMoneda(etiqueta, clave, valor, ayuda) {
+  var simbolo = APP.config.MONEDA_SIMBOLO || '$';
+  return '<div class="py-2"><label class="lbl">' + etiqueta + '</label>' +
+    '<div class="flex items-center gap-2"><span class="opacity-60">' + simbolo + '</span>' +
+    '<input type="number" class="input" value="' + (valor || 0) + '" onchange="guardarConfigValor(\'' + clave + '\', this.value)"></div>' +
+    (ayuda ? '<p class="text-xs opacity-55 mt-1">' + ayuda + '</p>' : '') + '</div>';
+}
+function campoTextarea(etiqueta, clave, valor) {
+  return '<div class="py-2"><label class="lbl">' + etiqueta + '</label>' +
+    '<textarea class="input" rows="3" onchange="guardarConfigValor(\'' + clave + '\', this.value)">' + escaparHTML(valor || '') + '</textarea></div>';
+}
+function campoOpciones(etiqueta, clave, valorActual, opciones, ayuda) {
+  var opts = opciones.map(function (o) {
+    return '<option value="' + o[0] + '"' + (o[0] === valorActual ? ' selected' : '') + '>' + o[1] + '</option>';
+  }).join('');
+  return '<div class="py-2"><label class="lbl">' + etiqueta + '</label>' +
+    '<select class="input" onchange="guardarConfigValor(\'' + clave + '\', this.value)">' + opts + '</select>' +
+    (ayuda ? '<p class="text-xs opacity-55 mt-1">' + ayuda + '</p>' : '') + '</div>';
+}
+
+/* ---------- Guardado de configuracion ---------- */
+function guardarConfigValor(clave, valor) {
+  llamarAPI('actualizarConfiguracion', [clave, valor, APP.usuarioStaff.Email], { loader: false }).then(function (res) {
+    if (res.success) { APP.config[clave] = valor; mostrarToast('Guardado ✓', 'exito'); }
+    else mostrarToast(res.mensaje, 'error');
+  });
+}
+function guardarConfigBool(clave, activo) {
+  guardarConfigValor(clave, activo ? 'TRUE' : 'FALSE');
+}
+</script>
+</body>
+</html>
