@@ -2019,11 +2019,12 @@ function ajustarNavPorRol() {
   // Historial: ADMIN y RECEPCION.
   var historial = document.querySelector('[data-staff-nav="Historial"]');
   if (historial) historial.classList.toggle('oculto', ['ADMINISTRADOR', 'RECEPCION'].indexOf(rol) === -1);
-  // Config y Bloqueos: RECEPCION y ADMIN.
-  ['Config', 'Bloqueos'].forEach(function (nav) {
-    var el = document.querySelector('[data-staff-nav="' + nav + '"]');
-    if (el) el.classList.toggle('oculto', ['ADMINISTRADOR', 'RECEPCION'].indexOf(rol) === -1);
-  });
+  // Bloqueos: solo RECEPCION y ADMIN.
+  var bloqueos = document.querySelector('[data-staff-nav="Bloqueos"]');
+  if (bloqueos) bloqueos.classList.toggle('oculto', ['ADMINISTRADOR', 'RECEPCION'].indexOf(rol) === -1);
+  // Config: RECEPCION, ADMIN y COCINA (cocina necesita activar/desactivar prepedido, etc.).
+  var config = document.querySelector('[data-staff-nav="Config"]');
+  if (config) config.classList.toggle('oculto', ['ADMINISTRADOR', 'RECEPCION', 'COCINA'].indexOf(rol) === -1);
   // Carta: COCINA y ADMIN (RECEPCION solo lectura permitida tambien).
 }
 

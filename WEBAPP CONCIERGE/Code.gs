@@ -2494,14 +2494,14 @@ function registrarConsultaHistorial(datos) {
 // ===========================================================================
 
 /**
- * Actualiza una clave de configuracion. Rol RECEPCION o ADMINISTRADOR.
+ * Actualiza una clave de configuracion. Rol RECEPCION, ADMINISTRADOR o COCINA.
  * @param {string} clave
  * @param {*} valor
  * @param {string} email
  * @return {Object} {success, mensaje}
  */
 function actualizarConfiguracion(clave, valor, email) {
-  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR'])) {
+  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA'])) {
     return { success: false, mensaje: 'No tienes permisos para editar la configuracion.' };
   }
   var hoja = _hoja(HOJAS.CONFIGURACION);
@@ -2526,7 +2526,7 @@ function obtenerServiciosGestion() {
 }
 
 /**
- * Edita un servicio existente (todos los campos). Rol RECEPCION o ADMIN.
+ * Edita un servicio existente (todos los campos). Rol RECEPCION, ADMIN o COCINA.
  * @param {Object} datos {id, nombre, categoria, descripcion, icono, costoBase,
  *   capacidad, duracionMinutos, horarioInicio, horarioFin, requiereAprobacion,
  *   permitePrepedido, usoExclusivo, activo, variantes:[{nombre,precio}]}
@@ -2534,7 +2534,7 @@ function obtenerServiciosGestion() {
  * @return {Object} {success, mensaje}
  */
 function guardarServicioConfig(datos, email) {
-  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR'])) {
+  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA'])) {
     return { success: false, mensaje: 'No tienes permisos para editar servicios.' };
   }
   var hoja = _hoja(HOJAS.SERVICIOS);
@@ -2552,13 +2552,13 @@ function guardarServicioConfig(datos, email) {
 
 /**
  * Crea un servicio nuevo. Genera ID automatico (S00X) y escribe la fila.
- * Rol RECEPCION o ADMINISTRADOR.
+ * Rol RECEPCION, ADMINISTRADOR o COCINA.
  * @param {Object} datos Igual que guardarServicioConfig (sin id).
  * @param {string} email
  * @return {Object} {success, id, mensaje}
  */
 function guardarServicioNuevo(datos, email) {
-  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR'])) {
+  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA'])) {
     return { success: false, mensaje: 'No tienes permisos para crear servicios.' };
   }
   if (!datos.nombre) return { success: false, mensaje: 'El nombre es obligatorio.' };
