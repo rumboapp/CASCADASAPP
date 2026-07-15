@@ -346,6 +346,13 @@ function obtenerDatosEnlace(email) {
     mensaje: _obtenerConfigValor('MENSAJE_ENCUESTA') || ''
   };
 }
+/** URL de la hoja de calculo (Google Sheets) donde vive toda la base de datos. */
+function obtenerUrlHojaCalculo(email) {
+  if (!_emailAutorizado(email)) return { success: false, mensaje: 'No tienes acceso.' };
+  _asegurarEsquema();
+  return { success: true, url: _ss().getUrl() };
+}
+
 function guardarMensajeEncuesta(email, mensaje) {
   if (!_emailAutorizado(email)) return { success: false, mensaje: 'No tienes acceso.' };
   var hoja = _hoja('Configuracion');

@@ -338,6 +338,15 @@
         </div>
       </div>
 
+      <!-- HOJA DE CALCULO -->
+      <div class="card" style="text-align:center;">
+        <h2>Hoja de cálculo</h2>
+        <p class="sub">Accede directamente a la base de datos en Google Sheets: respuestas, preguntas, usuarios y configuración.</p>
+        <a id="linkHojaCalculo" class="btn-mini dark" href="#" target="_blank" rel="noopener" style="display:inline-flex; justify-content:center; text-decoration:none;">
+          <i class="fa-solid fa-table"></i> Abrir hoja de cálculo
+        </a>
+      </div>
+
     </div>
   </div>
 
@@ -435,6 +444,7 @@
       document.getElementById('userNombre').textContent = (APP.usuario && APP.usuario.Nombre) || (APP.usuario && APP.usuario.Email) || '';
       cargarEnlace();
       cargarPreguntas();
+      cargarUrlHoja();
       inicializarFiltros();
       cargarInforme();
     }
@@ -463,6 +473,11 @@
     function guardarMensaje() {
       const msg = document.getElementById('mensajeEncuesta').value;
       google.script.run.withSuccessHandler(() => mostrarToast('Mensaje guardado ✓')).guardarMensajeEncuesta(APP.usuario.Email, msg);
+    }
+    function cargarUrlHoja() {
+      google.script.run.withSuccessHandler(res => {
+        if (res && res.success) document.getElementById('linkHojaCalculo').href = res.url;
+      }).obtenerUrlHojaCalculo(APP.usuario.Email);
     }
     function copiarLink(conMensaje) {
       const link = document.getElementById('linkEncuesta').value;
