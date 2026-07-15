@@ -2259,10 +2259,17 @@ function cargarOpsContenido() {
   var esHoy = fecha === hoyISO();
   var zona = document.getElementById('opsContenido');
   if (!zona) return;
-  llamarAPI('obtenerCentroOperaciones', [fecha], { loader: false, silencioso: true }).then(function (data) {
+  Promise.all([
+    llamarAPI('obtenerCentroOperaciones', [fecha], { loader: false, silencioso: true }),
+    llamarAPI('obtenerProductosAgotados', [], { loader: false, silencioso: true })
+  ]).then(function (res) {
+    var data = res[0];
+    APP.productosAgotadosOps = res[1] || [];
     var alertasHTML = (data.alertas || []).length ?
       '<div class="card p-4 mb-4" style="border-left:4px solid var(--dorado)"><p class="font-semibold mb-2"><i class="fa-solid fa-triangle-exclamation" style="color:var(--dorado)"></i> Alertas</p>' +
       data.alertas.map(function (a) { return '<p class="text-sm opacity-80">· ' + escaparHTML(a) + '</p>'; }).join('') + '</div>' : '';
+
+    var agotadosHTML = widgetProductosAgotados(APP.productosAgotadosOps);
 
     // Guarda datos de cada reserva para el editor (sin otra llamada).
     APP.reservasCache = APP.reservasCache || {};
@@ -2353,9 +2360,68 @@ function cargarOpsContenido() {
     }).join('') : '<div class="card p-8 text-center opacity-60 text-sm"><i class="fa-regular fa-calendar text-2xl block mb-2 opacity-50"></i>Sin actividad registrada para ' + (esHoy ? 'hoy' : 'este dia') + '.</div>';
 
     // Solo el contenido se reemplaza; la barra de fechas queda intacta.
-    zona.innerHTML = alertasHTML + resumenHTML + timelineHTML;
+    zona.innerHTML = alertasHTML + agotadosHTML + resumenHTML + timelineHTML;
   }).catch(function () {
     zona.innerHTML = htmlError('No pudimos cargar el centro de operaciones.', 'renderOperaciones()');
+  });
+}
+
+/* ---------- Widget "86" (sin stock hoy) ---------- */
+/* Lista compacta y colapsable de productos agotados (Disponible=FALSE, siguen
+   visibles en carta). Los garzones ven de un vistazo que no ofrecer; cocina y
+   administracion pueden reponer un item con un clic sin ir a Gestion de Carta. */
+function widgetProductosAgotados(lista) {
+  lista = lista || [];
+  if (!lista.length) return '';
+
+  var puedeReponer = ['COCINA', 'ADMINISTRADOR'].indexOf(APP.usuarioStaff.Rol) !== -1;
+
+  // Agrupa por categoria, respetando el orden ya entregado por el backend.
+  var porCategoria = {}, ordenCats = [];
+  lista.forEach(function (p) {
+    var cat = p.CategoriaNombre || 'Otros';
+    if (!porCategoria[cat]) { porCategoria[cat] = []; ordenCats.push(cat); }
+    porCategoria[cat].push(p);
+  });
+
+  var itemsHTML = ordenCats.map(function (cat) {
+    var filas = porCategoria[cat].map(function (p) {
+      var boton = puedeReponer
+        ? '<button class="btn btn-outline !py-0.5 !px-2 text-xs shrink-0" onclick="reponerDesdeOps(\'' + p.ID + '\')" title="Marcar disponible otra vez"><i class="fa-solid fa-rotate-left"></i> Reponer</button>'
+        : '';
+      return '<div class="flex items-center justify-between gap-2 py-1">' +
+        '<span class="text-sm">' + escaparHTML(p.Nombre) + '</span>' + boton +
+        '</div>';
+    }).join('');
+    return '<div class="mb-2"><p class="text-xs font-semibold uppercase opacity-60 mb-1">' + escaparHTML(cat) + '</p>' + filas + '</div>';
+  }).join('');
+
+  return '<div class="card p-4 mb-4 agotados-widget" style="border-left:4px solid var(--rojo,#b23)">' +
+    '<div class="flex items-center justify-between cursor-pointer" onclick="toggleWidgetAgotados()">' +
+      '<p class="font-semibold"><i class="fa-solid fa-ban" style="color:var(--rojo,#b23)"></i> Sin stock hoy (86) <span class="pill" style="background:var(--rojo,#b23); color:#fff;">' + lista.length + '</span></p>' +
+      '<i class="fa-solid fa-chevron-down text-sm opacity-60" id="agotadosChevron"></i>' +
+    '</div>' +
+    '<div id="agotadosBody" class="mt-2' + (APP.agotadosColapsado ? ' oculto' : '') + '">' + itemsHTML + '</div>' +
+  '</div>';
+}
+
+function toggleWidgetAgotados() {
+  APP.agotadosColapsado = !APP.agotadosColapsado;
+  var body = document.getElementById('agotadosBody');
+  var chev = document.getElementById('agotadosChevron');
+  if (body) body.classList.toggle('oculto', APP.agotadosColapsado);
+  if (chev) chev.style.transform = APP.agotadosColapsado ? 'rotate(-90deg)' : '';
+}
+
+function reponerDesdeOps(productoID) {
+  llamarAPI('toggleDisponibleProducto', [productoID, true, APP.usuarioStaff.Email], { loader: false }).then(function (res) {
+    mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+    if (res.success) {
+      if (APP.productosGestion) {
+        APP.productosGestion.forEach(function (p) { if (p.ID === productoID) p.Disponible = true; });
+      }
+      cargarOpsContenido();
+    }
   });
 }
 

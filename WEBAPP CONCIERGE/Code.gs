@@ -2306,6 +2306,34 @@ function obtenerProductosGestion() {
     .sort(function (a, b) { return a.Orden - b.Orden; });
 }
 
+/**
+ * Devuelve los productos "86" (agotados hoy): siguen visibles en la carta pero
+ * Disponible=FALSE. Se usa en el widget del Centro de Operaciones para que
+ * los garzones vean rapido que no hay en el restaurant en este momento.
+ * @return {Array<Object>} [{ID, Nombre, NombreEN, CategoriaID, CategoriaNombre}]
+ */
+function obtenerProductosAgotados() {
+  var categorias = {};
+  _leerHojaComoObjetos(HOJAS.CATEGORIAS).forEach(function (c) { categorias[c.ID] = c.Nombre; });
+
+  return _leerHojaComoObjetos(HOJAS.PRODUCTOS)
+    .filter(function (p) { return !_aBooleano(p.Disponible) && _aBooleano(p.Visible); })
+    .map(function (p) {
+      return {
+        ID: p.ID,
+        Nombre: p.Nombre,
+        NombreEN: p.NombreEN ? String(p.NombreEN) : '',
+        CategoriaID: p.CategoriaID,
+        CategoriaNombre: categorias[p.CategoriaID] || 'Otros',
+        Orden: Number(p.Orden) || 0
+      };
+    })
+    .sort(function (a, b) {
+      if (a.CategoriaNombre !== b.CategoriaNombre) return a.CategoriaNombre < b.CategoriaNombre ? -1 : 1;
+      return a.Orden - b.Orden;
+    });
+}
+
 // ===========================================================================
 // 6.8. CRUD DE CATEGORIAS (SOLO ADMIN)
 // ===========================================================================
