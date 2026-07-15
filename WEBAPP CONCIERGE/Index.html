@@ -1724,6 +1724,28 @@ function toggleAcordeon(header, categoriaID) {
   chevron.style.transform = abierto ? '' : 'rotate(180deg)';
 }
 
+/* Categoria de Carnes: solo ahi se ofrece el selector de punto de coccion.
+   Si el hotel algun dia quiere sumar otra categoria (ej. Parrilladas), basta
+   con agregar su ID aqui. */
+var CATEGORIAS_CON_PUNTO_COCCION = ['CAT04'];
+/* Opciones de punto de coccion (se guardan como Notas del item del pedido,
+   asi cocina las ve igual que cualquier otra nota, sin cambios en el backend). */
+var PUNTOS_COCCION = [
+  { es: 'Poco cocido', en: 'Rare' },
+  { es: 'Termino medio', en: 'Medium' },
+  { es: 'Tres cuartos', en: 'Medium well' },
+  { es: 'Bien cocido', en: 'Well done' }
+];
+function opcionesPuntoCoccion(valorActual) {
+  var placeholder = '<option value="">' + (APP.idioma === 'en' ? 'Doneness' : 'Punto de coccion') + '</option>';
+  var opts = PUNTOS_COCCION.map(function (o) {
+    var label = APP.idioma === 'en' ? o.en : o.es;
+    var sel = (valorActual === o.es) ? ' selected' : '';
+    return '<option value="' + o.es + '"' + sel + '>' + label + '</option>';
+  }).join('');
+  return placeholder + opts;
+}
+
 function tarjetaProductoCarta(p) {
   var etiquetas = (p.Etiquetas || '').split(',').filter(function (e) { return e.trim(); })
     .map(function (e) { return '<span class="pill pill-etiqueta">' + escaparHTML(etiquetaLabel(e.trim())) + '</span>'; }).join(' ');
@@ -1768,7 +1790,8 @@ function abrirPrepedido(reservaID, reservaObj) {
     APP.pedidoEntrega = (existente && existente.pedido && existente.pedido.Entrega === 'Habitacion') ? 'Habitacion' : 'Restaurant';
     if (existente && existente.detalles) {
       APP.carrito = existente.detalles.map(function (d) {
-        return { productoID: d.ProductoID, nombre: d.Nombre, precio: d.PrecioUnitario, cantidad: d.Cantidad };
+        return { productoID: d.ProductoID, nombre: d.Nombre, precio: d.PrecioUnitario, cantidad: d.Cantidad,
+          categoriaID: d.CategoriaID || '', notas: d.Notas || '' };
       });
     }
     renderModalPrepedido(reserva);
@@ -1876,7 +1899,7 @@ function cargarProductosPrepedido(categoriaID, chip) {
           '<b class="w-5 text-center">' + cant + '</b>' +
           '<button class="btn btn-dorado !py-1 !px-3" onclick="cambiarCantidad(\'' + p.ID + '\',1)">+</button>' +
         '</div>'
-      : '<button class="btn btn-outline !py-1 !px-3 text-xs" onclick="agregarAlCarrito(\'' + p.ID + '\',\'' + nombreEsc + '\',' + p.Precio + ')"><i class="fa-solid fa-plus"></i></button>';
+      : '<button class="btn btn-outline !py-1 !px-3 text-xs" onclick="agregarAlCarrito(\'' + p.ID + '\',\'' + nombreEsc + '\',' + p.Precio + ',\'' + p.CategoriaID + '\')"><i class="fa-solid fa-plus"></i></button>';
     // Lupa: solo si el producto tiene descripcion. Abre/cierra el detalle.
     var lupa = descDe(p)
       ? '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="toggleDescProducto(\'' + p.ID + '\')" title="' + t('ver_descripcion') + '"><i class="fa-solid fa-magnifying-glass"></i></button>'
@@ -1910,12 +1933,19 @@ function toggleDescProducto(productoID) {
   if (el) el.classList.toggle('oculto');
 }
 
-function agregarAlCarrito(productoID, nombre, precio) {
+function agregarAlCarrito(productoID, nombre, precio, categoriaID) {
   var item = APP.carrito.filter(function (i) { return i.productoID === productoID; })[0];
   if (item) item.cantidad += 1;
-  else APP.carrito.push({ productoID: productoID, nombre: nombre, precio: precio, cantidad: 1 });
+  else APP.carrito.push({ productoID: productoID, nombre: nombre, precio: precio, cantidad: 1, categoriaID: categoriaID || '', notas: '' });
   cargarProductosPrepedido(APP.prepedidoCatActual); // refresca el stepper del producto
   renderCarritoPrepedido();
+}
+
+/* Guarda el punto de coccion elegido para un item del carrito (se envia como
+   Notas de ese plato al backend; cocina lo ve igual que cualquier otra nota). */
+function actualizarPuntoCoccionCarrito(productoID, valor) {
+  var item = APP.carrito.filter(function (i) { return i.productoID === productoID; })[0];
+  if (item) item.notas = valor || '';
 }
 
 function cambiarCantidad(productoID, delta) {
@@ -1956,9 +1986,13 @@ function pintarListaCarrito() {
   cont.classList.remove('oculto');
 
   var filas = APP.carrito.map(function (i) {
+    var esCarne = CATEGORIAS_CON_PUNTO_COCCION.indexOf(i.categoriaID) !== -1;
+    var selectorPunto = esCarne
+      ? '<select class="input !py-1 !text-xs mt-1" onchange="actualizarPuntoCoccionCarrito(\'' + i.productoID + '\', this.value)">' + opcionesPuntoCoccion(i.notas) + '</select>'
+      : '';
     return '<div class="flex items-center justify-between gap-2 py-2 border-b" style="border-color: var(--borde)">' +
       '<div class="min-w-0 flex-1"><p class="text-sm font-medium truncate">' + escaparHTML(i.nombre) + '</p>' +
-        '<p class="text-xs opacity-60">' + fmtMoneda(i.precio) + ' c/u</p></div>' +
+        '<p class="text-xs opacity-60">' + fmtMoneda(i.precio) + ' c/u</p>' + selectorPunto + '</div>' +
       '<div class="flex items-center gap-2 shrink-0">' +
         '<button class="btn btn-outline !py-1 !px-3" onclick="cambiarCantidad(\'' + i.productoID + '\',-1)">−</button>' +
         '<b class="w-5 text-center">' + i.cantidad + '</b>' +
@@ -1977,7 +2011,7 @@ function pintarListaCarrito() {
 
 function guardarPrepedido() {
   if (!APP.carrito.length) { mostrarToast(t('agrega_producto'), 'error'); return; }
-  var items = APP.carrito.map(function (i) { return { productoID: i.productoID, cantidad: i.cantidad }; });
+  var items = APP.carrito.map(function (i) { return { productoID: i.productoID, cantidad: i.cantidad, notas: i.notas || '' }; });
   var notasEl = document.getElementById('notasPedido');
   var notas = notasEl ? notasEl.value : '';
   var entrega = APP.pedidoEntrega === 'Habitacion' ? 'Habitacion' : 'Restaurant';

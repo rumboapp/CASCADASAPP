@@ -1867,6 +1867,7 @@ function obtenerPedidosPorReserva(reservaID) {
       return {
         ProductoID: d.ProductoID,
         Nombre: prod.Nombre || d.ProductoID,
+        CategoriaID: prod.CategoriaID || '',
         Cantidad: Number(d.Cantidad) || 0,
         PrecioUnitario: Number(d.PrecioUnitario) || 0,
         Subtotal: Number(d.Subtotal) || 0,
