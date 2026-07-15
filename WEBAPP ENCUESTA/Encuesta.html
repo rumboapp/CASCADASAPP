@@ -57,28 +57,46 @@
     .field input::placeholder { color: #A8A5A0; font-weight: 300; }
     .field .hint { font-size: 11px; color: #A8A5A0; margin-top: 5px; padding-left: 2px; }
 
-    .pregunta { margin-bottom: 22px; }
+    .pregunta { margin-bottom: 20px; }
     .pregunta:last-child { margin-bottom: 0; }
     .pregunta-titulo { font-size: 14.5px; font-weight: 500; color: var(--text); margin-bottom: 3px; }
-    .pregunta-sub { font-size: 11.5px; color: var(--text-sec); margin-bottom: 10px; }
+    .pregunta-sub { font-size: 11px; color: var(--text-sec); margin-bottom: 9px; }
 
-    /* Puntuacion 1-10 */
-    .escala { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; }
+    /* Puntuacion 1-10: franja horizontal en degrade rojo -> grafito, como un
+       termometro. El color en reposo YA indica la posicion en la escala; al
+       elegir, esa pastilla se satura y se agranda, las demas se atenuan. */
+    .escala { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
     .punto {
-      aspect-ratio: 1 / 1; border-radius: 12px; border: 1px solid var(--border); background: #FAFAF9;
+      aspect-ratio: 1 / 1; border-radius: 9px; border: none;
       display: flex; align-items: center; justify-content: center; font-family: 'Oswald', sans-serif;
-      font-size: 16px; font-weight: 500; color: var(--text); cursor: pointer; user-select: none;
-      box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.05); transition: all .15s;
+      font-size: 12.5px; font-weight: 600; color: #fff; cursor: pointer; user-select: none;
+      filter: saturate(.55) brightness(1.12); opacity: .82; transform: scale(.92);
+      transition: filter .15s, opacity .15s, transform .15s, box-shadow .15s;
     }
-    .punto:active { transform: scale(0.94); }
+    .punto:active { transform: scale(0.88); }
     .punto.activo {
-      background: linear-gradient(180deg, #57575A, #414143 50%, #39393B); color: #F2F0EE; border-color: #2A2A2C;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 3px 8px -2px rgba(46,46,48,0.5);
-      transform: scale(1.04);
+      filter: none; opacity: 1; transform: scale(1.14);
+      box-shadow: 0 0 0 2.5px var(--surface), 0 0 0 4px var(--c, var(--accent)), 0 4px 10px -2px rgba(0,0,0,.4);
     }
-    .escala-labels { display: flex; justify-content: space-between; margin-top: 6px; font-size: 10.5px; color: #A8A5A0; padding: 0 2px; }
+    .escala-labels { display: flex; justify-content: space-between; margin-top: 7px; font-size: 10px; color: #A8A5A0; padding: 0 1px; text-transform: uppercase; letter-spacing: .3px; }
 
-    /* Escala de satisfaccion / alternativas / si-no: botones apilados */
+    /* Escala de satisfaccion: grilla horizontal de chips con icono + color
+       propios (traffic-light), mucho mas corta que una lista apilada. */
+    .opciones-escala { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+    .opcion-escala {
+      border-radius: 12px; border: 1.5px solid transparent; background: #FAFAF9;
+      padding: 10px 4px 8px; display: flex; flex-direction: column; align-items: center; gap: 5px;
+      cursor: pointer; user-select: none; transition: all .15s;
+      box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.05);
+    }
+    .opcion-escala i { font-size: 19px; opacity: .55; transition: opacity .15s, transform .15s; }
+    .opcion-escala span { font-size: 10.5px; font-weight: 500; color: var(--text-sec); text-align: center; line-height: 1.15; }
+    .opcion-escala:active { transform: scale(0.96); }
+    .opcion-escala.activo { background: var(--nivel-tint, #ECECEE); border-color: var(--nivel-color, var(--accent)); }
+    .opcion-escala.activo i { opacity: 1; color: var(--nivel-color, var(--accent)); transform: scale(1.12); }
+    .opcion-escala.activo span { color: var(--text); font-weight: 600; }
+
+    /* Alternativas / si-no: chips horizontales que envuelven en filas. */
     .opciones { display: flex; flex-direction: column; gap: 8px; }
     .opciones.en-fila { flex-direction: row; flex-wrap: wrap; }
     .opciones.en-fila .opcion { flex: 1; min-width: 90px; }
@@ -95,11 +113,12 @@
     }
 
     .field textarea {
-      width: 100%; min-height: 90px; padding: 12px 14px; border: none; border-radius: 12px;
-      font-family: 'Oswald', sans-serif; font-size: 14px; font-weight: 400; background: #F3F3F4; color: var(--text);
-      box-shadow: inset 0 2px 4px rgba(0,0,0,.06), inset 0 0 0 1px var(--border); resize: vertical;
+      width: 100%; min-height: 84px; padding: 13px 15px; border: 1.5px solid var(--border); border-radius: 16px;
+      font-family: 'Oswald', sans-serif; font-size: 14px; font-weight: 400; line-height: 1.5;
+      background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.04); resize: vertical;
+      transition: border-color .15s, box-shadow .15s;
     }
-    .field textarea:focus { outline: none; box-shadow: inset 0 2px 4px rgba(0,0,0,.06), inset 0 0 0 2px var(--accent); }
+    .field textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(65,65,67,.10); }
     .field textarea::placeholder { color: #A8A5A0; font-weight: 300; }
 
     .btn-enviar {
@@ -139,7 +158,12 @@
       .brand h1 { font-size: 36px; }
       .brand-logo { width: 80px; height: 80px; }
       .card { padding: 28px 26px; }
-      .punto { font-size: 17px; }
+      .punto { font-size: 14.5px; }
+      .opcion-escala i { font-size: 21px; }
+    }
+    @media (max-width: 360px) {
+      .escala { gap: 3px; }
+      .punto { font-size: 11px; border-radius: 7px; }
     }
   </style>
 </head>
@@ -191,6 +215,29 @@
     var PREGUNTAS = [];
     var respuestas = {};
     var NIVELES_ESCALA = ['Muy bueno', 'Bueno', 'Regular', 'Malo', 'Muy malo', 'No aplica'];
+    var NIVEL_ICONO = {
+      'Muy bueno': 'fa-face-grin-hearts', 'Bueno': 'fa-face-smile', 'Regular': 'fa-face-meh',
+      'Malo': 'fa-face-frown', 'Muy malo': 'fa-face-angry', 'No aplica': 'fa-ban'
+    };
+    var NIVEL_COLOR = {
+      'Muy bueno': '#0ca30c', 'Bueno': '#8bbf3f', 'Regular': '#d98c12',
+      'Malo': '#ec835a', 'Muy malo': '#d03b3b', 'No aplica': '#b3b0a9'
+    };
+    var NIVEL_TINT = {
+      'Muy bueno': '#dcf1dc', 'Bueno': '#eaf3d8', 'Regular': '#faecd2',
+      'Malo': '#fbe4da', 'Muy malo': '#f8dcdc', 'No aplica': '#ececea'
+    };
+
+    /* Interpola de rojo (1) a grafito casi negro (10): la fila entera actua
+       como un indicador de temperatura, no solo el punto elegido. */
+    function colorPuntuacion(i) {
+      var start = [208, 59, 59], end = [35, 35, 37];
+      var t = (i - 1) / 9;
+      var r = Math.round(start[0] + (end[0] - start[0]) * t);
+      var g = Math.round(start[1] + (end[1] - start[1]) * t);
+      var b = Math.round(start[2] + (end[2] - start[2]) * t);
+      return 'rgb(' + r + ',' + g + ',' + b + ')';
+    }
 
     function escaparHTML(s) {
       return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -205,19 +252,21 @@
         if (p.tipo === 'puntuacion') {
           var puntos = '';
           for (var i = 1; i <= 10; i++) {
-            puntos += '<div class="punto" data-val="' + i + '" onclick="seleccionarPuntuacion(\'' + p.id + '\', ' + i + ', this)">' + i + '</div>';
+            var c = colorPuntuacion(i);
+            puntos += '<div class="punto" data-val="' + i + '" style="background:' + c + ';--c:' + c + ';" onclick="seleccionarPuntuacion(\'' + p.id + '\', ' + i + ', this)">' + i + '</div>';
           }
           cuerpo =
             '<div class="pregunta-sub">1 = nada probable · 10 = muy probable</div>' +
             '<div class="escala" data-pregunta="' + p.id + '">' + puntos + '</div>' +
             '<div class="escala-labels"><span>Muy malo</span><span>Excelente</span></div>';
         } else if (p.tipo === 'escala') {
-          cuerpo = '<div class="opciones" data-pregunta="' + p.id + '">' +
+          cuerpo = '<div class="opciones-escala" data-pregunta="' + p.id + '">' +
             NIVELES_ESCALA.map(function (n) {
-              return '<div class="opcion" onclick="seleccionarOpcion(\'' + p.id + '\', \'' + n + '\', this)">' + n + '</div>';
+              return '<div class="opcion-escala" style="--nivel-color:' + NIVEL_COLOR[n] + ';--nivel-tint:' + NIVEL_TINT[n] + ';" onclick="seleccionarOpcion(\'' + p.id + '\', \'' + n + '\', this)">' +
+                '<i class="fa-solid ' + NIVEL_ICONO[n] + '"></i><span>' + n + '</span></div>';
             }).join('') + '</div>';
         } else if (p.tipo === 'alternativas') {
-          cuerpo = '<div class="opciones" data-pregunta="' + p.id + '">' +
+          cuerpo = '<div class="opciones en-fila" data-pregunta="' + p.id + '">' +
             (p.opciones || []).map(function (o) {
               var oEsc = escaparHTML(o).replace(/'/g, "\\'");
               return '<div class="opcion" onclick="seleccionarOpcion(\'' + p.id + '\', \'' + oEsc + '\', this)">' + escaparHTML(o) + '</div>';
@@ -245,7 +294,8 @@
     function seleccionarOpcion(preguntaID, valor, el) {
       respuestas[preguntaID] = valor;
       var cont = el.parentElement;
-      cont.querySelectorAll('.opcion').forEach(function (o) { o.classList.remove('activo'); });
+      var selector = el.classList.contains('opcion-escala') ? '.opcion-escala' : '.opcion';
+      cont.querySelectorAll(selector).forEach(function (o) { o.classList.remove('activo'); });
       el.classList.add('activo');
       ocultarError();
     }
