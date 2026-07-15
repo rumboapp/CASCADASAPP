@@ -48,9 +48,14 @@
 
     .field { margin-bottom: 16px; }
     .field label { display: block; font-size: 12px; font-weight: 600; color: var(--text-sec); margin-bottom: 6px; padding-left: 2px; text-transform: uppercase; letter-spacing: .4px; }
+    /* Los campos donde el huesped escribe usan la fuente estandar del sistema
+       (no Oswald, que es condensada y pensada para titulos/botones) y un
+       tamano minimo de 16px: por debajo de eso, Safari en iPhone hace zoom
+       automatico al tocar el campo, lo que se ve "raro" y achica la vista. */
     .field input[type="text"] {
-      width: 100%; height: 46px; padding: 0 14px; border: none; border-radius: 12px;
-      font-family: 'Oswald', sans-serif; font-size: 15px; font-weight: 400; background: #F3F3F4; color: var(--text);
+      width: 100%; height: 48px; padding: 0 14px; border: none; border-radius: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      font-size: 16px; font-weight: 400; background: #F3F3F4; color: var(--text);
       box-shadow: inset 0 2px 4px rgba(0,0,0,.06), inset 0 0 0 1px var(--border);
     }
     .field input[type="text"]:focus { outline: none; box-shadow: inset 0 2px 4px rgba(0,0,0,.06), inset 0 0 0 2px var(--accent); }
@@ -70,6 +75,7 @@
       aspect-ratio: 1 / 1; border-radius: 9px; border: none;
       display: flex; align-items: center; justify-content: center; font-family: 'Oswald', sans-serif;
       font-size: 12.5px; font-weight: 600; color: #fff; cursor: pointer; user-select: none;
+      text-shadow: 0 1px 2px rgba(0,0,0,.45);
       filter: saturate(.55) brightness(1.12); opacity: .82; transform: scale(.92);
       transition: filter .15s, opacity .15s, transform .15s, box-shadow .15s;
     }
@@ -112,14 +118,18 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 3px 8px -2px rgba(46,46,48,0.5);
     }
 
-    .field textarea {
-      width: 100%; min-height: 84px; padding: 13px 15px; border: 1.5px solid var(--border); border-radius: 16px;
-      font-family: 'Oswald', sans-serif; font-size: 14px; font-weight: 400; line-height: 1.5;
+    textarea {
+      width: 100%; min-height: 150px; padding: 16px 18px; border: 1.5px solid var(--border); border-radius: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      font-size: 16px; font-weight: 400; line-height: 1.55;
       background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.04); resize: vertical;
       transition: border-color .15s, box-shadow .15s;
     }
-    .field textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(65,65,67,.10); }
-    .field textarea::placeholder { color: #A8A5A0; font-weight: 300; }
+    textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(65,65,67,.10); }
+    textarea::placeholder {
+      color: #A8A5A0; font-weight: 400;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    }
 
     .btn-enviar {
       width: 100%; height: 52px; border: none; border-radius: 16px;
@@ -228,15 +238,21 @@
       'Malo': '#fbe4da', 'Muy malo': '#f8dcdc', 'No aplica': '#ececea'
     };
 
-    /* Interpola de rojo (1) a grafito casi negro (10): la fila entera actua
-       como un indicador de temperatura, no solo el punto elegido. */
+    /* Interpola de rojo (1) a verde (10) pasando por ambar, rotando el matiz
+       (0deg a 120deg) en vez de mezclar RGB directo (que da un tono oliva
+       apagado): la fila entera actua como un indicador tipo semaforo. */
+    function hslToRgb(h, s, l) {
+      var c = (1 - Math.abs(2 * l - 1)) * s;
+      var x = c * (1 - Math.abs((h / 60) % 2 - 1));
+      var m = l - c / 2;
+      var rgb = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : [0, c, x];
+      return rgb.map(function (v) { return Math.round((v + m) * 255); });
+    }
     function colorPuntuacion(i) {
-      var start = [208, 59, 59], end = [35, 35, 37];
       var t = (i - 1) / 9;
-      var r = Math.round(start[0] + (end[0] - start[0]) * t);
-      var g = Math.round(start[1] + (end[1] - start[1]) * t);
-      var b = Math.round(start[2] + (end[2] - start[2]) * t);
-      return 'rgb(' + r + ',' + g + ',' + b + ')';
+      var hue = 120 * t;
+      var rgb = hslToRgb(hue, 0.62, 0.45);
+      return 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')';
     }
 
     function escaparHTML(s) {
