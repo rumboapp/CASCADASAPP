@@ -397,6 +397,17 @@ function _asegurarColumna(hoja, nombre, valorDefecto) {
 }
 
 /**
+ * Auto-reparacion: asegura que la hoja Productos tenga la columna
+ * RequierePuntoCoccion (TRUE por defecto para no cambiar el comportamiento
+ * actual). Se llama al inicio de las funciones que leen o escriben Productos
+ * relacionadas con el prepedido/carta, para que la columna exista siempre
+ * antes de leerla o escribirla, sin necesidad de una migracion manual aparte.
+ */
+function _asegurarColumnaPuntoCoccion() {
+  _asegurarColumna(_hoja(HOJAS.PRODUCTOS), 'RequierePuntoCoccion', 'TRUE');
+}
+
+/**
  * Escribe un valor en una columna por nombre, solo si la columna existe.
  * Evita romper hojas que aun no tengan la columna bilingue.
  */
@@ -691,6 +702,7 @@ function obtenerDatosIniciales() {
 function obtenerCartaCompleta() {
   var cacheado = _cacheGet('cartaCompleta');
   if (cacheado) return cacheado;
+  _asegurarColumnaPuntoCoccion();
   var categorias = obtenerCategoriasMenu();
   var productos = _leerHojaComoObjetos(HOJAS.PRODUCTOS)
     .filter(function (p) { return _aBooleano(p.Disponible) && _aBooleano(p.Visible); })
@@ -986,6 +998,10 @@ function _normalizarProducto(p) {
     Etiquetas: p.Etiquetas ? String(p.Etiquetas) : '',
     TiempoPreparacionMin: Number(p.TiempoPreparacionMin) || 0,
     EsMenuDelDia: _aBooleano(p.EsMenuDelDia),
+    // Por defecto TRUE (columna nueva, self-heal via _asegurarColumnaPuntoCoccion).
+    // Solo tiene efecto en la carta para platos de Carnes; en el resto no se usa.
+    RequierePuntoCoccion: p.RequierePuntoCoccion === '' || p.RequierePuntoCoccion === undefined
+      ? true : _aBooleano(p.RequierePuntoCoccion),
     FechaModificacion: _fechaHoraTexto(p.FechaModificacion),
     ModificadoPor: p.ModificadoPor
   };
@@ -1855,6 +1871,7 @@ function obtenerPedidosPorReserva(reservaID) {
   var pedido = _buscarPedidoPorReserva(reservaID);
   if (!pedido) return null;
 
+  _asegurarColumnaPuntoCoccion();
   var productos = {};
   _leerHojaComoObjetos(HOJAS.PRODUCTOS).forEach(function (p) {
     productos[p.ID] = _normalizarProducto(p);
@@ -1868,6 +1885,7 @@ function obtenerPedidosPorReserva(reservaID) {
         ProductoID: d.ProductoID,
         Nombre: prod.Nombre || d.ProductoID,
         CategoriaID: prod.CategoriaID || '',
+        RequierePuntoCoccion: prod.RequierePuntoCoccion !== false,
         Cantidad: Number(d.Cantidad) || 0,
         PrecioUnitario: Number(d.PrecioUnitario) || 0,
         Subtotal: Number(d.Subtotal) || 0,
@@ -2150,6 +2168,7 @@ function guardarProducto(datos) {
     return { success: false, mensaje: 'Nombre y categoria son obligatorios.' };
   }
 
+  _asegurarColumnaPuntoCoccion();
   var hoja = _hoja(HOJAS.PRODUCTOS);
   var ahora = new Date();
   var modificadoPor = datos.email || 'sistema';
@@ -2158,6 +2177,8 @@ function guardarProducto(datos) {
   var disponible = datos.disponible ? 'TRUE' : 'FALSE';
   var visible = datos.visible ? 'TRUE' : 'FALSE';
   var esMenu = datos.esMenuDelDia ? 'TRUE' : 'FALSE';
+  // Por defecto TRUE (solo se guarda FALSE si el formulario lo desmarca a proposito).
+  var requierePunto = datos.requierePuntoCoccion === false ? 'FALSE' : 'TRUE';
   var precio = Number(datos.precio) || 0;
   var orden = Number(datos.orden) || 0;
   var tiempo = Number(datos.tiempoPreparacionMin) || 0;
@@ -2182,7 +2203,8 @@ function guardarProducto(datos) {
       DescripcionEN: datos.descripcionEN || '', Precio: precio,
       Disponible: disponible, Visible: visible, Orden: orden,
       Etiquetas: datos.etiquetas || '', TiempoPreparacionMin: tiempo,
-      EsMenuDelDia: esMenu, FechaModificacion: ahora, ModificadoPor: modificadoPor
+      EsMenuDelDia: esMenu, RequierePuntoCoccion: requierePunto,
+      FechaModificacion: ahora, ModificadoPor: modificadoPor
     };
     Object.keys(cambios).forEach(function (k) {
       var idx = encabezados.indexOf(k);
@@ -2203,7 +2225,8 @@ function guardarProducto(datos) {
       DescripcionEN: datos.descripcionEN || '', Precio: precio,
       Disponible: disponible, Visible: visible, Orden: orden,
       Etiquetas: datos.etiquetas || '', TiempoPreparacionMin: tiempo,
-      EsMenuDelDia: esMenu, FechaModificacion: ahora, ModificadoPor: modificadoPor
+      EsMenuDelDia: esMenu, RequierePuntoCoccion: requierePunto,
+      FechaModificacion: ahora, ModificadoPor: modificadoPor
     };
     hoja.appendRow(encabezadosN.map(function (h) { return (h in nuevo) ? nuevo[h] : ''; }));
     _invalidarCaches(HOJAS.PRODUCTOS);
@@ -2263,6 +2286,7 @@ function eliminarProducto(productoID, email) {
  * @return {Object|null}
  */
 function obtenerProductoParaEditar(productoID) {
+  _asegurarColumnaPuntoCoccion();
   var productos = _leerHojaComoObjetos(HOJAS.PRODUCTOS);
   for (var i = 0; i < productos.length; i++) {
     if (productos[i].ID === productoID) return _normalizarProducto(productos[i]);
@@ -2302,6 +2326,7 @@ function toggleDisponibleProducto(productoID, nuevoEstado, email) {
  * @return {Array<Object>}
  */
 function obtenerProductosGestion() {
+  _asegurarColumnaPuntoCoccion();
   return _leerHojaComoObjetos(HOJAS.PRODUCTOS)
     .map(_normalizarProducto)
     .sort(function (a, b) { return a.Orden - b.Orden; });

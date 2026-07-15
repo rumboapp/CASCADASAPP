@@ -1726,8 +1726,13 @@ function toggleAcordeon(header, categoriaID) {
 
 /* Categoria de Carnes: solo ahi se ofrece el selector de punto de coccion.
    Si el hotel algun dia quiere sumar otra categoria (ej. Parrilladas), basta
-   con agregar su ID aqui. */
+   con agregar su ID aqui. Ademas, cada plato tiene su propio interruptor
+   "Requiere punto de coccion" (editable en Gestion de Carta) para los cortes
+   que no lo necesitan (ej. carne molida, guisos). */
 var CATEGORIAS_CON_PUNTO_COCCION = ['CAT04'];
+function requierePuntoCoccion(p) {
+  return CATEGORIAS_CON_PUNTO_COCCION.indexOf(p.CategoriaID) !== -1 && p.RequierePuntoCoccion !== false;
+}
 /* Opciones de punto de coccion (se guardan como Notas del item del pedido,
    asi cocina las ve igual que cualquier otra nota, sin cambios en el backend). */
 var PUNTOS_COCCION = [
@@ -1790,8 +1795,9 @@ function abrirPrepedido(reservaID, reservaObj) {
     APP.pedidoEntrega = (existente && existente.pedido && existente.pedido.Entrega === 'Habitacion') ? 'Habitacion' : 'Restaurant';
     if (existente && existente.detalles) {
       APP.carrito = existente.detalles.map(function (d) {
+        var requierePunto = CATEGORIAS_CON_PUNTO_COCCION.indexOf(d.CategoriaID) !== -1 && d.RequierePuntoCoccion !== false;
         return { productoID: d.ProductoID, nombre: d.Nombre, precio: d.PrecioUnitario, cantidad: d.Cantidad,
-          categoriaID: d.CategoriaID || '', notas: d.Notas || '' };
+          requierePunto: requierePunto, notas: d.Notas || '' };
       });
     }
     renderModalPrepedido(reserva);
@@ -1899,7 +1905,7 @@ function cargarProductosPrepedido(categoriaID, chip) {
           '<b class="w-5 text-center">' + cant + '</b>' +
           '<button class="btn btn-dorado !py-1 !px-3" onclick="cambiarCantidad(\'' + p.ID + '\',1)">+</button>' +
         '</div>'
-      : '<button class="btn btn-outline !py-1 !px-3 text-xs" onclick="agregarAlCarrito(\'' + p.ID + '\',\'' + nombreEsc + '\',' + p.Precio + ',\'' + p.CategoriaID + '\')"><i class="fa-solid fa-plus"></i></button>';
+      : '<button class="btn btn-outline !py-1 !px-3 text-xs" onclick="agregarAlCarrito(\'' + p.ID + '\',\'' + nombreEsc + '\',' + p.Precio + ',' + requierePuntoCoccion(p) + ')"><i class="fa-solid fa-plus"></i></button>';
     // Lupa: solo si el producto tiene descripcion. Abre/cierra el detalle.
     var lupa = descDe(p)
       ? '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="toggleDescProducto(\'' + p.ID + '\')" title="' + t('ver_descripcion') + '"><i class="fa-solid fa-magnifying-glass"></i></button>'
@@ -1933,10 +1939,10 @@ function toggleDescProducto(productoID) {
   if (el) el.classList.toggle('oculto');
 }
 
-function agregarAlCarrito(productoID, nombre, precio, categoriaID) {
+function agregarAlCarrito(productoID, nombre, precio, requierePunto) {
   var item = APP.carrito.filter(function (i) { return i.productoID === productoID; })[0];
   if (item) item.cantidad += 1;
-  else APP.carrito.push({ productoID: productoID, nombre: nombre, precio: precio, cantidad: 1, categoriaID: categoriaID || '', notas: '' });
+  else APP.carrito.push({ productoID: productoID, nombre: nombre, precio: precio, cantidad: 1, requierePunto: !!requierePunto, notas: '' });
   cargarProductosPrepedido(APP.prepedidoCatActual); // refresca el stepper del producto
   renderCarritoPrepedido();
 }
@@ -1986,8 +1992,7 @@ function pintarListaCarrito() {
   cont.classList.remove('oculto');
 
   var filas = APP.carrito.map(function (i) {
-    var esCarne = CATEGORIAS_CON_PUNTO_COCCION.indexOf(i.categoriaID) !== -1;
-    var selectorPunto = esCarne
+    var selectorPunto = i.requierePunto
       ? '<select class="input !py-1 !text-xs mt-1" onchange="actualizarPuntoCoccionCarrito(\'' + i.productoID + '\', this.value)">' + opcionesPuntoCoccion(i.notas) + '</select>'
       : '';
     return '<div class="flex items-center justify-between gap-2 py-2 border-b" style="border-color: var(--borde)">' +
@@ -2946,7 +2951,7 @@ function abrirFormProducto(productoID) {
   var catOpts = APP.categorias.map(function (c) { return '<option value="' + c.ID + '">' + escaparHTML(c.Nombre) + '</option>'; }).join('');
 
   function pintarForm(p) {
-    p = p || { CategoriaID: APP.categorias[0] ? APP.categorias[0].ID : '', Disponible: true, Visible: true, Orden: 0, TiempoPreparacionMin: 0, EsMenuDelDia: false, Etiquetas: '', Precio: 0, Nombre: '', Descripcion: '', NombreEN: '', DescripcionEN: '' };
+    p = p || { CategoriaID: APP.categorias[0] ? APP.categorias[0].ID : '', Disponible: true, Visible: true, Orden: 0, TiempoPreparacionMin: 0, EsMenuDelDia: false, RequierePuntoCoccion: true, Etiquetas: '', Precio: 0, Nombre: '', Descripcion: '', NombreEN: '', DescripcionEN: '' };
     var etiquetasSel = (p.Etiquetas || '').split(',').map(function (e) { return e.trim(); });
     function chkEtiqueta(nombre) { return etiquetasSel.indexOf(nombre) !== -1 ? 'checked' : ''; }
 
@@ -2971,10 +2976,16 @@ function abrirFormProducto(productoID) {
           '</div>' +
         '</div>' +
       '</div>' +
-      '<div class="flex gap-6 mt-3">' +
+      '<div class="flex gap-6 mt-3 flex-wrap">' +
         '<label class="flex items-center gap-2 text-sm"><span class="switch"><input type="checkbox" id="prodDisp" ' + (p.Disponible ? 'checked' : '') + '><span class="slider"></span></span> Disponible</label>' +
         '<label class="flex items-center gap-2 text-sm"><span class="switch"><input type="checkbox" id="prodVis" ' + (p.Visible ? 'checked' : '') + '><span class="slider"></span></span> Visible</label>' +
         '<label class="flex items-center gap-2 text-sm"><span class="switch"><input type="checkbox" id="prodMenu" ' + (p.EsMenuDelDia ? 'checked' : '') + '><span class="slider"></span></span> Menu del dia</label>' +
+      '</div>' +
+      // Solo aplica a la categoria Carnes; se muestra siempre por simplicidad
+      // (no tiene efecto en otras categorias).
+      '<div class="mt-2">' +
+        '<label class="flex items-center gap-2 text-sm"><span class="switch"><input type="checkbox" id="prodPuntoCoccion" ' + (p.RequierePuntoCoccion !== false ? 'checked' : '') + '><span class="slider"></span></span> Requiere elegir punto de coccion</label>' +
+        '<p class="text-xs opacity-50 mt-1">Solo aplica a platos de Carnes. Destildalo en cortes que no lo necesitan (ej. carne molida, guisos).</p>' +
       '</div>';
 
     mostrarModal({
@@ -3011,6 +3022,7 @@ function guardarProductoStaff() {
     disponible: document.getElementById('prodDisp').checked,
     visible: document.getElementById('prodVis').checked,
     esMenuDelDia: document.getElementById('prodMenu').checked,
+    requierePuntoCoccion: document.getElementById('prodPuntoCoccion').checked,
     email: APP.usuarioStaff.Email
   };
   if (!datos.nombre) { mostrarToast('El nombre es obligatorio.', 'error'); return; }
