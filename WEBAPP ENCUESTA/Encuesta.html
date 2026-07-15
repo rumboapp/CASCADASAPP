@@ -44,6 +44,7 @@
       padding: 22px 18px; box-shadow: var(--shadow); margin-bottom: 14px;
       animation: fadeInUp .5s ease both;
     }
+    .skeleton { text-align: center; padding: 30px 10px; color: var(--text-sec); font-size: 13px; }
 
     .field { margin-bottom: 16px; }
     .field label { display: block; font-size: 12px; font-weight: 600; color: var(--text-sec); margin-bottom: 6px; padding-left: 2px; text-transform: uppercase; letter-spacing: .4px; }
@@ -61,6 +62,7 @@
     .pregunta-titulo { font-size: 14.5px; font-weight: 500; color: var(--text); margin-bottom: 3px; }
     .pregunta-sub { font-size: 11.5px; color: var(--text-sec); margin-bottom: 10px; }
 
+    /* Puntuacion 1-10 */
     .escala { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; }
     .punto {
       aspect-ratio: 1 / 1; border-radius: 12px; border: 1px solid var(--border); background: #FAFAF9;
@@ -75,6 +77,22 @@
       transform: scale(1.04);
     }
     .escala-labels { display: flex; justify-content: space-between; margin-top: 6px; font-size: 10.5px; color: #A8A5A0; padding: 0 2px; }
+
+    /* Escala de satisfaccion / alternativas / si-no: botones apilados */
+    .opciones { display: flex; flex-direction: column; gap: 8px; }
+    .opciones.en-fila { flex-direction: row; flex-wrap: wrap; }
+    .opciones.en-fila .opcion { flex: 1; min-width: 90px; }
+    .opcion {
+      border: 1px solid var(--border); background: #FAFAF9; border-radius: 12px;
+      padding: 12px 14px; font-family: 'Oswald', sans-serif; font-size: 14px; font-weight: 400;
+      color: var(--text); cursor: pointer; user-select: none; text-align: center;
+      box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.05); transition: all .15s;
+    }
+    .opcion:active { transform: scale(0.98); }
+    .opcion.activo {
+      background: linear-gradient(180deg, #57575A, #414143 50%, #39393B); color: #F2F0EE; border-color: #2A2A2C;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 3px 8px -2px rgba(46,46,48,0.5);
+    }
 
     .field textarea {
       width: 100%; min-height: 90px; padding: 12px 14px; border: none; border-radius: 12px;
@@ -138,48 +156,25 @@
 
       <div id="formCard" class="card">
         <div id="msgError" class="msg-error"></div>
+        <div id="skeleton" class="skeleton"><i class="fa-solid fa-circle-notch spin"></i> Cargando encuesta...</div>
 
-        <div class="field">
-          <label>Tu nombre</label>
-          <input type="text" id="f_nombre" placeholder="Nombre completo">
-        </div>
-        <div class="field">
-          <label>Habitación</label>
-          <input type="text" id="f_habitacion" placeholder="Ej: 105 (opcional)">
-          <div class="hint">Opcional, nos ayuda a identificar tu estadía.</div>
-        </div>
+        <div id="preguntasWrap" style="display:none;">
+          <div class="field">
+            <label>Tu nombre</label>
+            <input type="text" id="f_nombre" placeholder="Nombre completo">
+          </div>
+          <div class="field">
+            <label>Habitación</label>
+            <input type="text" id="f_habitacion" placeholder="Ej: 105 (opcional)">
+            <div class="hint">Opcional, nos ayuda a identificar tu estadía.</div>
+          </div>
 
-        <div class="pregunta">
-          <div class="pregunta-titulo">¿Cómo calificarías tu estadía en general?</div>
-          <div class="pregunta-sub">1 = muy insatisfecho · 10 = totalmente satisfecho</div>
-          <div class="escala" data-campo="general"></div>
-          <div class="escala-labels"><span>Muy malo</span><span>Excelente</span></div>
-        </div>
+          <div id="listaPreguntas"></div>
 
-        <div class="pregunta">
-          <div class="pregunta-titulo">Limpieza de la habitación</div>
-          <div class="escala" data-campo="limpieza"></div>
+          <button type="button" class="btn-enviar" id="btnEnviar" onclick="enviarEncuesta()" style="margin-top: 6px;">
+            <i class="fa-solid fa-paper-plane"></i> <span>Enviar encuesta</span>
+          </button>
         </div>
-
-        <div class="pregunta">
-          <div class="pregunta-titulo">Atención del personal</div>
-          <div class="escala" data-campo="atencion"></div>
-        </div>
-
-        <div class="pregunta">
-          <div class="pregunta-titulo">Instalaciones y servicios</div>
-          <div class="pregunta-sub">Restaurante, spa, piscina, etc.</div>
-          <div class="escala" data-campo="instalaciones"></div>
-        </div>
-
-        <div class="field" style="margin-top:22px;">
-          <label>¿Algo que quieras contarnos? (opcional)</label>
-          <textarea id="f_comentario" placeholder="Cuéntanos qué te gustó o qué podemos mejorar..."></textarea>
-        </div>
-
-        <button type="button" class="btn-enviar" id="btnEnviar" onclick="enviarEncuesta()">
-          <i class="fa-solid fa-paper-plane"></i> <span>Enviar encuesta</span>
-        </button>
       </div>
 
       <div id="gracias" class="gracias">
@@ -193,25 +188,69 @@
   </div>
 
   <script>
-    var respuestas = { general: 0, limpieza: 0, atencion: 0, instalaciones: 0 };
+    var PREGUNTAS = [];
+    var respuestas = {};
+    var NIVELES_ESCALA = ['Muy bueno', 'Bueno', 'Regular', 'Malo', 'Muy malo', 'No aplica'];
 
-    function pintarEscalas() {
-      document.querySelectorAll('.escala').forEach(function (cont) {
-        var campo = cont.getAttribute('data-campo');
-        var html = '';
-        for (var i = 1; i <= 10; i++) {
-          html += '<div class="punto" data-val="' + i + '" onclick="seleccionar(\'' + campo + '\', ' + i + ', this)">' + i + '</div>';
-        }
-        cont.innerHTML = html;
-      });
+    function escaparHTML(s) {
+      return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    function seleccionar(campo, valor, el) {
-      respuestas[campo] = valor;
+    function pintarPreguntas() {
+      var cont = document.getElementById('listaPreguntas');
+      cont.innerHTML = PREGUNTAS.map(function (p, idx) {
+        var titulo = '<div class="pregunta-titulo">' + escaparHTML(p.texto) + '</div>';
+        var cuerpo = '';
+
+        if (p.tipo === 'puntuacion') {
+          var puntos = '';
+          for (var i = 1; i <= 10; i++) {
+            puntos += '<div class="punto" data-val="' + i + '" onclick="seleccionarPuntuacion(\'' + p.id + '\', ' + i + ', this)">' + i + '</div>';
+          }
+          cuerpo =
+            '<div class="pregunta-sub">1 = nada probable · 10 = muy probable</div>' +
+            '<div class="escala" data-pregunta="' + p.id + '">' + puntos + '</div>' +
+            '<div class="escala-labels"><span>Muy malo</span><span>Excelente</span></div>';
+        } else if (p.tipo === 'escala') {
+          cuerpo = '<div class="opciones" data-pregunta="' + p.id + '">' +
+            NIVELES_ESCALA.map(function (n) {
+              return '<div class="opcion" onclick="seleccionarOpcion(\'' + p.id + '\', \'' + n + '\', this)">' + n + '</div>';
+            }).join('') + '</div>';
+        } else if (p.tipo === 'alternativas') {
+          cuerpo = '<div class="opciones" data-pregunta="' + p.id + '">' +
+            (p.opciones || []).map(function (o) {
+              var oEsc = escaparHTML(o).replace(/'/g, "\\'");
+              return '<div class="opcion" onclick="seleccionarOpcion(\'' + p.id + '\', \'' + oEsc + '\', this)">' + escaparHTML(o) + '</div>';
+            }).join('') + '</div>';
+        } else if (p.tipo === 'sino') {
+          cuerpo = '<div class="opciones en-fila" data-pregunta="' + p.id + '">' +
+            '<div class="opcion" onclick="seleccionarOpcion(\'' + p.id + '\', \'Si\', this)">Sí</div>' +
+            '<div class="opcion" onclick="seleccionarOpcion(\'' + p.id + '\', \'No\', this)">No</div>' +
+            '</div>';
+        } else if (p.tipo === 'texto') {
+          cuerpo = '<textarea data-pregunta-texto="' + p.id + '" placeholder="Escribe tu respuesta..." oninput="seleccionarTexto(\'' + p.id + '\', this.value)"></textarea>';
+        }
+
+        return '<div class="pregunta">' + titulo + cuerpo + '</div>';
+      }).join('');
+    }
+
+    function seleccionarPuntuacion(preguntaID, valor, el) {
+      respuestas[preguntaID] = valor;
       var cont = el.parentElement;
       cont.querySelectorAll('.punto').forEach(function (p) { p.classList.remove('activo'); });
       el.classList.add('activo');
       ocultarError();
+    }
+    function seleccionarOpcion(preguntaID, valor, el) {
+      respuestas[preguntaID] = valor;
+      var cont = el.parentElement;
+      cont.querySelectorAll('.opcion').forEach(function (o) { o.classList.remove('activo'); });
+      el.classList.add('activo');
+      ocultarError();
+    }
+    function seleccionarTexto(preguntaID, valor) {
+      respuestas[preguntaID] = valor;
     }
 
     function ocultarError() {
@@ -227,19 +266,22 @@
     function enviarEncuesta() {
       var nombre = document.getElementById('f_nombre').value.trim();
       if (!nombre) { mostrarError('Por favor ingresa tu nombre.'); return; }
-      if (!respuestas.general || !respuestas.limpieza || !respuestas.atencion || !respuestas.instalaciones) {
-        mostrarError('Por favor responde las 4 preguntas de puntuación.');
-        return;
+
+      for (var i = 0; i < PREGUNTAS.length; i++) {
+        var p = PREGUNTAS[i];
+        if (!p.requerida) continue;
+        var v = respuestas[p.id];
+        if (p.tipo === 'texto' ? !String(v || '').trim() : !v) {
+          mostrarError('Por favor responde: "' + p.texto + '".');
+          return;
+        }
       }
 
       var datos = {
         nombre: nombre,
         habitacion: document.getElementById('f_habitacion').value.trim(),
-        general: respuestas.general,
-        limpieza: respuestas.limpieza,
-        atencion: respuestas.atencion,
-        instalaciones: respuestas.instalaciones,
-        comentario: document.getElementById('f_comentario').value.trim()
+        idioma: 'es',
+        respuestas: respuestas
       };
 
       var btn = document.getElementById('btnEnviar');
@@ -266,9 +308,14 @@
     }
 
     function init() {
-      pintarEscalas();
       google.script.run.withSuccessHandler(function (d) {
         if (d && d.hotelNombre) document.getElementById('tituloHotel').textContent = d.hotelNombre;
+        PREGUNTAS = (d && d.preguntas) || [];
+        document.getElementById('skeleton').style.display = 'none';
+        document.getElementById('preguntasWrap').style.display = 'block';
+        pintarPreguntas();
+      }).withFailureHandler(function () {
+        document.getElementById('skeleton').innerHTML = 'No se pudo cargar la encuesta. Intenta de nuevo mas tarde.';
       }).obtenerDatosPublicos();
     }
     init();

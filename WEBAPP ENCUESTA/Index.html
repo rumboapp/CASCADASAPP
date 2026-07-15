@@ -5,7 +5,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Panel de Encuestas</title>
-  <script src="https://www.gstatic.com/charts/loader.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
@@ -22,6 +21,13 @@
       --accent: #414143; --accent-light: #ECECEE; --border: #C9C6C2; --input-bg: #F3F3F4;
       --success: #4E6B54; --danger: #8B3A3A;
       --shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(0,0,0,0.06), 0 10px 24px -14px rgba(46,46,48,0.30);
+      /* Colores de estado para escala de satisfaccion / NPS (fijos, no tematizables) */
+      --good: #0ca30c; --good-tint: #dcf1dc;
+      --okish: #8bbf3f; --okish-tint: #eaf3d8;
+      --warn: #d98c12; --warn-tint: #faecd2;
+      --bad: #ec835a; --bad-tint: #fbe4da;
+      --crit: #d03b3b; --crit-tint: #f8dcdc;
+      --na: #b3b0a9; --na-tint: #ececea;
     }
     html, body {
       min-height: 100%; font-family: 'Oswald', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -84,13 +90,56 @@
     textarea.msg-input { width: 100%; min-height: 64px; padding: 10px 12px; border: none; border-radius: 12px; font-family: 'Oswald', sans-serif; font-size: 13px; background: var(--input-bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); resize: vertical; }
     textarea.msg-input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
 
+    /* ===== PREGUNTAS (editor) ===== */
+    .preg-row { display: flex; align-items: center; gap: 10px; padding: 11px 4px; border-bottom: 1px solid var(--accent-light); }
+    .preg-row:last-child { border-bottom: none; }
+    .preg-orden { display: flex; flex-direction: column; gap: 2px; }
+    .btn-flecha { width: 24px; height: 20px; border: none; border-radius: 6px; background: var(--input-bg); color: var(--text-sec); cursor: pointer; font-size: 10px; }
+    .btn-flecha:disabled { opacity: .3; cursor: default; }
+    .preg-info { flex: 1; min-width: 0; }
+    .preg-texto { font-size: 13.5px; color: var(--text); font-weight: 400; }
+    .preg-meta { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+    .tag-tipo, .tag-nps, .tag-inactiva {
+      font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+      padding: 2px 8px; border-radius: 100px;
+    }
+    .tag-tipo { background: var(--input-bg); color: var(--text-sec); }
+    .tag-nps { background: var(--good-tint); color: var(--good); }
+    .tag-inactiva { background: var(--crit-tint); color: var(--crit); }
+    .preg-acciones { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .switch-mini { position: relative; display: inline-block; width: 34px; height: 20px; flex-shrink: 0; }
+    .switch-mini input { opacity: 0; width: 0; height: 0; }
+    .switch-mini .slider { position: absolute; inset: 0; background: #D9D7D3; border-radius: 20px; cursor: pointer; transition: .15s; }
+    .switch-mini .slider::before { content: ''; position: absolute; width: 16px; height: 16px; left: 2px; top: 2px; background: #fff; border-radius: 50%; transition: .15s; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+    .switch-mini input:checked + .slider { background: var(--success); }
+    .switch-mini input:checked + .slider::before { transform: translateX(14px); }
+    .btn-icon { width: 30px; height: 30px; border: none; border-radius: 9px; background: var(--input-bg); color: var(--text-sec); cursor: pointer; font-size: 12px; }
+    .btn-icon.danger:hover { background: var(--crit-tint); color: var(--crit); }
+    .empty { text-align: center; padding: 20px 10px; color: #A8A5A0; font-size: 13px; }
+
+    /* Modal de pregunta */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(20,20,20,.5); z-index: 200; align-items: center; justify-content: center; padding: 16px; }
+    .modal-overlay.show { display: flex; }
+    .modal-card { width: 100%; max-width: 420px; max-height: 88vh; overflow-y: auto; background: var(--surface); border-radius: 20px; padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,.35); }
+    .modal-card h3 { font-size: 20px; margin-bottom: 16px; }
+    .mfield { margin-bottom: 14px; }
+    .mfield label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-sec); margin-bottom: 6px; }
+    .mfield input[type="text"], .mfield select, .mfield textarea {
+      width: 100%; padding: 0 12px; height: 42px; border: none; border-radius: 10px; font-family: 'Oswald', sans-serif;
+      font-size: 13.5px; background: var(--input-bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--border);
+    }
+    .mfield textarea { height: auto; padding: 10px 12px; min-height: 70px; resize: vertical; }
+    .mfield input:focus, .mfield select:focus, .mfield textarea:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+    .check-label { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--text); cursor: pointer; }
+    .check-label input { width: 17px; height: 17px; }
+
     /* ===== FILTROS ===== */
     .filtros { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 4px; }
     .filtros .campo label { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-sec); margin-bottom: 5px; }
     .filtros input { height: 42px; padding: 0 12px; border: none; border-radius: 10px; font-family: 'Oswald', sans-serif; font-size: 13px; background: var(--input-bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); width: 150px; cursor: pointer; }
 
     /* ===== KPIs ===== */
-    .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 18px 0; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 4px 0 18px; }
     @media (min-width: 640px) { .kpi-grid { grid-template-columns: repeat(4, 1fr); } }
     .kpi-box { background: var(--input-bg); border-radius: 14px; padding: 14px 10px; text-align: center; box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.04); }
     .kpi-box b { display: block; font-size: 22px; font-weight: 600; color: var(--accent); font-family: 'Oswald', sans-serif; line-height: 1; margin-bottom: 4px; }
@@ -98,11 +147,61 @@
     .kpi-box.nps-alto b { color: var(--success); }
     .kpi-box.nps-bajo b { color: var(--danger); }
 
-    /* ===== GRAFICOS ===== */
-    .charts-grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-bottom: 18px; }
-    @media (min-width: 760px) { .charts-grid { grid-template-columns: 1fr 1fr; } }
-    .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; box-shadow: inset 0 1px 0 #fff, 0 1px 3px rgba(0,0,0,0.05); }
-    .chart-card .titulo { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-sec); margin-bottom: 8px; }
+    /* ===== SECCIONES DEL INFORME ===== */
+    .report-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; margin-bottom: 14px; box-shadow: inset 0 1px 0 #fff, 0 1px 3px rgba(0,0,0,0.05); }
+    .report-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+    .report-card-head h3 { font-size: 17px; }
+    .q-count { font-size: 11px; color: var(--text-sec); font-weight: 600; }
+    .report-grid-2 { display: none; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    @media (max-width: 700px) { .report-grid-2 { grid-template-columns: 1fr; } }
+
+    /* NPS bars */
+    .nps-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11.5px; color: var(--text-sec); margin-bottom: 10px; }
+    .nps-legend .sw { width: 9px; height: 9px; border-radius: 3px; display: inline-block; margin-right: 5px; }
+    .nps-bars { display: flex; align-items: flex-end; gap: 4px; height: 110px; }
+    .nps-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 5px; }
+    .nps-bar { width: 100%; border-radius: 3px 3px 0 0; min-height: 0; }
+    .nps-pct { font-size: 9.5px; color: var(--text-sec); }
+    .nps-tick { font-size: 10.5px; color: var(--text-sec); }
+    .nps-scale-label { display: flex; justify-content: space-between; font-size: 10px; color: #A8A5A0; margin-top: 6px; text-transform: uppercase; letter-spacing: .04em; }
+
+    /* Matriz de satisfaccion */
+    .matrix-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11px; color: var(--text-sec); margin-bottom: 12px; }
+    .matrix-legend .sw { width: 9px; height: 9px; border-radius: 3px; display: inline-block; margin-right: 5px; }
+    .matrix-row { display: grid; grid-template-columns: 160px 1fr; align-items: center; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--accent-light); }
+    .matrix-row:last-child { border-bottom: none; }
+    .matrix-label { font-size: 12.5px; color: var(--text); }
+    .matrix-bar { display: flex; height: 18px; border-radius: 5px; overflow: hidden; background: var(--na-tint); }
+    .matrix-seg + .matrix-seg { margin-left: 1.5px; }
+
+    /* Donas */
+    .donut-wrap { display: flex; align-items: center; gap: 18px; }
+    .donut { width: 108px; height: 108px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative; }
+    .donut::after { content: ''; position: absolute; inset: 17px; border-radius: 50%; background: var(--surface); }
+    .donut .center { position: relative; z-index: 1; text-align: center; }
+    .donut .center b { font-family: 'Bebas Neue', sans-serif; font-size: 18px; display: block; line-height: 1; }
+    .donut .center span { font-size: 8.5px; color: var(--text-sec); text-transform: uppercase; letter-spacing: .05em; }
+    .donut-legend { display: flex; flex-direction: column; gap: 7px; flex: 1; min-width: 0; }
+    .donut-legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+    .donut-legend-item .sw { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; }
+    .donut-legend-item .name { color: var(--text); flex: 1; }
+    .donut-legend-item .pct { color: var(--text-sec); font-weight: 600; }
+
+    /* Comentarios */
+    .comment-list { display: flex; flex-direction: column; gap: 8px; }
+    .comment { background: var(--input-bg); border-radius: 12px; padding: 11px 13px; }
+    .comment-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; flex-wrap: wrap; }
+    .comment-room { font-size: 10.5px; font-weight: 700; color: var(--text-sec); text-transform: uppercase; letter-spacing: .03em; }
+    .comment-date { font-size: 10.5px; color: #A8A5A0; }
+    .comment p { font-size: 13px; color: var(--text); line-height: 1.5; }
+
+    /* Tendencia */
+    .trend-svg { width: 100%; height: 130px; display: block; overflow: visible; }
+    .trend-grid { stroke: var(--accent-light); stroke-width: 1; vector-effect: non-scaling-stroke; }
+    .trend-area { fill: var(--good); opacity: .1; stroke: none; }
+    .trend-line { fill: none; stroke: var(--good); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linecap: round; }
+    .trend-dot { fill: var(--good); }
+    .trend-endlabel { text-align: right; font-size: 11px; font-weight: 600; color: var(--good); margin-top: 4px; }
 
     /* ===== TABLA ===== */
     .tabla-wrap { overflow: auto; max-height: 340px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
@@ -120,13 +219,9 @@
     .loader.show { display: flex; }
     .spin { display: inline-block; animation: spin .8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .empty { text-align: center; padding: 30px 10px; color: #A8A5A0; font-size: 13px; }
 
     .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #F2F0EE; padding: 11px 20px; border-radius: 12px; font-size: 13px; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,.3); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 999; }
     .toast.show { opacity: 1; }
-
-    .pdf-capture { position: fixed; left: -9999px; top: 0; width: 1200px; background: white; }
-    .pdf-capture .cap-chart { width: 580px; height: 380px; display: inline-block; }
   </style>
 </head>
 <body>
@@ -168,10 +263,18 @@
         <textarea class="msg-input" id="mensajeEncuesta" onchange="guardarMensaje()"></textarea>
       </div>
 
+      <!-- PREGUNTAS -->
+      <div class="card">
+        <h2>Preguntas de la encuesta</h2>
+        <p class="sub">Agrega, edita, reordena o desactiva preguntas. Elige el tipo de respuesta de cada una: puntuación 1-10, escala de satisfacción, alternativas, sí/no o texto libre.</p>
+        <div id="listaPreguntasAdmin"></div>
+        <button class="btn-mini dark" style="margin-top:14px;" onclick="abrirFormPregunta(null)"><i class="fa-solid fa-plus"></i> Agregar pregunta</button>
+      </div>
+
       <!-- INFORMES -->
       <div class="card">
         <h2>Informes</h2>
-        <p class="sub">Estadísticas de todas las respuestas recibidas.</p>
+        <p class="sub">Estadísticas de todas las respuestas recibidas. El informe se arma según las preguntas activas.</p>
 
         <div class="filtros">
           <div class="campo"><label>Desde</label><input type="text" id="fDesde" placeholder="Todo el histórico" readonly></div>
@@ -184,30 +287,50 @@
         <div id="emptyInforme" class="empty" style="display:none;">Aún no hay respuestas en este período.</div>
 
         <div id="contenidoInforme" style="display:none;">
-          <div class="kpi-grid">
-            <div class="kpi-box"><b id="kpiTotal">0</b><span>Respuestas</span></div>
-            <div class="kpi-box"><b id="kpiGeneral">0</b><span>Promedio general</span></div>
-            <div class="kpi-box" id="kpiNpsBox"><b id="kpiNps">0</b><span>NPS</span></div>
-            <div class="kpi-box"><b id="kpiLimpieza">0</b><span>Limpieza</span></div>
-          </div>
-          <div class="kpi-grid">
-            <div class="kpi-box"><b id="kpiAtencion">0</b><span>Atención</span></div>
-            <div class="kpi-box"><b id="kpiInstalaciones">0</b><span>Instalaciones</span></div>
-            <div class="kpi-box"><b id="kpiPromotores">0</b><span>Promotores (9-10)</span></div>
-            <div class="kpi-box"><b id="kpiDetractores">0</b><span>Detractores (≤6)</span></div>
+          <div id="kpiGrid" class="kpi-grid"></div>
+
+          <div id="seccionNPS" class="report-card" style="display:none;">
+            <div class="report-card-head"><h3 id="npsTitulo"></h3></div>
+            <div class="nps-legend">
+              <span><i class="sw" style="background:var(--crit)"></i>Detractores (0-6)</span>
+              <span><i class="sw" style="background:var(--warn)"></i>Pasivos (7-8)</span>
+              <span><i class="sw" style="background:var(--good)"></i>Promotores (9-10)</span>
+            </div>
+            <div id="npsBars" class="nps-bars"></div>
+            <div class="nps-scale-label"><span>Nada probable</span><span>Muy probable</span></div>
           </div>
 
-          <div class="charts-grid">
-            <div class="chart-card"><div class="titulo">Distribución de puntuación general</div><div id="chartDistribucion" style="height:220px;"></div></div>
-            <div class="chart-card"><div class="titulo">Promotores / Neutros / Detractores</div><div id="chartNps" style="height:220px;"></div></div>
-            <div class="chart-card"><div class="titulo">Comparativo por categoría</div><div id="chartComparativo" style="height:220px;"></div></div>
-            <div class="chart-card"><div class="titulo">Evolución del promedio general</div><div id="chartEvolucion" style="height:220px;"></div></div>
+          <div id="seccionPuntuaciones" class="report-card" style="display:none;">
+            <div class="report-card-head"><h3>Otras puntuaciones</h3></div>
+            <div id="puntuacionesGrid" class="kpi-grid" style="margin-bottom:0;"></div>
+          </div>
+
+          <div id="seccionEscalas" class="report-card" style="display:none;">
+            <div class="report-card-head"><h3>Satisfacción por categoría</h3></div>
+            <div class="matrix-legend">
+              <span><i class="sw" style="background:var(--good)"></i>Muy bueno</span>
+              <span><i class="sw" style="background:var(--okish)"></i>Bueno</span>
+              <span><i class="sw" style="background:var(--warn)"></i>Regular</span>
+              <span><i class="sw" style="background:var(--bad)"></i>Malo</span>
+              <span><i class="sw" style="background:var(--crit)"></i>Muy malo</span>
+              <span><i class="sw" style="background:var(--na)"></i>No aplica</span>
+            </div>
+            <div id="matrixRows"></div>
+          </div>
+
+          <div id="seccionAlternativas" class="report-grid-2"></div>
+          <div id="seccionSiNo" class="report-grid-2"></div>
+          <div id="seccionTextos"></div>
+
+          <div id="seccionTendencia" class="report-card" style="display:none;">
+            <div class="report-card-head"><h3>Tendencia diaria</h3></div>
+            <div id="tendenciaSvgWrap"></div>
           </div>
 
           <div class="tabla-wrap">
             <table class="resp">
               <thead>
-                <tr><th>Fecha</th><th>Nombre</th><th>Hab.</th><th>Gral.</th><th>Limp.</th><th>Aten.</th><th>Inst.</th><th>Comentario</th></tr>
+                <tr><th>Fecha</th><th>Nombre</th><th>Hab.</th><th>Punt.</th><th>Comentarios</th></tr>
               </thead>
               <tbody id="tablaRespuestas"></tbody>
             </table>
@@ -218,21 +341,58 @@
     </div>
   </div>
 
-  <!-- Contenedor oculto para capturar gráficos en alta resolución (PDF) -->
-  <div id="pdfCapture" class="pdf-capture">
-    <div id="cap_distribucion" class="cap-chart"></div>
-    <div id="cap_nps" class="cap-chart"></div>
-    <div id="cap_comparativo" class="cap-chart"></div>
-    <div id="cap_evolucion" class="cap-chart"></div>
+  <!-- MODAL: agregar / editar pregunta -->
+  <div id="modalPregunta" class="modal-overlay">
+    <div class="modal-card">
+      <h3 id="modalPreguntaTitulo">Nueva pregunta</h3>
+      <div class="mfield">
+        <label>Texto de la pregunta</label>
+        <input type="text" id="mp_texto" placeholder="Ej: ¿Cómo calificarías la limpieza?">
+      </div>
+      <div class="mfield">
+        <label>Tipo de respuesta</label>
+        <select id="mp_tipo" onchange="actualizarCamposTipo()">
+          <option value="puntuacion">Puntuación (1 a 10)</option>
+          <option value="escala">Escala de satisfacción</option>
+          <option value="alternativas">Alternativas</option>
+          <option value="sino">Sí / No</option>
+          <option value="texto">Texto libre</option>
+        </select>
+      </div>
+      <div class="mfield" id="mp_campoOpciones" style="display:none;">
+        <label>Opciones (una por línea, mínimo 2)</label>
+        <textarea id="mp_opciones" placeholder="Internet&#10;Redes sociales&#10;Otro"></textarea>
+      </div>
+      <div class="mfield" id="mp_campoNPS" style="display:none;">
+        <label class="check-label"><input type="checkbox" id="mp_esNPS"> Usar como puntuación NPS principal (solo una pregunta puede serlo)</label>
+      </div>
+      <div class="mfield">
+        <label class="check-label"><input type="checkbox" id="mp_requerida" checked> Respuesta obligatoria</label>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:18px;">
+        <button class="btn-mini outline" style="flex:1; justify-content:center;" onclick="cerrarModalPregunta()">Cancelar</button>
+        <button class="btn-mini dark" style="flex:1; justify-content:center;" onclick="guardarPreguntaUI()">Guardar</button>
+      </div>
+    </div>
   </div>
 
   <div id="toast" class="toast"></div>
 
   <script>
-    google.charts.load('current', { packages: ['corechart', 'bar'] });
     const CHART_COLORS = ['#414143', '#6E6C69', '#8B3A3A', '#4E6B54', '#9C9995', '#5A5A5D'];
+    const NIVELES_ESCALA = ['Muy bueno', 'Bueno', 'Regular', 'Malo', 'Muy malo', 'No aplica'];
+    const NIVEL_COLOR = { 'Muy bueno': 'var(--good)', 'Bueno': 'var(--okish)', 'Regular': 'var(--warn)', 'Malo': 'var(--bad)', 'Muy malo': 'var(--crit)', 'No aplica': 'var(--na)' };
 
-    let APP = { usuario: null, informeData: null };
+    function hexRGB(hex) {
+      const h = hex.replace('#', '');
+      return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)];
+    }
+    const CHART_COLORS_RGB = CHART_COLORS.map(hexRGB);
+    const COLOR_GOOD = hexRGB('0ca30c'), COLOR_OKISH = hexRGB('8bbf3f'), COLOR_WARN = hexRGB('d98c12'),
+      COLOR_BAD = hexRGB('ec835a'), COLOR_CRIT = hexRGB('d03b3b'), COLOR_NA = hexRGB('b3b0a9');
+    const NIVEL_COLOR_RGB = { 'Muy bueno': COLOR_GOOD, 'Bueno': COLOR_OKISH, 'Regular': COLOR_WARN, 'Malo': COLOR_BAD, 'Muy malo': COLOR_CRIT, 'No aplica': COLOR_NA };
+
+    let APP = { usuario: null, informeData: null, preguntas: [] };
 
     // ───────────────────────────────────────────────────────────
     // LOGIN
@@ -274,6 +434,7 @@
       document.getElementById('app').classList.add('show');
       document.getElementById('userNombre').textContent = (APP.usuario && APP.usuario.Nombre) || (APP.usuario && APP.usuario.Email) || '';
       cargarEnlace();
+      cargarPreguntas();
       inicializarFiltros();
       cargarInforme();
     }
@@ -329,6 +490,108 @@
       t.textContent = txt; t.classList.add('show');
       clearTimeout(t._timer); t._timer = setTimeout(() => t.classList.remove('show'), 2400);
     }
+    function escHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+    // ───────────────────────────────────────────────────────────
+    // PREGUNTAS (editor)
+    // ───────────────────────────────────────────────────────────
+    function etiquetaTipo(t) {
+      return { puntuacion: 'Puntuación 1-10', escala: 'Escala de satisfacción', alternativas: 'Alternativas', sino: 'Sí / No', texto: 'Texto libre' }[t] || t;
+    }
+    function cargarPreguntas() {
+      google.script.run.withSuccessHandler(res => {
+        if (res && res.success) { APP.preguntas = res.preguntas; pintarPreguntasAdmin(); }
+      }).obtenerPreguntas(APP.usuario.Email);
+    }
+    function pintarPreguntasAdmin() {
+      const cont = document.getElementById('listaPreguntasAdmin');
+      if (!APP.preguntas.length) { cont.innerHTML = '<p class="empty">Aún no hay preguntas. Agrega la primera abajo.</p>'; return; }
+      cont.innerHTML = APP.preguntas.map((p, idx) => `
+        <div class="preg-row">
+          <div class="preg-orden">
+            <button class="btn-flecha" ${idx === 0 ? 'disabled' : ''} onclick="moverPregunta('${p.id}',-1)"><i class="fa-solid fa-chevron-up"></i></button>
+            <button class="btn-flecha" ${idx === APP.preguntas.length - 1 ? 'disabled' : ''} onclick="moverPregunta('${p.id}',1)"><i class="fa-solid fa-chevron-down"></i></button>
+          </div>
+          <div class="preg-info">
+            <div class="preg-texto">${escHtml(p.texto)}</div>
+            <div class="preg-meta">
+              <span class="tag-tipo">${etiquetaTipo(p.tipo)}</span>
+              ${p.esNPS ? '<span class="tag-nps">NPS</span>' : ''}
+              ${!p.activa ? '<span class="tag-inactiva">Inactiva</span>' : ''}
+            </div>
+          </div>
+          <div class="preg-acciones">
+            <label class="switch-mini" title="${p.activa ? 'Desactivar' : 'Activar'}">
+              <input type="checkbox" ${p.activa ? 'checked' : ''} onchange="toggleActivaPregunta('${p.id}', this.checked)">
+              <span class="slider"></span>
+            </label>
+            <button class="btn-icon" title="Editar" onclick="abrirFormPregunta('${p.id}')"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn-icon danger" title="Eliminar" onclick="eliminarPreguntaUI('${p.id}')"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </div>`).join('');
+    }
+    function moverPregunta(id, dir) {
+      const i = APP.preguntas.findIndex(p => p.id === id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= APP.preguntas.length) return;
+      const tmp = APP.preguntas[i]; APP.preguntas[i] = APP.preguntas[j]; APP.preguntas[j] = tmp;
+      pintarPreguntasAdmin();
+      google.script.run.reordenarPreguntas(APP.preguntas.map(p => p.id), APP.usuario.Email);
+    }
+    function toggleActivaPregunta(id, activa) {
+      const p = APP.preguntas.find(x => x.id === id);
+      if (!p) return;
+      google.script.run.withSuccessHandler(res => {
+        if (res && res.success) { p.activa = activa; mostrarToast(activa ? 'Pregunta activada ✓' : 'Pregunta desactivada ✓'); pintarPreguntasAdmin(); }
+        else { mostrarToast((res && res.mensaje) || 'No se pudo actualizar'); cargarPreguntas(); }
+      }).guardarPregunta({ id: p.id, texto: p.texto, tipo: p.tipo, opciones: p.opciones, esNPS: p.esNPS, requerida: p.requerida, activa: activa }, APP.usuario.Email);
+    }
+    function eliminarPreguntaUI(id) {
+      const p = APP.preguntas.find(x => x.id === id);
+      if (!p) return;
+      if (!confirm('¿Eliminar la pregunta "' + p.texto + '"? Esta acción no se puede deshacer.')) return;
+      google.script.run.withSuccessHandler(res => {
+        if (res && res.success) { mostrarToast('Pregunta eliminada ✓'); cargarPreguntas(); }
+        else mostrarToast((res && res.mensaje) || 'No se pudo eliminar');
+      }).eliminarPregunta(id, APP.usuario.Email);
+    }
+
+    let mpEditandoId = null;
+    function abrirFormPregunta(id) {
+      mpEditandoId = id;
+      const p = id ? APP.preguntas.find(x => x.id === id) : null;
+      document.getElementById('modalPreguntaTitulo').textContent = p ? 'Editar pregunta' : 'Nueva pregunta';
+      document.getElementById('mp_texto').value = p ? p.texto : '';
+      document.getElementById('mp_tipo').value = p ? p.tipo : 'puntuacion';
+      document.getElementById('mp_opciones').value = p ? (p.opciones || []).join('\n') : '';
+      document.getElementById('mp_esNPS').checked = p ? !!p.esNPS : false;
+      document.getElementById('mp_requerida').checked = p ? !!p.requerida : true;
+      actualizarCamposTipo();
+      document.getElementById('modalPregunta').classList.add('show');
+    }
+    function cerrarModalPregunta() { document.getElementById('modalPregunta').classList.remove('show'); }
+    function actualizarCamposTipo() {
+      const tipo = document.getElementById('mp_tipo').value;
+      document.getElementById('mp_campoOpciones').style.display = tipo === 'alternativas' ? 'block' : 'none';
+      document.getElementById('mp_campoNPS').style.display = tipo === 'puntuacion' ? 'block' : 'none';
+    }
+    function guardarPreguntaUI() {
+      const texto = document.getElementById('mp_texto').value.trim();
+      if (!texto) { mostrarToast('Escribe el texto de la pregunta'); return; }
+      const tipo = document.getElementById('mp_tipo').value;
+      const opciones = document.getElementById('mp_opciones').value.split('\n').map(s => s.trim()).filter(Boolean);
+      if (tipo === 'alternativas' && opciones.length < 2) { mostrarToast('Agrega al menos 2 opciones'); return; }
+      const datos = {
+        id: mpEditandoId || undefined,
+        texto, tipo, opciones,
+        esNPS: document.getElementById('mp_esNPS').checked,
+        requerida: document.getElementById('mp_requerida').checked
+      };
+      google.script.run.withSuccessHandler(res => {
+        if (res && res.success) { mostrarToast(res.mensaje || 'Guardado ✓'); cerrarModalPregunta(); cargarPreguntas(); }
+        else mostrarToast((res && res.mensaje) || 'No se pudo guardar');
+      }).guardarPregunta(datos, APP.usuario.Email);
+    }
 
     // ───────────────────────────────────────────────────────────
     // FILTROS + INFORME
@@ -363,156 +626,307 @@
 
     function claseScore(v) { return v >= 9 ? 'alto' : (v >= 7 ? 'medio' : 'bajo'); }
 
-    function pintarInforme(d) {
-      document.getElementById('kpiTotal').textContent = d.totalRespuestas;
-      document.getElementById('kpiGeneral').textContent = d.promedioGeneral;
-      document.getElementById('kpiLimpieza').textContent = d.promedioLimpieza;
-      document.getElementById('kpiAtencion').textContent = d.promedioAtencion;
-      document.getElementById('kpiInstalaciones').textContent = d.promedioInstalaciones;
-      document.getElementById('kpiPromotores').textContent = d.promotores + ' (' + d.pctPromotores + '%)';
-      document.getElementById('kpiDetractores').textContent = d.detractores + ' (' + d.pctDetractores + '%)';
-      const npsBox = document.getElementById('kpiNpsBox');
-      npsBox.classList.remove('nps-alto', 'nps-bajo');
-      npsBox.classList.add(d.nps >= 30 ? 'nps-alto' : (d.nps < 0 ? 'nps-bajo' : ''));
-      document.getElementById('kpiNps').textContent = d.nps;
+    function calcularSatisfaccionGlobal(d) {
+      let buenos = 0, total = 0;
+      (d.escalas || []).forEach(e => {
+        e.distribucion.forEach(x => {
+          if (x.nivel === 'No aplica') return;
+          total += x.cantidad;
+          if (x.nivel === 'Muy bueno' || x.nivel === 'Bueno') buenos += x.cantidad;
+        });
+      });
+      return total > 0 ? Math.round((buenos / total) * 1000) / 10 : null;
+    }
 
-      // Tabla
+    function construirTilesKPI(d) {
+      const satGlobal = calcularSatisfaccionGlobal(d);
+      const totalComentarios = (d.textos || []).reduce((s, t) => s + t.respuestas, 0);
+      const tiles = [{ label: 'Respuestas', value: String(d.totalRespuestas) }];
+      if (d.preguntaGeneralTexto) {
+        tiles.push({
+          label: d.esNPS ? 'NPS' : 'Promedio', value: d.esNPS ? String(d.nps) : (d.promedioGeneral + ' /10'),
+          cls: d.esNPS ? (d.nps >= 30 ? 'nps-alto' : (d.nps < 0 ? 'nps-bajo' : '')) : ''
+        });
+      }
+      if (d.esNPS) {
+        tiles.push({ label: 'Promotores (9-10)', value: d.promotores + ' (' + d.pctPromotores + '%)' });
+        tiles.push({ label: 'Detractores (≤6)', value: d.detractores + ' (' + d.pctDetractores + '%)' });
+      } else {
+        if (satGlobal !== null) tiles.push({ label: 'Satisfacción global', value: satGlobal + '%' });
+        tiles.push({ label: 'Comentarios recibidos', value: String(totalComentarios) });
+      }
+      return tiles;
+    }
+
+    function pintarInforme(d) {
+      document.getElementById('kpiGrid').innerHTML = construirTilesKPI(d).map(t =>
+        `<div class="kpi-box ${t.cls || ''}"><b>${escHtml(String(t.value))}</b><span>${escHtml(t.label)}</span></div>`).join('');
+
+      pintarSeccionNPS(d);
+      pintarSeccionPuntuaciones(d);
+      pintarSeccionEscalas(d);
+      pintarSeccionAlternativas(d);
+      pintarSeccionSiNo(d);
+      pintarSeccionTextos(d);
+      pintarTendencia(d);
+      pintarTabla(d);
+    }
+
+    function pintarSeccionNPS(d) {
+      const sec = document.getElementById('seccionNPS');
+      if (!d.preguntaGeneralTexto || !d.distribucionGeneral || !d.distribucionGeneral.length) { sec.style.display = 'none'; return; }
+      sec.style.display = 'block';
+      document.getElementById('npsTitulo').textContent = d.preguntaGeneralTexto;
+      const total = d.distribucionGeneral.reduce((s, p) => s + p[1], 0) || 1;
+      const max = Math.max(...d.distribucionGeneral.map(p => p[1]), 1);
+      document.getElementById('npsBars').innerHTML = d.distribucionGeneral.map(p => {
+        const score = p[0], cant = p[1];
+        const pct = Math.round((cant / total) * 1000) / 10;
+        const h = cant ? Math.max(Math.round((cant / max) * 100), 4) : 0;
+        const color = score <= 6 ? 'var(--crit)' : (score <= 8 ? 'var(--warn)' : 'var(--good)');
+        return `<div class="nps-col"><span class="nps-pct">${cant ? pct + '%' : ''}</span><div class="nps-bar" style="height:${h}%; background:${color}"></div><span class="nps-tick">${score}</span></div>`;
+      }).join('');
+    }
+
+    function pintarSeccionPuntuaciones(d) {
+      const sec = document.getElementById('seccionPuntuaciones');
+      if (!d.puntuaciones || !d.puntuaciones.length) { sec.style.display = 'none'; return; }
+      sec.style.display = 'block';
+      document.getElementById('puntuacionesGrid').innerHTML = d.puntuaciones.map(p =>
+        `<div class="kpi-box"><b>${p.promedio} <span style="font-size:12px;">/10</span></b><span>${escHtml(p.texto)}</span></div>`).join('');
+    }
+
+    function pintarSeccionEscalas(d) {
+      const sec = document.getElementById('seccionEscalas');
+      if (!d.escalas || !d.escalas.length) { sec.style.display = 'none'; return; }
+      sec.style.display = 'block';
+      document.getElementById('matrixRows').innerHTML = d.escalas.map(e => {
+        const segs = e.distribucion.filter(x => x.cantidad > 0).map(x =>
+          `<div class="matrix-seg" style="width:${x.pct}%; background:${NIVEL_COLOR[x.nivel]}" title="${x.nivel} ${x.pct}%"></div>`).join('');
+        return `<div class="matrix-row"><span class="matrix-label">${escHtml(e.texto)}</span><div class="matrix-bar">${segs}</div></div>`;
+      }).join('');
+    }
+
+    function construirConicGradient(items, pctKey, labelKey, colors) {
+      let acc = 0; const stops = [];
+      items.forEach((x, i) => {
+        const pct = x[pctKey] || 0;
+        if (pct <= 0) return;
+        const from = acc, to = acc + pct;
+        stops.push(colors[i % colors.length] + ' ' + from + '% ' + to + '%');
+        acc = to;
+      });
+      if (acc < 100) stops.push('var(--na) ' + acc + '% 100%');
+      return stops.join(', ');
+    }
+
+    function pintarSeccionAlternativas(d) {
+      const sec = document.getElementById('seccionAlternativas');
+      if (!d.alternativas || !d.alternativas.length) { sec.style.display = 'none'; return; }
+      sec.style.display = 'grid';
+      sec.innerHTML = d.alternativas.map(a => {
+        const grad = construirConicGradient(a.distribucion, 'pct', 'opcion', CHART_COLORS);
+        const legend = a.distribucion.map((x, i) => `
+          <div class="donut-legend-item"><span class="sw" style="background:${CHART_COLORS[i % CHART_COLORS.length]}"></span>
+            <span class="name">${escHtml(x.opcion)}</span><span class="pct">${x.pct}%</span></div>`).join('');
+        return `<div class="report-card">
+          <div class="report-card-head"><h3>${escHtml(a.texto)}</h3><span class="q-count">${a.respuestas} resp.</span></div>
+          <div class="donut-wrap">
+            <div class="donut" style="background: conic-gradient(${grad});"><div class="center"><b>${a.respuestas}</b><span>resp.</span></div></div>
+            <div class="donut-legend">${legend}</div>
+          </div></div>`;
+      }).join('');
+    }
+
+    function pintarSeccionSiNo(d) {
+      const sec = document.getElementById('seccionSiNo');
+      if (!d.siNo || !d.siNo.length) { sec.style.display = 'none'; return; }
+      sec.style.display = 'grid';
+      sec.innerHTML = d.siNo.map(s => {
+        const grad = 'var(--good) 0% ' + s.pctSi + '%, var(--crit) ' + s.pctSi + '% 100%';
+        return `<div class="report-card">
+          <div class="report-card-head"><h3>${escHtml(s.texto)}</h3><span class="q-count">${s.respuestas} resp.</span></div>
+          <div class="donut-wrap">
+            <div class="donut" style="background: conic-gradient(${grad}); width:88px; height:88px;"><div class="center"><b style="font-size:15px">${s.pctSi}%</b><span>Sí</span></div></div>
+            <div class="donut-legend">
+              <div class="donut-legend-item"><span class="sw" style="background:var(--good)"></span><span class="name">Sí</span><span class="pct">${s.pctSi}%</span></div>
+              <div class="donut-legend-item"><span class="sw" style="background:var(--crit)"></span><span class="name">No</span><span class="pct">${s.pctNo}%</span></div>
+            </div>
+          </div></div>`;
+      }).join('');
+    }
+
+    function pintarSeccionTextos(d) {
+      const cont = document.getElementById('seccionTextos');
+      if (!d.textos || !d.textos.length) { cont.innerHTML = ''; return; }
+      cont.innerHTML = d.textos.filter(t => t.items.length).map(t => {
+        const cards = t.items.slice(0, 40).map(it => `
+          <div class="comment">
+            <div class="comment-meta">
+              ${it.habitacion ? `<span class="comment-room">Hab. ${escHtml(it.habitacion)}</span>` : (it.nombre ? `<span class="comment-room">${escHtml(it.nombre)}</span>` : '')}
+              <span class="comment-date">${escHtml(it.fecha)}</span>
+              ${it.puntuacionGeneral !== null ? `<span class="badge-score ${claseScore(it.puntuacionGeneral)}" style="margin-left:auto;">${it.puntuacionGeneral}</span>` : ''}
+            </div>
+            <p>${escHtml(it.texto)}</p>
+          </div>`).join('');
+        return `<div class="report-card">
+          <div class="report-card-head"><h3>${escHtml(t.texto)}</h3><span class="q-count">${t.respuestas} resp.</span></div>
+          <div class="comment-list">${cards}</div>
+        </div>`;
+      }).join('');
+    }
+
+    function pintarTendencia(d) {
+      const sec = document.getElementById('seccionTendencia');
+      if (!d.preguntaGeneralTexto || !d.porDia || d.porDia.length < 2) { sec.style.display = 'none'; return; }
+      sec.style.display = 'block';
+      const W = 640, H = 130, PAD = 8, min = 0, max = 10;
+      const n = d.porDia.length;
+      const stepX = W / (n - 1);
+      const pts = d.porDia.map((p, i) => {
+        const x = i * stepX;
+        const y = PAD + (H - PAD * 2) * (1 - (p[1] - min) / (max - min));
+        return [x, y];
+      });
+      const line = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+      const area = line + ' L' + W + ',' + H + ' L0,' + H + ' Z';
+      const last = pts[pts.length - 1];
+      const ultimo = d.porDia[d.porDia.length - 1];
+      document.getElementById('tendenciaSvgWrap').innerHTML = `
+        <svg class="trend-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+          <line x1="0" y1="${PAD}" x2="${W}" y2="${PAD}" class="trend-grid"/>
+          <line x1="0" y1="${H / 2}" x2="${W}" y2="${H / 2}" class="trend-grid"/>
+          <line x1="0" y1="${H - PAD}" x2="${W}" y2="${H - PAD}" class="trend-grid"/>
+          <path d="${area}" class="trend-area"/>
+          <path d="${line}" class="trend-line"/>
+          <circle cx="${last[0]}" cy="${last[1]}" r="4.5" class="trend-dot"/>
+        </svg>
+        <div class="trend-endlabel">${ultimo[1]} el ${escHtml(ultimo[0].slice(5))}</div>`;
+    }
+
+    function pintarTabla(d) {
       const tbody = document.getElementById('tablaRespuestas');
       tbody.innerHTML = d.tabla.map(r => `
         <tr>
           <td style="white-space:nowrap;">${escHtml(r.fecha)}</td>
           <td>${escHtml(r.nombre)}</td>
           <td>${escHtml(r.habitacion || '-')}</td>
-          <td><span class="badge-score ${claseScore(r.general)}">${r.general}</span></td>
-          <td><span class="badge-score ${claseScore(r.limpieza)}">${r.limpieza}</span></td>
-          <td><span class="badge-score ${claseScore(r.atencion)}">${r.atencion}</span></td>
-          <td><span class="badge-score ${claseScore(r.instalaciones)}">${r.instalaciones}</span></td>
+          <td>${r.puntuacionGeneral !== null ? `<span class="badge-score ${claseScore(r.puntuacionGeneral)}">${r.puntuacionGeneral}</span>` : '-'}</td>
           <td class="comentario-cell">${r.comentario ? escHtml(r.comentario) : ''}</td>
         </tr>`).join('');
-
-      dibujarGraficosPantalla(d);
-    }
-    function escHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-
-    // ───────────────────────────────────────────────────────────
-    // GRAFICOS (pantalla)
-    // ───────────────────────────────────────────────────────────
-    function dibujarGraficosPantalla(d) {
-      google.charts.setOnLoadCallback(() => {
-        // Distribución 1-10
-        const dtDist = new google.visualization.DataTable();
-        dtDist.addColumn('string', 'Puntuación'); dtDist.addColumn('number', 'Respuestas');
-        d.distribucionGeneral.forEach(p => dtDist.addRow([String(p[0]), p[1]]));
-        new google.visualization.ColumnChart(document.getElementById('chartDistribucion')).draw(dtDist, {
-          backgroundColor: 'transparent', legend: 'none', colors: ['#414143'],
-          chartArea: { left: 34, top: 10, width: '90%', height: '75%' },
-          hAxis: { textStyle: { fontSize: 11 } }, vAxis: { textStyle: { fontSize: 11 }, gridlines: { count: 4 } }
-        });
-
-        // Promotores/Neutros/Detractores
-        const dtNps = new google.visualization.DataTable();
-        dtNps.addColumn('string', 'Grupo'); dtNps.addColumn('number', 'Cantidad');
-        dtNps.addRow(['Promotores', d.promotores]); dtNps.addRow(['Neutros', d.neutros]); dtNps.addRow(['Detractores', d.detractores]);
-        new google.visualization.PieChart(document.getElementById('chartNps')).draw(dtNps, {
-          backgroundColor: 'transparent', pieHole: 0.45, colors: ['#4E6B54', '#9C9995', '#8B3A3A'],
-          chartArea: { left: 10, top: 10, width: '90%', height: '85%' }, legend: { position: 'bottom', textStyle: { fontSize: 11 } }
-        });
-
-        // Comparativo por categoria
-        const dtComp = new google.visualization.DataTable();
-        dtComp.addColumn('string', 'Categoría'); dtComp.addColumn('number', 'Promedio');
-        dtComp.addRow(['General', d.promedioGeneral]); dtComp.addRow(['Limpieza', d.promedioLimpieza]);
-        dtComp.addRow(['Atención', d.promedioAtencion]); dtComp.addRow(['Instalac.', d.promedioInstalaciones]);
-        new google.visualization.BarChart(document.getElementById('chartComparativo')).draw(dtComp, {
-          backgroundColor: 'transparent', legend: 'none', colors: ['#6E6C69'],
-          chartArea: { left: 70, top: 10, width: '80%', height: '85%' },
-          hAxis: { textStyle: { fontSize: 11 }, minValue: 0, maxValue: 10 }, vAxis: { textStyle: { fontSize: 11 } }
-        });
-
-        // Evolucion en el tiempo
-        const dtEvo = new google.visualization.DataTable();
-        dtEvo.addColumn('string', 'Fecha'); dtEvo.addColumn('number', 'Promedio');
-        (d.porDia || []).forEach(p => dtEvo.addRow([p[0].slice(5), p[1]]));
-        new google.visualization.LineChart(document.getElementById('chartEvolucion')).draw(dtEvo, {
-          backgroundColor: 'transparent', legend: 'none', colors: ['#414143'], curveType: 'function',
-          chartArea: { left: 34, top: 10, width: '90%', height: '75%' },
-          hAxis: { textStyle: { fontSize: 10 }, slantedText: true, slantedTextAngle: 45 },
-          vAxis: { textStyle: { fontSize: 11 }, minValue: 0, maxValue: 10, gridlines: { count: 5 } }
-        });
-      });
     }
 
     // ───────────────────────────────────────────────────────────
-    // PDF (misma técnica que Base de Datos: capturar Google Charts a
-    // alta resolución en un contenedor oculto y componer con jsPDF)
+    // PDF (dibujado directo con jsPDF, sin dependencias externas de graficos)
     // ───────────────────────────────────────────────────────────
-    function capturarGraficosAltoRes(d) {
-      return new Promise(resolve => {
-        const opts = {
-          backgroundColor: '#ffffff', chartArea: { left: 60, top: 34, width: '80%', height: '68%' },
-          colors: CHART_COLORS, titleTextStyle: { fontSize: 16, bold: true, color: '#3A3A3C' }
-        };
-        const configs = [
-          { key: 'distribucion', type: 'ColumnChart', title: 'Distribución de puntuación general',
-            build: dt => { dt.addColumn('string', 'Puntuación'); dt.addColumn('number', 'Respuestas'); d.distribucionGeneral.forEach(p => dt.addRow([String(p[0]), p[1]])); },
-            extra: { legend: 'none', colors: ['#414143'] } },
-          { key: 'nps', type: 'PieChart', title: 'Promotores / Neutros / Detractores',
-            build: dt => { dt.addColumn('string', 'Grupo'); dt.addColumn('number', 'Cantidad'); dt.addRow(['Promotores', d.promotores]); dt.addRow(['Neutros', d.neutros]); dt.addRow(['Detractores', d.detractores]); },
-            extra: { pieHole: 0.4, colors: ['#4E6B54', '#9C9995', '#8B3A3A'], legend: { position: 'right', textStyle: { fontSize: 13 } } } },
-          { key: 'comparativo', type: 'BarChart', title: 'Comparativo por categoría',
-            build: dt => { dt.addColumn('string', 'Categoría'); dt.addColumn('number', 'Promedio'); dt.addRow(['General', d.promedioGeneral]); dt.addRow(['Limpieza', d.promedioLimpieza]); dt.addRow(['Atención', d.promedioAtencion]); dt.addRow(['Instalac.', d.promedioInstalaciones]); },
-            extra: { legend: 'none', colors: ['#6E6C69'], hAxis: { minValue: 0, maxValue: 10 } } },
-          { key: 'evolucion', type: 'LineChart', title: 'Evolución del promedio general',
-            build: dt => { dt.addColumn('string', 'Fecha'); dt.addColumn('number', 'Promedio'); (d.porDia || []).forEach(p => dt.addRow([p[0], p[1]])); },
-            extra: { legend: 'none', colors: ['#414143'], curveType: 'function', vAxis: { minValue: 0, maxValue: 10 } } }
-        ];
-        const uris = {}; let done = 0;
-        configs.forEach(cfg => {
-          const dt = new google.visualization.DataTable();
-          cfg.build(dt);
-          const el = document.getElementById('cap_' + cfg.key);
-          let chart;
-          if (cfg.type === 'PieChart') chart = new google.visualization.PieChart(el);
-          else if (cfg.type === 'BarChart') chart = new google.visualization.BarChart(el);
-          else if (cfg.type === 'LineChart') chart = new google.visualization.LineChart(el);
-          else chart = new google.visualization.ColumnChart(el);
-          const options = Object.assign({}, opts, { title: cfg.title, width: 580, height: 380 }, cfg.extra || {});
-          google.visualization.events.addListener(chart, 'ready', () => {
-            uris[cfg.key] = chart.getImageURI();
-            done++;
-            if (done === configs.length) resolve(uris);
-          });
-          chart.draw(dt, options);
-        });
-      });
-    }
-
-    function dibujarKpisPDF(doc, d, pageWidth) {
-      const kpis = [
-        ['Respuestas', String(d.totalRespuestas)],
-        ['Promedio general', String(d.promedioGeneral)],
-        ['NPS', String(d.nps)],
-        ['Limpieza', String(d.promedioLimpieza)],
-        ['Atención', String(d.promedioAtencion)],
-        ['Instalaciones', String(d.promedioInstalaciones)],
-        ['Promotores', d.promotores + ' (' + d.pctPromotores + '%)'],
-        ['Detractores', d.detractores + ' (' + d.pctDetractores + '%)']
-      ];
-      const kpiW = 44, kpiH = 13, gap = 3;
-      const startX = (pageWidth - 4 * kpiW - 3 * gap) / 2;
-      const kpiY = 22;
-      kpis.forEach((k, i) => {
-        const col = i % 4, rowN = Math.floor(i / 4);
+    function dibujarKpisPDF(doc, tiles, pageWidth, y) {
+      const kpiW = 44, kpiH = 15, gap = 3, perRow = 4;
+      const startX = (pageWidth - perRow * kpiW - (perRow - 1) * gap) / 2;
+      tiles.forEach((t, i) => {
+        const col = i % perRow, row = Math.floor(i / perRow);
         const x = startX + col * (kpiW + gap);
-        const y = kpiY + rowN * (kpiH + gap);
+        const yy = y + row * (kpiH + gap);
         doc.setFillColor(65, 65, 67);
-        doc.roundedRect(x, y, kpiW, kpiH, 2, 2, 'F');
-        doc.setTextColor(255, 255, 255); doc.setFontSize(10); doc.setFont(undefined, 'bold');
-        doc.text(String(k[1]), x + kpiW / 2, y + 6.5, { align: 'center' });
-        doc.setFontSize(6); doc.setFont(undefined, 'normal');
-        doc.text(String(k[0]).toUpperCase(), x + kpiW / 2, y + 11, { align: 'center' });
+        doc.roundedRect(x, yy, kpiW, kpiH, 2, 2, 'F');
+        doc.setTextColor(255, 255, 255); doc.setFontSize(11); doc.setFont(undefined, 'bold');
+        doc.text(t.value, x + kpiW / 2, yy + 7, { align: 'center' });
+        doc.setFontSize(6.5); doc.setFont(undefined, 'normal');
+        doc.text(t.label.toUpperCase(), x + kpiW / 2, yy + 12, { align: 'center', maxWidth: kpiW - 4 });
       });
-      return kpiY + 2 * (kpiH + gap) + 4;
+      const rows = Math.ceil(tiles.length / perRow);
+      return y + rows * (kpiH + gap) + 4;
+    }
+
+    function dibujarSeccionNPSPDF(doc, d, x, y, w) {
+      doc.setFontSize(11); doc.setTextColor(58, 58, 60); doc.setFont(undefined, 'bold');
+      doc.text(d.preguntaGeneralTexto, x, y, { maxWidth: w });
+      y += 6;
+      const barW = w / 11 - 1.2, maxH = 26;
+      const max = Math.max(...d.distribucionGeneral.map(p => p[1]), 1);
+      d.distribucionGeneral.forEach((p, i) => {
+        const score = p[0], cant = p[1];
+        const h = cant ? Math.max((cant / max) * maxH, 1.5) : 0;
+        const color = score <= 6 ? COLOR_CRIT : (score <= 8 ? COLOR_WARN : COLOR_GOOD);
+        const bx = x + i * (barW + 1.2);
+        if (h > 0) { doc.setFillColor(color[0], color[1], color[2]); doc.rect(bx, y + maxH - h, barW, h, 'F'); }
+        doc.setFontSize(6); doc.setTextColor(120, 120, 120);
+        doc.text(String(score), bx + barW / 2, y + maxH + 4, { align: 'center' });
+      });
+      return y + maxH + 9;
+    }
+
+    function dibujarBarraSegmentadaPDF(doc, x, y, w, h, segmentos) {
+      let cx = x;
+      segmentos.forEach(s => {
+        const segW = w * (s.pct / 100);
+        if (segW <= 0) return;
+        doc.setFillColor(s.color[0], s.color[1], s.color[2]);
+        doc.rect(cx, y, segW, h, 'F');
+        cx += segW;
+      });
+    }
+
+    function dibujarMatrizPDF(doc, d, x, y, w) {
+      doc.setFontSize(12); doc.setTextColor(58, 58, 60); doc.setFont(undefined, 'bold');
+      doc.text('Satisfacción por categoría', x, y); y += 5;
+      const labelW = 48, barW = w - labelW - 2, barH = 4.2;
+      d.escalas.forEach(e => {
+        doc.setFontSize(7.5); doc.setTextColor(58, 58, 60); doc.setFont(undefined, 'normal');
+        doc.text(e.texto, x, y + 3, { maxWidth: labelW - 2 });
+        const segs = e.distribucion.filter(v => v.cantidad > 0).map(v => ({ pct: v.pct, color: NIVEL_COLOR_RGB[v.nivel] }));
+        dibujarBarraSegmentadaPDF(doc, x + labelW, y, barW, barH, segs);
+        y += barH + 3.5;
+      });
+      return y + 3;
+    }
+
+    function dibujarAlternativaPDF(doc, a, x, y, w) {
+      doc.setFontSize(10); doc.setTextColor(58, 58, 60); doc.setFont(undefined, 'bold');
+      doc.text(a.texto, x, y, { maxWidth: w }); y += 5;
+      const barW = w - 46;
+      a.distribucion.forEach((o, i) => {
+        doc.setFontSize(7.5); doc.setTextColor(80, 80, 80); doc.setFont(undefined, 'normal');
+        doc.text(o.opcion, x, y + 3, { maxWidth: 40 });
+        const c = CHART_COLORS_RGB[i % CHART_COLORS_RGB.length];
+        doc.setFillColor(c[0], c[1], c[2]);
+        doc.rect(x + 42, y, barW * (o.pct / 100), 3.6, 'F');
+        doc.setFontSize(7); doc.text(o.pct + '%', x + 42 + barW * (o.pct / 100) + 2, y + 3);
+        y += 5.5;
+      });
+      return y + 3;
+    }
+
+    function dibujarSiNoPDF(doc, s, x, y, w) {
+      doc.setFontSize(10); doc.setTextColor(58, 58, 60); doc.setFont(undefined, 'bold');
+      doc.text(s.texto, x, y, { maxWidth: w }); y += 5;
+      const barW = w - 20;
+      doc.setFillColor(COLOR_GOOD[0], COLOR_GOOD[1], COLOR_GOOD[2]);
+      doc.rect(x + 16, y, barW * (s.pctSi / 100), 3.6, 'F');
+      doc.setFontSize(7.5); doc.setTextColor(80, 80, 80); doc.setFont(undefined, 'normal');
+      doc.text('Sí', x, y + 3); doc.text(s.pctSi + '%', x + 16 + barW * (s.pctSi / 100) + 2, y + 3);
+      y += 5.5;
+      doc.setFillColor(COLOR_CRIT[0], COLOR_CRIT[1], COLOR_CRIT[2]);
+      doc.rect(x + 16, y, barW * (s.pctNo / 100), 3.6, 'F');
+      doc.text('No', x, y + 3); doc.text(s.pctNo + '%', x + 16 + barW * (s.pctNo / 100) + 2, y + 3);
+      return y + 8;
+    }
+
+    function dibujarComentariosPDF(doc, t, x, y, w, pageHeight) {
+      if (y > pageHeight - 24) { doc.addPage(); y = 16; }
+      doc.setFontSize(10); doc.setTextColor(58, 58, 60); doc.setFont(undefined, 'bold');
+      doc.text(t.texto, x, y, { maxWidth: w }); y += 6;
+      t.items.slice(0, 8).forEach(it => {
+        const linea = (it.habitacion ? 'Hab. ' + it.habitacion : (it.nombre || '')) + ' — ' + it.fecha +
+          (it.puntuacionGeneral !== null ? ' — Puntuación ' + it.puntuacionGeneral : '');
+        const wrapped = doc.splitTextToSize(it.texto, w - 4);
+        const neededH = 4 + wrapped.length * 3.6 + 3;
+        if (y + neededH > pageHeight - 15) { doc.addPage(); y = 16; }
+        doc.setFontSize(7); doc.setTextColor(140, 140, 140); doc.setFont(undefined, 'normal');
+        doc.text(linea, x, y); y += 3.6;
+        doc.setFontSize(8.5); doc.setTextColor(58, 58, 60);
+        doc.text(wrapped, x, y); y += wrapped.length * 3.6 + 3;
+      });
+      return y + 2;
     }
 
     async function exportarPDF() {
@@ -522,47 +936,57 @@
       btn.disabled = true; const original = btn.innerHTML;
       btn.innerHTML = '<i class="fa-solid fa-circle-notch spin"></i> Generando...';
       try {
-        const imgs = await capturarGraficosAltoRes(d);
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('p', 'mm', 'a4');
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
         const desde = document.getElementById('fDesde').value || 'Inicio';
         const hasta = document.getElementById('fHasta').value || 'Hoy';
+        const marginX = 14, contentW = pageWidth - marginX * 2;
 
-        doc.setFontSize(18); doc.setTextColor(58, 58, 60);
+        doc.setFontSize(18); doc.setTextColor(58, 58, 60); doc.setFont(undefined, 'bold');
         doc.text('CASCADAS HOTEL', pageWidth / 2, 12, { align: 'center' });
-        doc.setFontSize(10); doc.setTextColor(110, 108, 105);
+        doc.setFontSize(10); doc.setTextColor(110, 108, 105); doc.setFont(undefined, 'normal');
         doc.text('Encuesta de Satisfacción — ' + desde + ' al ' + hasta, pageWidth / 2, 17, { align: 'center' });
 
-        const chartsY = dibujarKpisPDF(doc, d, pageWidth);
-        const chartW = 82, chartH = 56;
-        const gapX = (pageWidth - 2 * chartW) / 3;
-        const orden = [['distribucion', 'Distribución de puntuación'], ['nps', 'Promotores / Neutros / Detractores'], ['comparativo', 'Comparativo por categoría'], ['evolucion', 'Evolución del promedio']];
-        orden.forEach((o, i) => {
-          const x = gapX + (i % 2) * (chartW + gapX);
-          const y = chartsY + Math.floor(i / 2) * (chartH + 8) + 3;
-          doc.setTextColor(58, 58, 60); doc.setFontSize(9); doc.setFont(undefined, 'bold');
-          doc.text(o[1], x + chartW / 2, y - 1, { align: 'center' });
-          if (imgs[o[0]]) doc.addImage(imgs[o[0]], 'PNG', x, y, chartW, chartH);
-        });
-        doc.setFontSize(8); doc.setTextColor(150, 150, 150);
-        doc.text('Cascadas Hotel — Página 1 de 2', pageWidth / 2, pageHeight - 5, { align: 'center' });
+        let y = 24;
+        y = dibujarKpisPDF(doc, construirTilesKPI(d), pageWidth, y);
+        if (d.preguntaGeneralTexto && d.distribucionGeneral.length) y = dibujarSeccionNPSPDF(doc, d, marginX, y + 2, contentW);
+        if (d.escalas && d.escalas.length) y = dibujarMatrizPDF(doc, d, marginX, y + 2, contentW);
 
-        // Página 2: tabla de respuestas con comentarios
+        if ((d.alternativas && d.alternativas.length) || (d.siNo && d.siNo.length)) {
+          doc.addPage(); y = 16;
+          doc.setFontSize(14); doc.setTextColor(58, 58, 60); doc.setFont(undefined, 'bold');
+          doc.text('Preguntas de alternativas', marginX, y); y += 7;
+          (d.alternativas || []).forEach(a => { y = dibujarAlternativaPDF(doc, a, marginX, y, contentW); });
+          (d.siNo || []).forEach(s => { y = dibujarSiNoPDF(doc, s, marginX, y, contentW); });
+        }
+
+        if (d.textos && d.textos.some(t => t.items.length)) {
+          doc.addPage(); y = 16;
+          doc.setFontSize(14); doc.setTextColor(58, 58, 60); doc.setFont(undefined, 'bold');
+          doc.text('Comentarios de huéspedes', marginX, y); y += 8;
+          d.textos.forEach(t => { if (t.items.length) y = dibujarComentariosPDF(doc, t, marginX, y, contentW, pageHeight); });
+        }
+
         doc.addPage();
         doc.setFontSize(14); doc.setTextColor(58, 58, 60); doc.setFont(undefined, 'bold');
-        doc.text('Detalle de respuestas', 14, 16);
+        doc.text('Detalle de respuestas', marginX, 16);
         doc.autoTable({
           startY: 22,
-          head: [['Fecha', 'Nombre', 'Hab.', 'Gral.', 'Limp.', 'Aten.', 'Inst.', 'Comentario']],
-          body: d.tabla.map(r => [r.fecha, r.nombre, r.habitacion || '-', r.general, r.limpieza, r.atencion, r.instalaciones, r.comentario || '']),
+          head: [['Fecha', 'Nombre', 'Hab.', 'Punt.', 'Comentarios']],
+          body: d.tabla.map(r => [r.fecha, r.nombre, r.habitacion || '-', r.puntuacionGeneral !== null ? r.puntuacionGeneral : '-', r.comentario || '']),
           theme: 'striped', headStyles: { fillColor: [65, 65, 67], textColor: 255, fontSize: 8 },
           styles: { fontSize: 7.5, cellPadding: 1.6 },
-          columnStyles: { 7: { cellWidth: 60 } }
+          columnStyles: { 4: { cellWidth: 90 } }
         });
-        doc.setFontSize(8); doc.setTextColor(150, 150, 150);
-        doc.text('Cascadas Hotel — Página 2', pageWidth / 2, pageHeight - 5, { align: 'center' });
+
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let p = 1; p <= totalPages; p++) {
+          doc.setPage(p);
+          doc.setFontSize(8); doc.setTextColor(150, 150, 150);
+          doc.text('Cascadas Hotel — Página ' + p + ' de ' + totalPages, pageWidth / 2, pageHeight - 5, { align: 'center' });
+        }
 
         doc.save('Encuesta_Cascadas_' + new Date().toISOString().slice(0, 10) + '.pdf');
         mostrarToast('PDF descargado ✓');
