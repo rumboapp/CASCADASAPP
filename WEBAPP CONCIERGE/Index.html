@@ -2396,17 +2396,21 @@ function widgetProductosAgotados(lista) {
     return '<div class="mb-2"><p class="text-xs font-semibold uppercase opacity-60 mb-1">' + escaparHTML(cat) + '</p>' + filas + '</div>';
   }).join('');
 
-  return '<div class="card p-4 mb-4 agotados-widget" style="border-left:4px solid var(--rojo,#b23)">' +
+  // Colapsado por defecto (solo se expande si el usuario lo abre a proposito).
+  var colapsado = APP.agotadosColapsado !== false;
+
+  return '<div class="card p-4 mb-4 agotados-widget" style="border-left:4px solid var(--dorado)">' +
     '<div class="flex items-center justify-between cursor-pointer" onclick="toggleWidgetAgotados()">' +
-      '<p class="font-semibold"><i class="fa-solid fa-ban" style="color:var(--rojo,#b23)"></i> Sin stock hoy (86) <span class="pill" style="background:var(--rojo,#b23); color:#fff;">' + lista.length + '</span></p>' +
-      '<i class="fa-solid fa-chevron-down text-sm opacity-60" id="agotadosChevron"></i>' +
+      '<p class="font-semibold"><i class="fa-solid fa-ban opacity-70"></i> Sin stock hoy <span class="pill" style="background:var(--dorado); color:var(--antracita);">' + lista.length + '</span></p>' +
+      '<i class="fa-solid fa-chevron-down text-sm opacity-60" id="agotadosChevron" style="transform:' + (colapsado ? 'rotate(-90deg)' : '') + '"></i>' +
     '</div>' +
-    '<div id="agotadosBody" class="mt-2' + (APP.agotadosColapsado ? ' oculto' : '') + '">' + itemsHTML + '</div>' +
+    '<div id="agotadosBody" class="mt-2' + (colapsado ? ' oculto' : '') + '">' + itemsHTML + '</div>' +
   '</div>';
 }
 
 function toggleWidgetAgotados() {
-  APP.agotadosColapsado = !APP.agotadosColapsado;
+  var colapsadoActual = APP.agotadosColapsado !== false; // por defecto (undefined) = colapsado
+  APP.agotadosColapsado = !colapsadoActual; // guarda el nuevo estado explicito (true/false)
   var body = document.getElementById('agotadosBody');
   var chev = document.getElementById('agotadosChevron');
   if (body) body.classList.toggle('oculto', APP.agotadosColapsado);
