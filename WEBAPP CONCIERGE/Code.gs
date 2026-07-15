@@ -1236,7 +1236,7 @@ function crearReserva(datos) {
     }
 
     // Es personal validado? (cualquier rol interno puede agendar desde el panel).
-    var esStaff = datos.emailStaff && _validarRolPermitido(datos.emailStaff, ['RECEPCION', 'ADMINISTRADOR', 'COCINA']);
+    var esStaff = datos.emailStaff && _validarRolPermitido(datos.emailStaff, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT']);
     // Clientes externos (pasante / grupo) solo los agenda el personal; no exigen habitacion real.
     var esExterno = esStaff && (datos.tipoCliente === 'pasante' || datos.tipoCliente === 'grupo');
 
@@ -1672,7 +1672,10 @@ function crearPedido(reservaID, items, notas, entrega) {
 
     registrarLog('Crear pedido', pedidoID + ' total ' + totalFinal +
       (recargo ? ' (incluye recargo habitacion ' + recargo + ')' : ''), reserva.Habitacion);
-    _crearNotificacion('pedido', 'Nuevo prepedido Hab ' + reserva.Habitacion, 'COCINA',
+    // 'TODOS' en vez de un rol fijo: asi la notificacion siempre llega a quien
+    // atienda el restaurant, sin depender del nombre exacto del rol en la hoja
+    // Usuarios (que puede cambiar, como paso de COCINA a RESTAURANT).
+    _crearNotificacion('pedido', 'Nuevo prepedido Hab ' + reserva.Habitacion, 'TODOS',
       reserva.Habitacion, reserva.ServicioID, _fechaISO(reserva.Fecha));
 
     return { success: true, pedidoID: pedidoID, total: totalFinal, reabierta: reabierta,
@@ -2155,13 +2158,13 @@ function crearBloqueo(datos) {
 // ===========================================================================
 
 /**
- * Crea o actualiza un producto. Rol COCINA o ADMINISTRADOR. NO incluye imagen.
+ * Crea o actualiza un producto. Rol COCINA, RESTAURANT o ADMINISTRADOR. NO incluye imagen.
  * @param {Object} datos {id, categoriaID, nombre, descripcion, precio, disponible,
  *   visible, orden, etiquetas, tiempoPreparacionMin, esMenuDelDia, email}
  * @return {Object} {success, id, mensaje}
  */
 function guardarProducto(datos) {
-  if (!_validarRolPermitido(datos.email, ['COCINA', 'ADMINISTRADOR'])) {
+  if (!_validarRolPermitido(datos.email, ['COCINA', 'RESTAURANT', 'ADMINISTRADOR'])) {
     return { success: false, mensaje: 'No tienes permisos para editar la carta.' };
   }
   if (!datos.nombre || !datos.categoriaID) {
@@ -2260,7 +2263,7 @@ function _pad3(n) {
  * @return {Object} {success, mensaje}
  */
 function eliminarProducto(productoID, email) {
-  if (!_validarRolPermitido(email, ['COCINA', 'ADMINISTRADOR'])) {
+  if (!_validarRolPermitido(email, ['COCINA', 'RESTAURANT', 'ADMINISTRADOR'])) {
     return { success: false, mensaje: 'No tienes permisos.' };
   }
   var hoja = _hoja(HOJAS.PRODUCTOS);
@@ -2302,7 +2305,7 @@ function obtenerProductoParaEditar(productoID) {
  * @return {Object} {success, mensaje}
  */
 function toggleDisponibleProducto(productoID, nuevoEstado, email) {
-  if (!_validarRolPermitido(email, ['COCINA', 'ADMINISTRADOR'])) {
+  if (!_validarRolPermitido(email, ['COCINA', 'RESTAURANT', 'ADMINISTRADOR'])) {
     return { success: false, mensaje: 'No tienes permisos.' };
   }
   var hoja = _hoja(HOJAS.PRODUCTOS);
@@ -2548,14 +2551,14 @@ function registrarConsultaHistorial(datos) {
 // ===========================================================================
 
 /**
- * Actualiza una clave de configuracion. Rol RECEPCION, ADMINISTRADOR o COCINA.
+ * Actualiza una clave de configuracion. Rol RECEPCION, ADMINISTRADOR, COCINA o RESTAURANT.
  * @param {string} clave
  * @param {*} valor
  * @param {string} email
  * @return {Object} {success, mensaje}
  */
 function actualizarConfiguracion(clave, valor, email) {
-  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA'])) {
+  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
     return { success: false, mensaje: 'No tienes permisos para editar la configuracion.' };
   }
   var hoja = _hoja(HOJAS.CONFIGURACION);
@@ -2580,7 +2583,7 @@ function obtenerServiciosGestion() {
 }
 
 /**
- * Edita un servicio existente (todos los campos). Rol RECEPCION, ADMIN o COCINA.
+ * Edita un servicio existente (todos los campos). Rol RECEPCION, ADMIN, COCINA o RESTAURANT.
  * @param {Object} datos {id, nombre, categoria, descripcion, icono, costoBase,
  *   capacidad, duracionMinutos, horarioInicio, horarioFin, requiereAprobacion,
  *   permitePrepedido, usoExclusivo, activo, variantes:[{nombre,precio}]}
@@ -2588,7 +2591,7 @@ function obtenerServiciosGestion() {
  * @return {Object} {success, mensaje}
  */
 function guardarServicioConfig(datos, email) {
-  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA'])) {
+  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
     return { success: false, mensaje: 'No tienes permisos para editar servicios.' };
   }
   var hoja = _hoja(HOJAS.SERVICIOS);
@@ -2606,13 +2609,13 @@ function guardarServicioConfig(datos, email) {
 
 /**
  * Crea un servicio nuevo. Genera ID automatico (S00X) y escribe la fila.
- * Rol RECEPCION, ADMINISTRADOR o COCINA.
+ * Rol RECEPCION, ADMINISTRADOR, COCINA o RESTAURANT.
  * @param {Object} datos Igual que guardarServicioConfig (sin id).
  * @param {string} email
  * @return {Object} {success, id, mensaje}
  */
 function guardarServicioNuevo(datos, email) {
-  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA'])) {
+  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
     return { success: false, mensaje: 'No tienes permisos para crear servicios.' };
   }
   if (!datos.nombre) return { success: false, mensaje: 'El nombre es obligatorio.' };

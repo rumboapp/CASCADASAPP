@@ -2061,9 +2061,9 @@ function ajustarNavPorRol() {
   // Bloqueos: solo RECEPCION y ADMIN.
   var bloqueos = document.querySelector('[data-staff-nav="Bloqueos"]');
   if (bloqueos) bloqueos.classList.toggle('oculto', ['ADMINISTRADOR', 'RECEPCION'].indexOf(rol) === -1);
-  // Config: RECEPCION, ADMIN y COCINA (cocina necesita activar/desactivar prepedido, etc.).
+  // Config: RECEPCION, ADMIN, COCINA y RESTAURANT (necesitan activar/desactivar prepedido, etc.).
   var config = document.querySelector('[data-staff-nav="Config"]');
-  if (config) config.classList.toggle('oculto', ['ADMINISTRADOR', 'RECEPCION', 'COCINA'].indexOf(rol) === -1);
+  if (config) config.classList.toggle('oculto', ['ADMINISTRADOR', 'RECEPCION', 'COCINA', 'RESTAURANT'].indexOf(rol) === -1);
   // Carta: COCINA y ADMIN (RECEPCION solo lectura permitida tambien).
 }
 
@@ -2413,7 +2413,7 @@ function widgetProductosAgotados(lista) {
   lista = lista || [];
   if (!lista.length) return '';
 
-  var puedeReponer = ['COCINA', 'ADMINISTRADOR'].indexOf(APP.usuarioStaff.Rol) !== -1;
+  var puedeReponer = ['COCINA', 'RESTAURANT', 'ADMINISTRADOR'].indexOf(APP.usuarioStaff.Rol) !== -1;
 
   // Agrupa por categoria, respetando el orden ya entregado por el backend.
   var porCategoria = {}, ordenCats = [];
