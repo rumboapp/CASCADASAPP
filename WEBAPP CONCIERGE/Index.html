@@ -906,6 +906,8 @@ var I18N = {
     pedido: 'Pedido', donde: '¿Donde?', en_restaurant: 'En el restaurant',
     a_habitacion: 'A la habitacion',
     hab_no_disponible: 'El pedido a la habitacion no esta disponible hoy.',
+    aviso_anticipacion: 'Solo se puede hacer un pedido con {min} minutos de anticipacion a la hora seleccionada.',
+    aviso_no_modificable: 'Este pedido no se puede modificar dentro de los {min} minutos previos a la hora de la reserva.',
     notas_pedido: 'Notas del pedido (opcional)',
     notas_pedido_ph: 'Ej: filete a punto, sin cebolla, alergia a frutos secos...',
     cerrar: 'Cerrar', guardar_pedido: 'Guardar pedido',
@@ -967,6 +969,8 @@ var I18N = {
     pedido: 'Order', donde: 'Where?', en_restaurant: 'At the restaurant',
     a_habitacion: 'To the room',
     hab_no_disponible: 'Room delivery is not available today.',
+    aviso_anticipacion: 'Orders can only be placed at least {min} minutes ahead of the selected time.',
+    aviso_no_modificable: 'This order cannot be changed within {min} minutes of the reservation time.',
     notas_pedido: 'Order notes (optional)',
     notas_pedido_ph: 'e.g. steak medium, no onion, nut allergy...',
     cerrar: 'Close', guardar_pedido: 'Save order',
@@ -1405,6 +1409,26 @@ function seleccionarServicioHuesped(servicioID) {
   });
 
   APP.varianteHuesped = '';
+  APP.entregaHuesped = 'Restaurant';
+
+  // Si el servicio permite prepedido (restaurant/almuerzo-cena), se pregunta
+  // desde el inicio si sera en el restaurant o en la habitacion, antes de
+  // elegir fecha/hora, para que el aviso de anticipacion se vea de entrada.
+  var cajaEntrega = '';
+  if (s.PermitePrepedido && prepedidoDisponible()) {
+    var habDisponibleServ = String(APP.config.PEDIDO_HABITACION_ACTIVO || 'TRUE').toUpperCase() !== 'FALSE';
+    var limiteServ = Number(APP.config.PREPEDIDO_MINUTOS_LIMITE) || 30;
+    cajaEntrega = '<label class="lbl">' + t('donde') + '</label>' +
+      '<div class="grid grid-cols-2 gap-2 ' + (habDisponibleServ ? 'mb-2' : 'mb-1') + '">' +
+        '<button type="button" id="servEntRest" class="btn btn-dorado" onclick="elegirEntregaHuesped(\'Restaurant\')"><i class="fa-solid fa-utensils"></i> ' + t('en_restaurant') + '</button>' +
+        '<button type="button" id="servEntHab" class="btn btn-outline"' +
+          (habDisponibleServ ? ' onclick="elegirEntregaHuesped(\'Habitacion\')"' : ' disabled style="opacity:.45;cursor:not-allowed"') +
+          '><i class="fa-solid fa-bell-concierge"></i> ' + t('a_habitacion') +
+          (recargoHabitacion() > 0 ? ' <span class="text-xs opacity-80">(+' + fmtMoneda(recargoHabitacion()) + ')</span>' : '') + '</button>' +
+      '</div>' +
+      (habDisponibleServ ? '' : '<p class="text-xs mb-2" style="color:#A6524B"><i class="fa-solid fa-circle-info"></i> ' + t('hab_no_disponible') + '</p>') +
+      '<p class="text-xs opacity-60 mb-3"><i class="fa-solid fa-circle-info"></i> ' + t('aviso_anticipacion', { min: limiteServ }) + '</p>';
+  }
 
   // Caja informativa del Desayuno Habitacion (lee del propio servicio S002).
   var cajaDesayuno = '';
@@ -1453,6 +1477,7 @@ function seleccionarServicioHuesped(servicioID) {
       '<p class="text-xs opacity-60">' + t('rango_horario', { ini: s.HorarioInicio, fin: s.HorarioFin }) + '</p></div>' +
     '</div>' +
     cajaDesayuno +
+    cajaEntrega +
     cajaVariantes +
     camposFechaPersonas +
     '<button class="btn btn-outline w-full mb-3" onclick="buscarHorarios()"><i class="fa-solid fa-clock"></i> ' + t('ver_horarios') + '</button>' +
@@ -1487,6 +1512,16 @@ function seleccionarVarianteHuesped(el, nombre) {
   });
   el.classList.remove('btn-outline'); el.classList.add('btn-dorado');
   APP.varianteHuesped = nombre;
+}
+
+/* Elige donde se entregara el pedido, ANTES de confirmar la reserva. */
+function elegirEntregaHuesped(donde) {
+  if (donde === 'Habitacion' && String(APP.config.PEDIDO_HABITACION_ACTIVO || 'TRUE').toUpperCase() === 'FALSE') return;
+  APP.entregaHuesped = donde;
+  var rest = document.getElementById('servEntRest'), hab = document.getElementById('servEntHab');
+  var esHab = donde === 'Habitacion';
+  if (rest) { rest.classList.toggle('btn-dorado', !esHab); rest.classList.toggle('btn-outline', esHab); }
+  if (hab) { hab.classList.toggle('btn-dorado', esHab); hab.classList.toggle('btn-outline', !esHab); }
 }
 
 function buscarHorarios() {
@@ -1561,7 +1596,7 @@ function confirmarReserva() {
           '<p class="text-sm mt-3 opacity-80">' + t('dejar_pedido') + '</p></div>',
         botones: [
           { texto: t('solo_reserva'), clase: 'btn-outline', accion: function () { cerrarModal(); navHuesped('MisReservas'); } },
-          { texto: t('agregar_pedido_ahora'), clase: 'btn-primary', accion: function () { abrirPrepedido(res.id, reservaNueva); } }
+          { texto: t('agregar_pedido_ahora'), clase: 'btn-primary', accion: function () { abrirPrepedido(res.id, reservaNueva, APP.entregaHuesped); } }
         ]
       });
     } else {
@@ -1773,7 +1808,7 @@ function tarjetaProductoCarta(p) {
  * @param {Object} reservaObj Opcional: la reserva ya conocida (recien creada),
  *   para no volver a pedirla al servidor.
  */
-function abrirPrepedido(reservaID, reservaObj) {
+function abrirPrepedido(reservaID, reservaObj, entregaPreferida) {
   // Si el restaurant no acepta prepedidos hoy, no se abre el modal.
   if (!prepedidoDisponible()) { mostrarToast(t('prepedido_no_disponible'), 'error'); return; }
   APP.reservaPrepedido = reservaID;
@@ -1792,7 +1827,9 @@ function abrirPrepedido(reservaID, reservaObj) {
   ]).then(function (resultados) {
     var existente = resultados[0];
     APP.pedidoNotasPrevias = (existente && existente.pedido) ? (existente.pedido.Notas || '') : '';
-    APP.pedidoEntrega = (existente && existente.pedido && existente.pedido.Entrega === 'Habitacion') ? 'Habitacion' : 'Restaurant';
+    APP.pedidoEntrega = (existente && existente.pedido && existente.pedido.Entrega === 'Habitacion')
+      ? 'Habitacion'
+      : (entregaPreferida === 'Habitacion' ? 'Habitacion' : 'Restaurant');
     if (existente && existente.detalles) {
       APP.carrito = existente.detalles.map(function (d) {
         var requierePunto = CATEGORIAS_CON_PUNTO_COCCION.indexOf(d.CategoriaID) !== -1 && d.RequierePuntoCoccion !== false;
@@ -1823,8 +1860,11 @@ function renderModalPrepedido(reserva) {
   var habDisponible = String(APP.config.PEDIDO_HABITACION_ACTIVO || 'TRUE').toUpperCase() !== 'FALSE';
   var entregaHab = habDisponible && APP.pedidoEntrega === 'Habitacion';
   if (!habDisponible) APP.pedidoEntrega = 'Restaurant';
+  var limiteModal = Number(APP.config.PREPEDIDO_MINUTOS_LIMITE) || 30;
   var contenido =
-    '<div id="contadorPrepedido" class="text-xs mb-2 text-center opacity-70"></div>' +
+    '<div id="contadorPrepedido" class="text-xs mb-1 text-center opacity-70"></div>' +
+    // Aviso permanente (no depende del contador en vivo) del plazo de modificacion.
+    '<p class="text-xs opacity-60 mb-3 text-center"><i class="fa-solid fa-circle-info"></i> ' + t('aviso_no_modificable', { min: limiteModal }) + '</p>' +
     // Selector: comer en el restaurant o pedir a la habitacion.
     '<label class="lbl">' + t('donde') + '</label>' +
     '<div class="grid grid-cols-2 gap-2 ' + (habDisponible ? 'mb-3' : 'mb-1') + '">' +
@@ -2020,7 +2060,8 @@ function guardarPrepedido() {
   var notasEl = document.getElementById('notasPedido');
   var notas = notasEl ? notasEl.value : '';
   var entrega = APP.pedidoEntrega === 'Habitacion' ? 'Habitacion' : 'Restaurant';
-  llamarAPI('crearPedido', [APP.reservaPrepedido, items, notas, entrega]).then(function (res) {
+  var staffEmail = (APP.prepedidoOrigen === 'ops' && APP.usuarioStaff) ? APP.usuarioStaff.Email : undefined;
+  llamarAPI('crearPedido', [APP.reservaPrepedido, items, notas, entrega, staffEmail]).then(function (res) {
     mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
     if (res.success) {
       cerrarModal();
@@ -2371,7 +2412,7 @@ function cargarOpsContenido() {
               pedidoHTML = '<div class="mt-2 pt-2 border-t text-xs" style="border-color:var(--borde)' + (esHab ? ';background:#8B3A3A14;border-radius:8px;padding:8px' : '') + '">' +
                 '<div class="flex items-center justify-between mb-1"><p class="font-semibold"><i class="fa-solid fa-utensils" style="color:var(--dorado)"></i> Pedido</p>' + badgeEntrega + '</div>' +
                 pedido.Detalles.map(function (d) {
-                  return '<div class="flex justify-between"><span>' + d.Cantidad + 'x ' + escaparHTML(d.Nombre) + (d.Notas ? ' <i class="opacity-50">(' + escaparHTML(d.Notas) + ')</i>' : '') + '</span><span>' + fmtMoneda(d.Subtotal) + '</span></div>';
+                  return '<div class="flex justify-between" style="font-size:.92rem"><span>' + d.Cantidad + 'x ' + escaparHTML(d.Nombre) + (d.Notas ? ' <i class="opacity-50">(' + escaparHTML(d.Notas) + ')</i>' : '') + '</span><span>' + fmtMoneda(d.Subtotal) + '</span></div>';
                 }).join('') +
                 (pedido.Notas ? '<p class="opacity-70 mt-1"><i class="fa-solid fa-note-sticky"></i> ' + escaparHTML(pedido.Notas) + '</p>' : '') +
                 '<div class="flex justify-between font-semibold mt-1"><span>Total</span><span>' + fmtMoneda(pedido.Total) + '</span></div>' + '</div>';

@@ -1609,9 +1609,12 @@ function _reabrirConfirmacionPorPedido(reserva) {
  * @param {string} reservaID
  * @param {Array} items [{productoID, cantidad, notas}]
  * @param {string} notas Notas generales del pedido.
+ * @param {string} entrega
+ * @param {string} staffEmail Si viene de RECEPCION/COCINA/RESTAURANT/ADMINISTRADOR,
+ *   se omite la ventana de tiempo del prepedido (ellos pueden operar hasta el ultimo minuto).
  * @return {Object} {success, pedidoID, total, mensaje}
  */
-function crearPedido(reservaID, items, notas, entrega) {
+function crearPedido(reservaID, items, notas, entrega, staffEmail) {
   var lock = LockService.getScriptLock();
   try {
     lock.waitLock(10000);
@@ -1624,9 +1627,12 @@ function crearPedido(reservaID, items, notas, entrega) {
       return { success: false, mensaje: 'El restaurant no esta recibiendo pedidos anticipados hoy.' };
     }
 
-    // Verifica ventana de tiempo de prepedido.
-    var validacionTiempo = _validarVentanaPrepedido(reserva);
-    if (!validacionTiempo.ok) return { success: false, mensaje: validacionTiempo.mensaje };
+    // Verifica ventana de tiempo de prepedido (el staff opera sin esta restriccion).
+    var esStaff = staffEmail && _validarRolPermitido(staffEmail, ['RECEPCION', 'COCINA', 'RESTAURANT', 'ADMINISTRADOR']);
+    if (!esStaff) {
+      var validacionTiempo = _validarVentanaPrepedido(reserva);
+      if (!validacionTiempo.ok) return { success: false, mensaje: validacionTiempo.mensaje };
+    }
 
     // Entrega: 'Habitacion' o 'Restaurant' (por defecto).
     entrega = (entrega === 'Habitacion') ? 'Habitacion' : 'Restaurant';
@@ -1638,7 +1644,7 @@ function crearPedido(reservaID, items, notas, entrega) {
     // Si ya existe un pedido para la reserva, redirige a modificar.
     var existente = _buscarPedidoPorReserva(reservaID);
     if (existente) {
-      return modificarPedido(existente.ID, items, notas, entrega);
+      return modificarPedido(existente.ID, items, notas, entrega, staffEmail);
     }
 
     // Calcula subtotales y total leyendo precios desde la hoja Productos.
@@ -1689,12 +1695,16 @@ function crearPedido(reservaID, items, notas, entrega) {
 
 /**
  * Modifica los items de un pedido existente. Solo si falta mas del limite
- * configurado para la hora de la reserva.
+ * configurado para la hora de la reserva (el staff RECEPCION/COCINA/RESTAURANT/
+ * ADMINISTRADOR queda exento de esta ventana).
  * @param {string} pedidoID
  * @param {Array} items [{productoID, cantidad, notas}]
+ * @param {string} notas
+ * @param {string} entrega
+ * @param {string} staffEmail
  * @return {Object} {success, total, mensaje}
  */
-function modificarPedido(pedidoID, items, notas, entrega) {
+function modificarPedido(pedidoID, items, notas, entrega, staffEmail) {
   var lock = LockService.getScriptLock();
   try {
     lock.waitLock(10000);
@@ -1708,8 +1718,11 @@ function modificarPedido(pedidoID, items, notas, entrega) {
       return { success: false, mensaje: 'El restaurant no esta recibiendo pedidos anticipados hoy.' };
     }
 
-    var validacionTiempo = _validarVentanaPrepedido(reserva);
-    if (!validacionTiempo.ok) return { success: false, mensaje: validacionTiempo.mensaje };
+    var esStaff = staffEmail && _validarRolPermitido(staffEmail, ['RECEPCION', 'COCINA', 'RESTAURANT', 'ADMINISTRADOR']);
+    if (!esStaff) {
+      var validacionTiempo = _validarVentanaPrepedido(reserva);
+      if (!validacionTiempo.ok) return { success: false, mensaje: validacionTiempo.mensaje };
+    }
 
     if (!items || !items.length) return { success: false, mensaje: 'El pedido no puede quedar vacio.' };
 
