@@ -221,11 +221,12 @@
 
     /* -------------------- BOTONES FISICOS -------------------- */
     .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
-      padding: .7rem 1.25rem; border-radius: 10px; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: .4rem .5rem;
+      flex-wrap: wrap; text-align: center; line-height: 1.25;
+      padding: .7rem 1rem; border-radius: 10px; cursor: pointer;
       font-family: 'Oswald', sans-serif; font-weight: 500; font-size: .88rem;
       text-transform: uppercase; letter-spacing: .07em;
-      min-height: 44px; border: 1px solid transparent;
+      min-height: 44px; border: 1px solid transparent; max-width: 100%;
       transition: transform .08s ease, box-shadow .12s ease, filter .15s ease;
       -webkit-tap-highlight-color: transparent;
     }
