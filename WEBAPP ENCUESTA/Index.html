@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Panel de Encuestas</title>
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #F4F4F5; --surface: #FFFFFF; --text: #3A3A3C; --text-sec: #6E6C69;
+      --accent: #414143; --accent-light: #ECECEE; --border: #C9C6C2; --input-bg: #F3F3F4;
+      --success: #4E6B54; --danger: #8B3A3A;
+      --shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(0,0,0,0.06), 0 10px 24px -14px rgba(46,46,48,0.30);
+    }
+    html, body {
+      min-height: 100%; font-family: 'Oswald', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-weight: 300; background-color: var(--bg);
+      background-image:
+        radial-gradient(ellipse at 50% -20%, rgba(255,255,255,.7), transparent 55%),
+        repeating-linear-gradient(0deg, rgba(65,65,67,.02) 0 1px, transparent 1px 4px),
+        repeating-linear-gradient(90deg, rgba(65,65,67,.02) 0 1px, transparent 1px 4px);
+      color: var(--text); -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3 { font-family: 'Bebas Neue', sans-serif; font-weight: 400; letter-spacing: .5px; }
+
+    /* ===== LOGIN ===== */
+    #loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .login-card { width: 100%; max-width: 360px; background: var(--surface); border: 1px solid var(--border); border-radius: 22px; padding: 32px 26px; box-shadow: var(--shadow); text-align: center; }
+    .login-card .brand-logo { width: 64px; height: 64px; border-radius: 18px; margin-bottom: 14px; background: linear-gradient(160deg, #525255, #414143 55%, #353537); padding: 8px; border: 1px solid #2A2A2C; box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 10px 22px -10px rgba(46,46,48,.5); }
+    .login-card h1 { font-size: 26px; margin-bottom: 4px; }
+    .login-card p { font-size: 12.5px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 22px; }
+    .login-card input { width: 100%; height: 46px; padding: 0 14px; border: none; border-radius: 12px; font-family: 'Oswald', sans-serif; font-size: 14px; background: var(--input-bg); color: var(--text); box-shadow: inset 0 2px 4px rgba(0,0,0,.06), inset 0 0 0 1px var(--border); margin-bottom: 12px; }
+    .login-card input:focus { outline: none; box-shadow: inset 0 2px 4px rgba(0,0,0,.06), inset 0 0 0 2px var(--accent); }
+    .btn-dark {
+      width: 100%; height: 46px; border: none; border-radius: 12px;
+      background: linear-gradient(180deg, #57575A, #414143 50%, #39393B); color: #F2F0EE;
+      font-family: 'Oswald', sans-serif; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+      cursor: pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 3px 0 #242426; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-dark:active { transform: translateY(2px); box-shadow: inset 0 2px 6px rgba(0,0,0,.4); }
+    .btn-dark:disabled { opacity: .6; cursor: default; }
+    .login-error { display: none; background: #ECDAD7; color: var(--danger); font-size: 12.5px; font-weight: 500; padding: 9px 12px; border-radius: 10px; margin-bottom: 12px; }
+    .login-error.show { display: block; }
+
+    /* ===== APP SHELL ===== */
+    #app { display: none; }
+    #app.show { display: block; }
+    .topbar {
+      background: repeating-linear-gradient(90deg, rgba(255,255,255,.03) 0 1px, transparent 1px 3px), linear-gradient(180deg, #4C4C4F, #414143 60%, #38383A);
+      padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 3px 10px rgba(0,0,0,.28);
+    }
+    .topbar h1 { color: #E9E7E5; font-size: 22px; text-shadow: 0 -1px 0 rgba(0,0,0,.5); }
+    .topbar .user { font-size: 11px; color: #C9C6C2; text-transform: uppercase; letter-spacing: .5px; }
+    .btn-logout { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15); color: #E9E7E5; border-radius: 10px; padding: 8px 12px; font-size: 12px; cursor: pointer; font-family: 'Oswald', sans-serif; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 22px; box-shadow: var(--shadow); margin-bottom: 18px; }
+    .card h2 { font-size: 22px; margin-bottom: 4px; }
+    .card .sub { font-size: 12.5px; color: var(--text-sec); margin-bottom: 16px; }
+
+    /* ===== ENLACE ===== */
+    .link-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .link-row input { flex: 1; min-width: 220px; height: 44px; padding: 0 14px; border: none; border-radius: 12px; font-family: monospace; font-size: 13px; background: var(--input-bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); }
+    .btn-mini {
+      font-family: 'Oswald', sans-serif; border: none; border-radius: 12px; padding: 0 16px; height: 44px; font-size: 12.5px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 7px; white-space: nowrap; text-transform: uppercase; letter-spacing: .03em;
+    }
+    .btn-mini.dark { background: linear-gradient(180deg, #57575A, #414143 50%, #39393B); color: #F2F0EE; box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 2px 0 #242426; }
+    .btn-mini.outline { background: var(--surface); color: var(--text); box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.05), inset 0 0 0 1px var(--border); }
+    .btn-mini:active { transform: translateY(1px); }
+    textarea.msg-input { width: 100%; min-height: 64px; padding: 10px 12px; border: none; border-radius: 12px; font-family: 'Oswald', sans-serif; font-size: 13px; background: var(--input-bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); resize: vertical; }
+    textarea.msg-input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+
+    /* ===== FILTROS ===== */
+    .filtros { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 4px; }
+    .filtros .campo label { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-sec); margin-bottom: 5px; }
+    .filtros input { height: 42px; padding: 0 12px; border: none; border-radius: 10px; font-family: 'Oswald', sans-serif; font-size: 13px; background: var(--input-bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); width: 150px; cursor: pointer; }
+
+    /* ===== KPIs ===== */
+    .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 18px 0; }
+    @media (min-width: 640px) { .kpi-grid { grid-template-columns: repeat(4, 1fr); } }
+    .kpi-box { background: var(--input-bg); border-radius: 14px; padding: 14px 10px; text-align: center; box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.04); }
+    .kpi-box b { display: block; font-size: 22px; font-weight: 600; color: var(--accent); font-family: 'Oswald', sans-serif; line-height: 1; margin-bottom: 4px; }
+    .kpi-box span { font-size: 9.5px; font-weight: 700; color: var(--text-sec); text-transform: uppercase; letter-spacing: .5px; }
+    .kpi-box.nps-alto b { color: var(--success); }
+    .kpi-box.nps-bajo b { color: var(--danger); }
+
+    /* ===== GRAFICOS ===== */
+    .charts-grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-bottom: 18px; }
+    @media (min-width: 760px) { .charts-grid { grid-template-columns: 1fr 1fr; } }
+    .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; box-shadow: inset 0 1px 0 #fff, 0 1px 3px rgba(0,0,0,0.05); }
+    .chart-card .titulo { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-sec); margin-bottom: 8px; }
+
+    /* ===== TABLA ===== */
+    .tabla-wrap { overflow: auto; max-height: 340px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+    table.resp { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    table.resp th { position: sticky; top: 0; background: var(--input-bg); color: var(--text-sec); padding: 9px 10px; text-align: left; font-weight: 700; font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; }
+    table.resp td { padding: 9px 10px; border-bottom: 1px solid #EFEDEA; vertical-align: top; }
+    table.resp tr:last-child td { border-bottom: none; }
+    .badge-score { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 22px; padding: 0 6px; border-radius: 8px; font-weight: 700; font-size: 11.5px; }
+    .badge-score.alto { background: #E0E9DD; color: #3C5A40; }
+    .badge-score.medio { background: #ECECEE; color: #4A4A4D; }
+    .badge-score.bajo { background: #ECDAD7; color: #793A33; }
+    .comentario-cell { max-width: 260px; color: var(--text-sec); font-style: italic; }
+
+    .loader { display: none; align-items: center; justify-content: center; gap: 10px; padding: 40px 10px; color: var(--text-sec); font-weight: 600; font-size: 13px; }
+    .loader.show { display: flex; }
+    .spin { display: inline-block; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty { text-align: center; padding: 30px 10px; color: #A8A5A0; font-size: 13px; }
+
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #F2F0EE; padding: 11px 20px; border-radius: 12px; font-size: 13px; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,.3); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 999; }
+    .toast.show { opacity: 1; }
+
+    .pdf-capture { position: fixed; left: -9999px; top: 0; width: 1200px; background: white; }
+    .pdf-capture .cap-chart { width: 580px; height: 380px; display: inline-block; }
+  </style>
+</head>
+<body>
+
+  <!-- ===== LOGIN ===== -->
+  <div id="loginScreen">
+    <div class="login-card">
+      <div class="brand-logo" style="display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;color:#E9E7E5;font-size:30px;margin:0 auto 14px;">C</div>
+      <h1>Panel de Encuestas</h1>
+      <p>Cascadas Hotel</p>
+      <div id="loginError" class="login-error"></div>
+      <input type="text" id="loginEmail" placeholder="tu@cascadashotel.cl" onkeydown="if(event.key==='Enter')iniciarSesion()">
+      <button class="btn-dark" id="btnLogin" onclick="iniciarSesion()"><i class="fa-solid fa-right-to-bracket"></i> Entrar</button>
+    </div>
+  </div>
+
+  <!-- ===== APP ===== -->
+  <div id="app">
+    <div class="topbar">
+      <h1>Panel de Encuestas</h1>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <span class="user" id="userNombre"></span>
+        <button class="btn-logout" onclick="cerrarSesion()"><i class="fa-solid fa-right-from-bracket"></i></button>
+      </div>
+    </div>
+
+    <div class="container">
+
+      <!-- ENLACE DE LA ENCUESTA -->
+      <div class="card">
+        <h2>Enlace de la encuesta</h2>
+        <p class="sub">Un solo link sirve para todos los huéspedes. Envíalo por WhatsApp o correo después del check-out.</p>
+        <div class="link-row">
+          <input type="text" id="linkEncuesta" readonly value="Cargando...">
+          <button class="btn-mini dark" onclick="copiarLink(false)"><i class="fa-solid fa-link"></i> Copiar enlace</button>
+          <button class="btn-mini outline" onclick="copiarLink(true)"><i class="fa-solid fa-comment-dots"></i> Copiar mensaje + enlace</button>
+        </div>
+        <label style="display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-sec);margin-bottom:6px;">Mensaje opcional (se copia junto al enlace)</label>
+        <textarea class="msg-input" id="mensajeEncuesta" onchange="guardarMensaje()"></textarea>
+      </div>
+
+      <!-- INFORMES -->
+      <div class="card">
+        <h2>Informes</h2>
+        <p class="sub">Estadísticas de todas las respuestas recibidas.</p>
+
+        <div class="filtros">
+          <div class="campo"><label>Desde</label><input type="text" id="fDesde" placeholder="Todo el histórico" readonly></div>
+          <div class="campo"><label>Hasta</label><input type="text" id="fHasta" placeholder="Hoy" readonly></div>
+          <button class="btn-mini dark" onclick="cargarInforme()"><i class="fa-solid fa-magnifying-glass"></i> Ver informe</button>
+          <button class="btn-mini outline" id="btnPdf" onclick="exportarPDF()"><i class="fa-solid fa-file-pdf"></i> Exportar PDF</button>
+        </div>
+
+        <div id="loaderInforme" class="loader"><i class="fa-solid fa-circle-notch spin"></i> Cargando datos...</div>
+        <div id="emptyInforme" class="empty" style="display:none;">Aún no hay respuestas en este período.</div>
+
+        <div id="contenidoInforme" style="display:none;">
+          <div class="kpi-grid">
+            <div class="kpi-box"><b id="kpiTotal">0</b><span>Respuestas</span></div>
+            <div class="kpi-box"><b id="kpiGeneral">0</b><span>Promedio general</span></div>
+            <div class="kpi-box" id="kpiNpsBox"><b id="kpiNps">0</b><span>NPS</span></div>
+            <div class="kpi-box"><b id="kpiLimpieza">0</b><span>Limpieza</span></div>
+          </div>
+          <div class="kpi-grid">
+            <div class="kpi-box"><b id="kpiAtencion">0</b><span>Atención</span></div>
+            <div class="kpi-box"><b id="kpiInstalaciones">0</b><span>Instalaciones</span></div>
+            <div class="kpi-box"><b id="kpiPromotores">0</b><span>Promotores (9-10)</span></div>
+            <div class="kpi-box"><b id="kpiDetractores">0</b><span>Detractores (≤6)</span></div>
+          </div>
+
+          <div class="charts-grid">
+            <div class="chart-card"><div class="titulo">Distribución de puntuación general</div><div id="chartDistribucion" style="height:220px;"></div></div>
+            <div class="chart-card"><div class="titulo">Promotores / Neutros / Detractores</div><div id="chartNps" style="height:220px;"></div></div>
+            <div class="chart-card"><div class="titulo">Comparativo por categoría</div><div id="chartComparativo" style="height:220px;"></div></div>
+            <div class="chart-card"><div class="titulo">Evolución del promedio general</div><div id="chartEvolucion" style="height:220px;"></div></div>
+          </div>
+
+          <div class="tabla-wrap">
+            <table class="resp">
+              <thead>
+                <tr><th>Fecha</th><th>Nombre</th><th>Hab.</th><th>Gral.</th><th>Limp.</th><th>Aten.</th><th>Inst.</th><th>Comentario</th></tr>
+              </thead>
+              <tbody id="tablaRespuestas"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Contenedor oculto para capturar gráficos en alta resolución (PDF) -->
+  <div id="pdfCapture" class="pdf-capture">
+    <div id="cap_distribucion" class="cap-chart"></div>
+    <div id="cap_nps" class="cap-chart"></div>
+    <div id="cap_comparativo" class="cap-chart"></div>
+    <div id="cap_evolucion" class="cap-chart"></div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    google.charts.load('current', { packages: ['corechart', 'bar'] });
+    const CHART_COLORS = ['#414143', '#6E6C69', '#8B3A3A', '#4E6B54', '#9C9995', '#5A5A5D'];
+
+    let APP = { usuario: null, informeData: null };
+
+    // ───────────────────────────────────────────────────────────
+    // LOGIN
+    // ───────────────────────────────────────────────────────────
+    function mostrarLoginError(txt) {
+      const e = document.getElementById('loginError');
+      e.textContent = txt; e.classList.add('show');
+    }
+    function iniciarSesion() {
+      const email = document.getElementById('loginEmail').value.trim();
+      if (!email) { mostrarLoginError('Ingresa tu email.'); return; }
+      const btn = document.getElementById('btnLogin');
+      btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch spin"></i> Entrando...';
+      google.script.run
+        .withSuccessHandler(res => {
+          btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Entrar';
+          if (res && res.success) {
+            APP.usuario = res.usuario;
+            try { sessionStorage.setItem('encuestaStaffEmail', email); } catch (e) {}
+            entrarApp();
+          } else {
+            mostrarLoginError((res && res.mensaje) || 'No se pudo iniciar sesión.');
+          }
+        })
+        .withFailureHandler(() => {
+          btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Entrar';
+          mostrarLoginError('Error de conexión.');
+        })
+        .autenticarStaff(email);
+    }
+    function cerrarSesion() {
+      try { sessionStorage.removeItem('encuestaStaffEmail'); } catch (e) {}
+      APP.usuario = null;
+      document.getElementById('app').classList.remove('show');
+      document.getElementById('loginScreen').style.display = 'flex';
+    }
+    function entrarApp() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('app').classList.add('show');
+      document.getElementById('userNombre').textContent = (APP.usuario && APP.usuario.Nombre) || (APP.usuario && APP.usuario.Email) || '';
+      cargarEnlace();
+      inicializarFiltros();
+      cargarInforme();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      let email = null;
+      try { email = sessionStorage.getItem('encuestaStaffEmail'); } catch (e) {}
+      if (email) {
+        google.script.run.withSuccessHandler(res => {
+          if (res && res.success) { APP.usuario = res.usuario; entrarApp(); }
+        }).withFailureHandler(() => {}).autenticarStaff(email);
+      }
+    });
+
+    // ───────────────────────────────────────────────────────────
+    // ENLACE DE LA ENCUESTA
+    // ───────────────────────────────────────────────────────────
+    function cargarEnlace() {
+      google.script.run.withSuccessHandler(res => {
+        if (res && res.success) {
+          document.getElementById('linkEncuesta').value = res.link || '(no se pudo detectar la URL; publica la app primero)';
+          document.getElementById('mensajeEncuesta').value = res.mensaje || '';
+        }
+      }).obtenerDatosEnlace(APP.usuario.Email);
+    }
+    function guardarMensaje() {
+      const msg = document.getElementById('mensajeEncuesta').value;
+      google.script.run.withSuccessHandler(() => mostrarToast('Mensaje guardado ✓')).guardarMensajeEncuesta(APP.usuario.Email, msg);
+    }
+    function copiarLink(conMensaje) {
+      const link = document.getElementById('linkEncuesta').value;
+      if (!link || link.indexOf('http') !== 0) { mostrarToast('El enlace aún no está disponible'); return; }
+      const msg = document.getElementById('mensajeEncuesta').value.trim();
+      const texto = conMensaje && msg ? (msg + '\n' + link) : link;
+      copiarTexto(texto);
+    }
+    function copiarTexto(texto) {
+      const ok = () => mostrarToast('Copiado ✓');
+      const fallback = () => {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = texto; ta.style.cssText = 'position:fixed;left:-9999px;top:0;';
+          document.body.appendChild(ta); ta.focus(); ta.select();
+          const r = document.execCommand('copy'); document.body.removeChild(ta);
+          if (r) ok(); else mostrarToast('No se pudo copiar automático');
+        } catch (e) { mostrarToast('No se pudo copiar automático'); }
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(texto).then(ok, fallback);
+      else fallback();
+    }
+    function mostrarToast(txt) {
+      const t = document.getElementById('toast');
+      t.textContent = txt; t.classList.add('show');
+      clearTimeout(t._timer); t._timer = setTimeout(() => t.classList.remove('show'), 2400);
+    }
+
+    // ───────────────────────────────────────────────────────────
+    // FILTROS + INFORME
+    // ───────────────────────────────────────────────────────────
+    function inicializarFiltros() {
+      flatpickr('#fDesde', { locale: 'es', dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y' });
+      flatpickr('#fHasta', { locale: 'es', dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y' });
+    }
+
+    function cargarInforme() {
+      const desde = document.getElementById('fDesde').value;
+      const hasta = document.getElementById('fHasta').value;
+      document.getElementById('contenidoInforme').style.display = 'none';
+      document.getElementById('emptyInforme').style.display = 'none';
+      document.getElementById('loaderInforme').classList.add('show');
+
+      google.script.run
+        .withSuccessHandler(res => {
+          document.getElementById('loaderInforme').classList.remove('show');
+          if (!res || !res.success) { mostrarToast((res && res.mensaje) || 'No se pudo cargar el informe'); return; }
+          APP.informeData = res;
+          if (!res.totalRespuestas) { document.getElementById('emptyInforme').style.display = 'block'; return; }
+          pintarInforme(res);
+          document.getElementById('contenidoInforme').style.display = 'block';
+        })
+        .withFailureHandler(() => {
+          document.getElementById('loaderInforme').classList.remove('show');
+          mostrarToast('Error de conexión al cargar el informe');
+        })
+        .obtenerDatosReporte(APP.usuario.Email, { fechaDesde: desde, fechaHasta: hasta });
+    }
+
+    function claseScore(v) { return v >= 9 ? 'alto' : (v >= 7 ? 'medio' : 'bajo'); }
+
+    function pintarInforme(d) {
+      document.getElementById('kpiTotal').textContent = d.totalRespuestas;
+      document.getElementById('kpiGeneral').textContent = d.promedioGeneral;
+      document.getElementById('kpiLimpieza').textContent = d.promedioLimpieza;
+      document.getElementById('kpiAtencion').textContent = d.promedioAtencion;
+      document.getElementById('kpiInstalaciones').textContent = d.promedioInstalaciones;
+      document.getElementById('kpiPromotores').textContent = d.promotores + ' (' + d.pctPromotores + '%)';
+      document.getElementById('kpiDetractores').textContent = d.detractores + ' (' + d.pctDetractores + '%)';
+      const npsBox = document.getElementById('kpiNpsBox');
+      npsBox.classList.remove('nps-alto', 'nps-bajo');
+      npsBox.classList.add(d.nps >= 30 ? 'nps-alto' : (d.nps < 0 ? 'nps-bajo' : ''));
+      document.getElementById('kpiNps').textContent = d.nps;
+
+      // Tabla
+      const tbody = document.getElementById('tablaRespuestas');
+      tbody.innerHTML = d.tabla.map(r => `
+        <tr>
+          <td style="white-space:nowrap;">${escHtml(r.fecha)}</td>
+          <td>${escHtml(r.nombre)}</td>
+          <td>${escHtml(r.habitacion || '-')}</td>
+          <td><span class="badge-score ${claseScore(r.general)}">${r.general}</span></td>
+          <td><span class="badge-score ${claseScore(r.limpieza)}">${r.limpieza}</span></td>
+          <td><span class="badge-score ${claseScore(r.atencion)}">${r.atencion}</span></td>
+          <td><span class="badge-score ${claseScore(r.instalaciones)}">${r.instalaciones}</span></td>
+          <td class="comentario-cell">${r.comentario ? escHtml(r.comentario) : ''}</td>
+        </tr>`).join('');
+
+      dibujarGraficosPantalla(d);
+    }
+    function escHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+    // ───────────────────────────────────────────────────────────
+    // GRAFICOS (pantalla)
+    // ───────────────────────────────────────────────────────────
+    function dibujarGraficosPantalla(d) {
+      google.charts.setOnLoadCallback(() => {
+        // Distribución 1-10
+        const dtDist = new google.visualization.DataTable();
+        dtDist.addColumn('string', 'Puntuación'); dtDist.addColumn('number', 'Respuestas');
+        d.distribucionGeneral.forEach(p => dtDist.addRow([String(p[0]), p[1]]));
+        new google.visualization.ColumnChart(document.getElementById('chartDistribucion')).draw(dtDist, {
+          backgroundColor: 'transparent', legend: 'none', colors: ['#414143'],
+          chartArea: { left: 34, top: 10, width: '90%', height: '75%' },
+          hAxis: { textStyle: { fontSize: 11 } }, vAxis: { textStyle: { fontSize: 11 }, gridlines: { count: 4 } }
+        });
+
+        // Promotores/Neutros/Detractores
+        const dtNps = new google.visualization.DataTable();
+        dtNps.addColumn('string', 'Grupo'); dtNps.addColumn('number', 'Cantidad');
+        dtNps.addRow(['Promotores', d.promotores]); dtNps.addRow(['Neutros', d.neutros]); dtNps.addRow(['Detractores', d.detractores]);
+        new google.visualization.PieChart(document.getElementById('chartNps')).draw(dtNps, {
+          backgroundColor: 'transparent', pieHole: 0.45, colors: ['#4E6B54', '#9C9995', '#8B3A3A'],
+          chartArea: { left: 10, top: 10, width: '90%', height: '85%' }, legend: { position: 'bottom', textStyle: { fontSize: 11 } }
+        });
+
+        // Comparativo por categoria
+        const dtComp = new google.visualization.DataTable();
+        dtComp.addColumn('string', 'Categoría'); dtComp.addColumn('number', 'Promedio');
+        dtComp.addRow(['General', d.promedioGeneral]); dtComp.addRow(['Limpieza', d.promedioLimpieza]);
+        dtComp.addRow(['Atención', d.promedioAtencion]); dtComp.addRow(['Instalac.', d.promedioInstalaciones]);
+        new google.visualization.BarChart(document.getElementById('chartComparativo')).draw(dtComp, {
+          backgroundColor: 'transparent', legend: 'none', colors: ['#6E6C69'],
+          chartArea: { left: 70, top: 10, width: '80%', height: '85%' },
+          hAxis: { textStyle: { fontSize: 11 }, minValue: 0, maxValue: 10 }, vAxis: { textStyle: { fontSize: 11 } }
+        });
+
+        // Evolucion en el tiempo
+        const dtEvo = new google.visualization.DataTable();
+        dtEvo.addColumn('string', 'Fecha'); dtEvo.addColumn('number', 'Promedio');
+        (d.porDia || []).forEach(p => dtEvo.addRow([p[0].slice(5), p[1]]));
+        new google.visualization.LineChart(document.getElementById('chartEvolucion')).draw(dtEvo, {
+          backgroundColor: 'transparent', legend: 'none', colors: ['#414143'], curveType: 'function',
+          chartArea: { left: 34, top: 10, width: '90%', height: '75%' },
+          hAxis: { textStyle: { fontSize: 10 }, slantedText: true, slantedTextAngle: 45 },
+          vAxis: { textStyle: { fontSize: 11 }, minValue: 0, maxValue: 10, gridlines: { count: 5 } }
+        });
+      });
+    }
+
+    // ───────────────────────────────────────────────────────────
+    // PDF (misma técnica que Base de Datos: capturar Google Charts a
+    // alta resolución en un contenedor oculto y componer con jsPDF)
+    // ───────────────────────────────────────────────────────────
+    function capturarGraficosAltoRes(d) {
+      return new Promise(resolve => {
+        const opts = {
+          backgroundColor: '#ffffff', chartArea: { left: 60, top: 34, width: '80%', height: '68%' },
+          colors: CHART_COLORS, titleTextStyle: { fontSize: 16, bold: true, color: '#3A3A3C' }
+        };
+        const configs = [
+          { key: 'distribucion', type: 'ColumnChart', title: 'Distribución de puntuación general',
+            build: dt => { dt.addColumn('string', 'Puntuación'); dt.addColumn('number', 'Respuestas'); d.distribucionGeneral.forEach(p => dt.addRow([String(p[0]), p[1]])); },
+            extra: { legend: 'none', colors: ['#414143'] } },
+          { key: 'nps', type: 'PieChart', title: 'Promotores / Neutros / Detractores',
+            build: dt => { dt.addColumn('string', 'Grupo'); dt.addColumn('number', 'Cantidad'); dt.addRow(['Promotores', d.promotores]); dt.addRow(['Neutros', d.neutros]); dt.addRow(['Detractores', d.detractores]); },
+            extra: { pieHole: 0.4, colors: ['#4E6B54', '#9C9995', '#8B3A3A'], legend: { position: 'right', textStyle: { fontSize: 13 } } } },
+          { key: 'comparativo', type: 'BarChart', title: 'Comparativo por categoría',
+            build: dt => { dt.addColumn('string', 'Categoría'); dt.addColumn('number', 'Promedio'); dt.addRow(['General', d.promedioGeneral]); dt.addRow(['Limpieza', d.promedioLimpieza]); dt.addRow(['Atención', d.promedioAtencion]); dt.addRow(['Instalac.', d.promedioInstalaciones]); },
+            extra: { legend: 'none', colors: ['#6E6C69'], hAxis: { minValue: 0, maxValue: 10 } } },
+          { key: 'evolucion', type: 'LineChart', title: 'Evolución del promedio general',
+            build: dt => { dt.addColumn('string', 'Fecha'); dt.addColumn('number', 'Promedio'); (d.porDia || []).forEach(p => dt.addRow([p[0], p[1]])); },
+            extra: { legend: 'none', colors: ['#414143'], curveType: 'function', vAxis: { minValue: 0, maxValue: 10 } } }
+        ];
+        const uris = {}; let done = 0;
+        configs.forEach(cfg => {
+          const dt = new google.visualization.DataTable();
+          cfg.build(dt);
+          const el = document.getElementById('cap_' + cfg.key);
+          let chart;
+          if (cfg.type === 'PieChart') chart = new google.visualization.PieChart(el);
+          else if (cfg.type === 'BarChart') chart = new google.visualization.BarChart(el);
+          else if (cfg.type === 'LineChart') chart = new google.visualization.LineChart(el);
+          else chart = new google.visualization.ColumnChart(el);
+          const options = Object.assign({}, opts, { title: cfg.title, width: 580, height: 380 }, cfg.extra || {});
+          google.visualization.events.addListener(chart, 'ready', () => {
+            uris[cfg.key] = chart.getImageURI();
+            done++;
+            if (done === configs.length) resolve(uris);
+          });
+          chart.draw(dt, options);
+        });
+      });
+    }
+
+    function dibujarKpisPDF(doc, d, pageWidth) {
+      const kpis = [
+        ['Respuestas', String(d.totalRespuestas)],
+        ['Promedio general', String(d.promedioGeneral)],
+        ['NPS', String(d.nps)],
+        ['Limpieza', String(d.promedioLimpieza)],
+        ['Atención', String(d.promedioAtencion)],
+        ['Instalaciones', String(d.promedioInstalaciones)],
+        ['Promotores', d.promotores + ' (' + d.pctPromotores + '%)'],
+        ['Detractores', d.detractores + ' (' + d.pctDetractores + '%)']
+      ];
+      const kpiW = 44, kpiH = 13, gap = 3;
+      const startX = (pageWidth - 4 * kpiW - 3 * gap) / 2;
+      const kpiY = 22;
+      kpis.forEach((k, i) => {
+        const col = i % 4, rowN = Math.floor(i / 4);
+        const x = startX + col * (kpiW + gap);
+        const y = kpiY + rowN * (kpiH + gap);
+        doc.setFillColor(65, 65, 67);
+        doc.roundedRect(x, y, kpiW, kpiH, 2, 2, 'F');
+        doc.setTextColor(255, 255, 255); doc.setFontSize(10); doc.setFont(undefined, 'bold');
+        doc.text(String(k[1]), x + kpiW / 2, y + 6.5, { align: 'center' });
+        doc.setFontSize(6); doc.setFont(undefined, 'normal');
+        doc.text(String(k[0]).toUpperCase(), x + kpiW / 2, y + 11, { align: 'center' });
+      });
+      return kpiY + 2 * (kpiH + gap) + 4;
+    }
+
+    async function exportarPDF() {
+      const d = APP.informeData;
+      if (!d || !d.totalRespuestas) { mostrarToast('Primero genera un informe con datos'); return; }
+      const btn = document.getElementById('btnPdf');
+      btn.disabled = true; const original = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch spin"></i> Generando...';
+      try {
+        const imgs = await capturarGraficosAltoRes(d);
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const desde = document.getElementById('fDesde').value || 'Inicio';
+        const hasta = document.getElementById('fHasta').value || 'Hoy';
+
+        doc.setFontSize(18); doc.setTextColor(58, 58, 60);
+        doc.text('CASCADAS HOTEL', pageWidth / 2, 12, { align: 'center' });
+        doc.setFontSize(10); doc.setTextColor(110, 108, 105);
+        doc.text('Encuesta de Satisfacción — ' + desde + ' al ' + hasta, pageWidth / 2, 17, { align: 'center' });
+
+        const chartsY = dibujarKpisPDF(doc, d, pageWidth);
+        const chartW = 82, chartH = 56;
+        const gapX = (pageWidth - 2 * chartW) / 3;
+        const orden = [['distribucion', 'Distribución de puntuación'], ['nps', 'Promotores / Neutros / Detractores'], ['comparativo', 'Comparativo por categoría'], ['evolucion', 'Evolución del promedio']];
+        orden.forEach((o, i) => {
+          const x = gapX + (i % 2) * (chartW + gapX);
+          const y = chartsY + Math.floor(i / 2) * (chartH + 8) + 3;
+          doc.setTextColor(58, 58, 60); doc.setFontSize(9); doc.setFont(undefined, 'bold');
+          doc.text(o[1], x + chartW / 2, y - 1, { align: 'center' });
+          if (imgs[o[0]]) doc.addImage(imgs[o[0]], 'PNG', x, y, chartW, chartH);
+        });
+        doc.setFontSize(8); doc.setTextColor(150, 150, 150);
+        doc.text('Cascadas Hotel — Página 1 de 2', pageWidth / 2, pageHeight - 5, { align: 'center' });
+
+        // Página 2: tabla de respuestas con comentarios
+        doc.addPage();
+        doc.setFontSize(14); doc.setTextColor(58, 58, 60); doc.setFont(undefined, 'bold');
+        doc.text('Detalle de respuestas', 14, 16);
+        doc.autoTable({
+          startY: 22,
+          head: [['Fecha', 'Nombre', 'Hab.', 'Gral.', 'Limp.', 'Aten.', 'Inst.', 'Comentario']],
+          body: d.tabla.map(r => [r.fecha, r.nombre, r.habitacion || '-', r.general, r.limpieza, r.atencion, r.instalaciones, r.comentario || '']),
+          theme: 'striped', headStyles: { fillColor: [65, 65, 67], textColor: 255, fontSize: 8 },
+          styles: { fontSize: 7.5, cellPadding: 1.6 },
+          columnStyles: { 7: { cellWidth: 60 } }
+        });
+        doc.setFontSize(8); doc.setTextColor(150, 150, 150);
+        doc.text('Cascadas Hotel — Página 2', pageWidth / 2, pageHeight - 5, { align: 'center' });
+
+        doc.save('Encuesta_Cascadas_' + new Date().toISOString().slice(0, 10) + '.pdf');
+        mostrarToast('PDF descargado ✓');
+      } catch (err) {
+        mostrarToast('Error al generar el PDF: ' + err.message);
+      }
+      btn.disabled = false; btn.innerHTML = original;
+    }
+  </script>
+</body>
+</html>

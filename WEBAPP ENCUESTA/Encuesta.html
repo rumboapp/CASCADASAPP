@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Encuesta de Satisfacción</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #F4F4F5; --surface: #FFFFFF; --text: #3A3A3C; --text-sec: #6E6C69;
+      --accent: #414143; --border: #C9C6C2; --success: #4E6B54; --danger: #8B3A3A;
+      --shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(0,0,0,0.06), 0 10px 24px -14px rgba(46,46,48,0.30);
+    }
+    html, body {
+      min-height: 100%;
+      font-family: 'Oswald', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-weight: 300; background-color: var(--bg);
+      background-image:
+        radial-gradient(ellipse at 50% -20%, rgba(255,255,255,.7), transparent 55%),
+        repeating-linear-gradient(0deg, rgba(65,65,67,.02) 0 1px, transparent 1px 4px),
+        repeating-linear-gradient(90deg, rgba(65,65,67,.02) 0 1px, transparent 1px 4px);
+      color: var(--text); -webkit-font-smoothing: antialiased; overflow-x: hidden;
+    }
+    .page { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 28px 16px 60px; }
+    .wrap { width: 100%; max-width: 480px; }
+
+    .brand { text-align: center; margin-bottom: 22px; animation: fadeInDown .5s ease both; }
+    .brand-logo {
+      width: 68px; height: 68px; object-fit: contain; border-radius: 20px; display: inline-block; margin-bottom: 14px;
+      background: linear-gradient(160deg, #525255, #414143 55%, #353537);
+      padding: 8px; border: 1px solid #2A2A2C;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 10px 22px -10px rgba(46,46,48,0.5);
+    }
+    .brand h1 { font-family: 'Bebas Neue', sans-serif; font-size: 30px; letter-spacing: 1px; color: var(--text); line-height: 1.05; }
+    .brand p { font-size: 12.5px; color: var(--text-sec); margin-top: 6px; font-weight: 400; text-transform: uppercase; letter-spacing: 1px; }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+      padding: 22px 18px; box-shadow: var(--shadow); margin-bottom: 14px;
+      animation: fadeInUp .5s ease both;
+    }
+
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 12px; font-weight: 600; color: var(--text-sec); margin-bottom: 6px; padding-left: 2px; text-transform: uppercase; letter-spacing: .4px; }
+    .field input[type="text"] {
+      width: 100%; height: 46px; padding: 0 14px; border: none; border-radius: 12px;
+      font-family: 'Oswald', sans-serif; font-size: 15px; font-weight: 400; background: #F3F3F4; color: var(--text);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,.06), inset 0 0 0 1px var(--border);
+    }
+    .field input[type="text"]:focus { outline: none; box-shadow: inset 0 2px 4px rgba(0,0,0,.06), inset 0 0 0 2px var(--accent); }
+    .field input::placeholder { color: #A8A5A0; font-weight: 300; }
+    .field .hint { font-size: 11px; color: #A8A5A0; margin-top: 5px; padding-left: 2px; }
+
+    .pregunta { margin-bottom: 22px; }
+    .pregunta:last-child { margin-bottom: 0; }
+    .pregunta-titulo { font-size: 14.5px; font-weight: 500; color: var(--text); margin-bottom: 3px; }
+    .pregunta-sub { font-size: 11.5px; color: var(--text-sec); margin-bottom: 10px; }
+
+    .escala { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; }
+    .punto {
+      aspect-ratio: 1 / 1; border-radius: 12px; border: 1px solid var(--border); background: #FAFAF9;
+      display: flex; align-items: center; justify-content: center; font-family: 'Oswald', sans-serif;
+      font-size: 16px; font-weight: 500; color: var(--text); cursor: pointer; user-select: none;
+      box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.05); transition: all .15s;
+    }
+    .punto:active { transform: scale(0.94); }
+    .punto.activo {
+      background: linear-gradient(180deg, #57575A, #414143 50%, #39393B); color: #F2F0EE; border-color: #2A2A2C;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 3px 8px -2px rgba(46,46,48,0.5);
+      transform: scale(1.04);
+    }
+    .escala-labels { display: flex; justify-content: space-between; margin-top: 6px; font-size: 10.5px; color: #A8A5A0; padding: 0 2px; }
+
+    .field textarea {
+      width: 100%; min-height: 90px; padding: 12px 14px; border: none; border-radius: 12px;
+      font-family: 'Oswald', sans-serif; font-size: 14px; font-weight: 400; background: #F3F3F4; color: var(--text);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,.06), inset 0 0 0 1px var(--border); resize: vertical;
+    }
+    .field textarea:focus { outline: none; box-shadow: inset 0 2px 4px rgba(0,0,0,.06), inset 0 0 0 2px var(--accent); }
+    .field textarea::placeholder { color: #A8A5A0; font-weight: 300; }
+
+    .btn-enviar {
+      width: 100%; height: 52px; border: none; border-radius: 16px;
+      background: linear-gradient(180deg, #57575A, #414143 50%, #39393B);
+      color: #F2F0EE; font-family: 'Oswald', sans-serif; font-size: 15px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .06em; cursor: pointer;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 3px 0 #242426, 0 8px 18px -8px rgba(0,0,0,0.4);
+      display: flex; align-items: center; justify-content: center; gap: 10px; transition: all .12s;
+    }
+    .btn-enviar:active { transform: translateY(2px); box-shadow: inset 0 2px 6px rgba(0,0,0,.4); }
+    .btn-enviar:disabled { opacity: .55; cursor: default; }
+
+    .msg-error {
+      display: none; background: #ECDAD7; color: var(--danger); font-size: 13px; font-weight: 500;
+      padding: 11px 14px; border-radius: 12px; margin-bottom: 14px; text-align: center;
+    }
+    .msg-error.show { display: block; }
+
+    .spin { display: inline-block; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Pantalla de agradecimiento */
+    .gracias { display: none; text-align: center; padding: 40px 10px; animation: fadeIn .5s ease both; }
+    .gracias.show { display: block; }
+    .gracias .icono { font-size: 56px; color: var(--success); margin-bottom: 18px; }
+    .gracias h2 { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: .5px; margin-bottom: 10px; }
+    .gracias p { font-size: 14px; color: var(--text-sec); line-height: 1.5; max-width: 320px; margin: 0 auto; }
+
+    .footer { text-align: center; margin-top: 18px; font-size: 11px; color: #A8A5A0; font-weight: 500; text-transform: uppercase; letter-spacing: .8px; }
+
+    @keyframes fadeInDown { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    @media (min-width: 500px) {
+      .brand h1 { font-size: 36px; }
+      .brand-logo { width: 80px; height: 80px; }
+      .card { padding: 28px 26px; }
+      .punto { font-size: 17px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="wrap">
+
+      <div class="brand">
+        <img src="https://lh3.googleusercontent.com/d/1l-GRXICSU6fHGe9uGsnGdZ6M0FKgKevJ" alt="Cascadas Hotel" class="brand-logo" onerror="this.style.display='none';document.getElementById('fallback-icon').style.display='inline-flex';">
+        <div id="fallback-icon" class="brand-logo" style="display:none;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;color:#E9E7E5;font-size:34px;">C</div>
+        <h1 id="tituloHotel">Cascadas Hotel</h1>
+        <p>Encuesta de satisfacción</p>
+      </div>
+
+      <div id="formCard" class="card">
+        <div id="msgError" class="msg-error"></div>
+
+        <div class="field">
+          <label>Tu nombre</label>
+          <input type="text" id="f_nombre" placeholder="Nombre completo">
+        </div>
+        <div class="field">
+          <label>Habitación</label>
+          <input type="text" id="f_habitacion" placeholder="Ej: 105 (opcional)">
+          <div class="hint">Opcional, nos ayuda a identificar tu estadía.</div>
+        </div>
+
+        <div class="pregunta">
+          <div class="pregunta-titulo">¿Cómo calificarías tu estadía en general?</div>
+          <div class="pregunta-sub">1 = muy insatisfecho · 10 = totalmente satisfecho</div>
+          <div class="escala" data-campo="general"></div>
+          <div class="escala-labels"><span>Muy malo</span><span>Excelente</span></div>
+        </div>
+
+        <div class="pregunta">
+          <div class="pregunta-titulo">Limpieza de la habitación</div>
+          <div class="escala" data-campo="limpieza"></div>
+        </div>
+
+        <div class="pregunta">
+          <div class="pregunta-titulo">Atención del personal</div>
+          <div class="escala" data-campo="atencion"></div>
+        </div>
+
+        <div class="pregunta">
+          <div class="pregunta-titulo">Instalaciones y servicios</div>
+          <div class="pregunta-sub">Restaurante, spa, piscina, etc.</div>
+          <div class="escala" data-campo="instalaciones"></div>
+        </div>
+
+        <div class="field" style="margin-top:22px;">
+          <label>¿Algo que quieras contarnos? (opcional)</label>
+          <textarea id="f_comentario" placeholder="Cuéntanos qué te gustó o qué podemos mejorar..."></textarea>
+        </div>
+
+        <button type="button" class="btn-enviar" id="btnEnviar" onclick="enviarEncuesta()">
+          <i class="fa-solid fa-paper-plane"></i> <span>Enviar encuesta</span>
+        </button>
+      </div>
+
+      <div id="gracias" class="gracias">
+        <div class="icono"><i class="fa-solid fa-circle-check"></i></div>
+        <h2>¡Gracias por tu tiempo!</h2>
+        <p>Tu opinión nos ayuda a mejorar cada día. Esperamos verte pronto de nuevo en Cascadas Hotel.</p>
+      </div>
+
+      <div class="footer">Cascadas Hotel</div>
+    </div>
+  </div>
+
+  <script>
+    var respuestas = { general: 0, limpieza: 0, atencion: 0, instalaciones: 0 };
+
+    function pintarEscalas() {
+      document.querySelectorAll('.escala').forEach(function (cont) {
+        var campo = cont.getAttribute('data-campo');
+        var html = '';
+        for (var i = 1; i <= 10; i++) {
+          html += '<div class="punto" data-val="' + i + '" onclick="seleccionar(\'' + campo + '\', ' + i + ', this)">' + i + '</div>';
+        }
+        cont.innerHTML = html;
+      });
+    }
+
+    function seleccionar(campo, valor, el) {
+      respuestas[campo] = valor;
+      var cont = el.parentElement;
+      cont.querySelectorAll('.punto').forEach(function (p) { p.classList.remove('activo'); });
+      el.classList.add('activo');
+      ocultarError();
+    }
+
+    function ocultarError() {
+      var m = document.getElementById('msgError');
+      m.classList.remove('show'); m.textContent = '';
+    }
+    function mostrarError(txt) {
+      var m = document.getElementById('msgError');
+      m.textContent = txt; m.classList.add('show');
+      m.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function enviarEncuesta() {
+      var nombre = document.getElementById('f_nombre').value.trim();
+      if (!nombre) { mostrarError('Por favor ingresa tu nombre.'); return; }
+      if (!respuestas.general || !respuestas.limpieza || !respuestas.atencion || !respuestas.instalaciones) {
+        mostrarError('Por favor responde las 4 preguntas de puntuación.');
+        return;
+      }
+
+      var datos = {
+        nombre: nombre,
+        habitacion: document.getElementById('f_habitacion').value.trim(),
+        general: respuestas.general,
+        limpieza: respuestas.limpieza,
+        atencion: respuestas.atencion,
+        instalaciones: respuestas.instalaciones,
+        comentario: document.getElementById('f_comentario').value.trim()
+      };
+
+      var btn = document.getElementById('btnEnviar');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch spin"></i> <span>Enviando...</span>';
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (res && res.success) {
+            document.getElementById('formCard').style.display = 'none';
+            document.getElementById('gracias').classList.add('show');
+          } else {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Enviar encuesta</span>';
+            mostrarError((res && res.mensaje) || 'No se pudo enviar. Intenta de nuevo.');
+          }
+        })
+        .withFailureHandler(function (err) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Enviar encuesta</span>';
+          mostrarError('Error de conexión. Intenta de nuevo.');
+        })
+        .enviarRespuestaEncuesta(datos);
+    }
+
+    function init() {
+      pintarEscalas();
+      google.script.run.withSuccessHandler(function (d) {
+        if (d && d.hotelNombre) document.getElementById('tituloHotel').textContent = d.hotelNombre;
+      }).obtenerDatosPublicos();
+    }
+    init();
+  </script>
+</body>
+</html>
