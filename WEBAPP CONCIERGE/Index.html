@@ -2626,29 +2626,34 @@ function widgetProximasReservas(lista) {
     porFecha[r.Fecha].push(r);
   });
 
+  // Acento ambar calido para todo el widget (la paleta base es gris/grafito,
+  // asi que este dorado hace que "Reservas por venir" resalte sin chocar).
+  var AMBAR = '#B8860B';
+
   var itemsHTML = ordenFechas.map(function (f) {
     var filas = porFecha[f].map(function (r) {
       var col = colorDeServicio(r.ServicioID, r.ServicioNombre);
-      return '<div class="flex items-center justify-between gap-2 py-1">' +
-        '<span class="text-sm min-w-0"><b>' + etiquetaHab(r.Habitacion) + '</b> · ' +
-          '<span style="color:' + col + '">' + escaparHTML(r.ServicioNombre) + '</span> ' +
-          r.HoraInicio + ' · ' + r.Personas + ' pers.' +
-        '</span>' +
-        '<span class="pill ' + claseEstado(r.Estado) + ' text-xs shrink-0">' + r.Estado + '</span>' +
+      // Cada reserva es su propia burbuja con tinte ambar y fuente mas grande.
+      return '<div class="rounded-xl px-3 py-2 mb-1.5" style="background: rgba(184,134,11,0.12); border-left:4px solid ' + AMBAR + ';">' +
+        '<div class="flex items-center justify-between gap-2">' +
+          '<p class="font-bold text-base leading-tight" style="color:var(--grafito)">' + etiquetaHab(r.Habitacion) + ' <span style="opacity:.7">· ' + r.Personas + ' pers.</span></p>' +
+          '<span class="pill ' + claseEstado(r.Estado) + ' shrink-0">' + r.Estado + '</span>' +
+        '</div>' +
+        '<p class="text-sm font-semibold leading-tight mt-0.5" style="color:' + col + '">' + escaparHTML(r.ServicioNombre) + ' · ' + r.HoraInicio + ' hrs</p>' +
       '</div>';
     }).join('');
-    return '<div class="mb-2"><p class="text-xs font-semibold uppercase opacity-60 mb-1">' + nombreDia(f) + '</p>' + filas + '</div>';
+    return '<div class="mb-3"><p class="text-xs font-bold uppercase tracking-wide mb-1.5" style="color:' + AMBAR + '">' + nombreDia(f) + '</p>' + filas + '</div>';
   }).join('');
 
   // Colapsado por defecto (solo se expande si el usuario lo abre a proposito).
   var colapsado = APP.proximasColapsado !== false;
 
-  return '<div class="card p-4 mb-4 proximas-widget" style="border-left:4px solid var(--verde-bosque)">' +
+  return '<div class="card p-4 mb-4 proximas-widget" style="border-left:4px solid ' + AMBAR + '; background: rgba(184,134,11,0.05)">' +
     '<div class="flex items-center justify-between cursor-pointer" onclick="toggleWidgetProximas()">' +
-      '<p class="font-semibold"><i class="fa-solid fa-calendar-days opacity-70"></i> Reservas por venir <span class="pill" style="background:var(--verde-bosque); color:#fff;">' + futuras.length + '</span></p>' +
+      '<p class="font-semibold text-lg"><i class="fa-solid fa-calendar-days" style="color:' + AMBAR + '"></i> Reservas por venir <span class="pill" style="background:' + AMBAR + '; color:#fff;">' + futuras.length + '</span></p>' +
       '<i class="fa-solid fa-chevron-down text-sm opacity-60" id="proximasChevron" style="transform:' + (colapsado ? 'rotate(-90deg)' : '') + '"></i>' +
     '</div>' +
-    '<div id="proximasBody" class="mt-2' + (colapsado ? ' oculto' : '') + '">' + itemsHTML + '</div>' +
+    '<div id="proximasBody" class="mt-3' + (colapsado ? ' oculto' : '') + '">' + itemsHTML + '</div>' +
   '</div>';
 }
 
