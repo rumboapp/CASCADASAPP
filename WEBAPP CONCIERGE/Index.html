@@ -654,7 +654,7 @@
       <div class="nav-item text-white/90" data-staff-nav="Pedidos" onclick="navStaff('Pedidos')">Pedidos</div>
       <div class="nav-item text-white/90" data-staff-nav="Carta" onclick="navStaff('Carta')">Gestion de Carta</div>
       <div class="nav-item text-white/90" data-staff-nav="Historial" onclick="navStaff('Historial')">Historial</div>
-      <div class="nav-item text-white/90" data-staff-nav="Bloqueos" onclick="navStaff('Bloqueos')">Bloqueos</div>
+      <div class="nav-item text-white/90" data-staff-nav="Bloqueos" onclick="navStaff('Bloqueos')">Bloqueos y Eventos</div>
       <div class="nav-item text-white/90" data-staff-nav="Config" onclick="navStaff('Config')">Configuracion</div>
     </nav>
   </header>
@@ -2445,6 +2445,7 @@ function cargarOpsContenido() {
 
     var agotadosHTML = widgetProductosAgotados(APP.productosAgotadosOps);
     var proximasHTML = widgetProximasReservas(APP.reservasProximas);
+    var eventosHTML = renderEventosOps(res.eventos || []);
 
     // Guarda datos de cada reserva para el editor (sin otra llamada).
     APP.reservasCache = APP.reservasCache || {};
@@ -2480,7 +2481,7 @@ function cargarOpsContenido() {
           b.items.map(function (it) {
             APP.reservasCache[it.reservaID] = {
               servicioID: it.servicioID, fecha: fecha, horaInicio: it.horaInicio,
-              personas: it.personas, notas: it.notas
+              personas: it.personas, notas: it.notas, notasInternas: it.notasInternas
             };
             var esComida = servicioPermitePedido(it.servicioID);
             var pedido = pedidoPorReserva[it.reservaID];
@@ -2528,11 +2529,14 @@ function cargarOpsContenido() {
                 '<div class="shrink-0 flex items-center justify-center rounded-full" style="width:44px;height:44px;font-size:1.15rem;background:' + col + ';color:#fff;box-shadow:inset 0 -2px 4px rgba(0,0,0,.3)"><i class="fa-solid ' + icono + '"></i></div>' +
                 '<div class="flex-1 min-w-0">' +
                   '<div class="flex items-start justify-between gap-2">' +
-                    '<p class="font-bold text-xl leading-tight" style="color:var(--grafito)">' + etiquetaHab(it.habitacion) + '</p>' +
+                    // Habitacion + personas juntos y del mismo tamano (info clave).
+                    '<p class="font-bold text-xl leading-tight" style="color:var(--grafito)">' + etiquetaHab(it.habitacion) + ' <span style="opacity:.75">· ' + it.personas + ' pers.</span></p>' +
                     '<span class="pill ' + claseEstado(it.estado) + '">' + it.estado + '</span>' +
                   '</div>' +
                   '<p class="font-semibold text-base leading-tight" style="color:' + col + '">' + escaparHTML(it.servicioNombre) + (it.variante ? ' · ' + escaparHTML(it.variante) : '') + '</p>' +
-                  '<p class="text-xs opacity-70 mt-0.5">' + it.personas + ' pers.' + (it.notas ? ' · ' + escaparHTML(it.notas) : '') + '</p>' +
+                  (it.notas ? '<p class="text-xs opacity-70 mt-0.5">' + escaparHTML(it.notas) + '</p>' : '') +
+                  // Nota interna: solo la ve el personal en Operaciones, resaltada.
+                  (it.notasInternas ? '<p class="text-xs mt-1 px-2 py-1 rounded" style="background:#8B6B1E1A; color:#8B6B1E"><i class="fa-solid fa-lock"></i> ' + escaparHTML(it.notasInternas) + '</p>' : '') +
                 '</div>' +
               '</div>' + pedidoHTML +
               (acciones ? '<div class="flex flex-wrap gap-1 justify-end mt-2">' + acciones + '</div>' : '') +
@@ -2542,7 +2546,7 @@ function cargarOpsContenido() {
     }).join('') : '<div class="card p-8 text-center opacity-60 text-sm"><i class="fa-regular fa-calendar text-2xl block mb-2 opacity-50"></i>Sin actividad registrada para ' + (esHoy ? 'hoy' : 'este dia') + '.</div>';
 
     // Solo el contenido se reemplaza; la barra de fechas queda intacta.
-    zona.innerHTML = alertasHTML + agotadosHTML + proximasHTML + resumenHTML + timelineHTML;
+    zona.innerHTML = alertasHTML + agotadosHTML + proximasHTML + eventosHTML + resumenHTML + timelineHTML;
   }).catch(function () {
     zona.innerHTML = htmlError('No pudimos cargar el centro de operaciones.', 'renderOperaciones()');
   });
@@ -2657,6 +2661,53 @@ function toggleWidgetProximas() {
   if (chev) chev.style.transform = APP.proximasColapsado ? 'rotate(-90deg)' : '';
 }
 
+/* Icono + color por tipo de bloqueo/evento. */
+function iconoTipoBloqueo(tipo) {
+  switch (String(tipo || '')) {
+    case 'Evento privado': return { icono: 'fa-star', color: '#7E4EA3' };
+    case 'Mantencion': return { icono: 'fa-screwdriver-wrench', color: '#556070' };
+    case 'Cierre': return { icono: 'fa-door-closed', color: '#8B3A3A' };
+    default: return { icono: 'fa-lock', color: '#8B3A3A' };
+  }
+}
+
+/* Burbujas de eventos/bloqueos del dia en el Centro de Operaciones. Se ven
+   igual que cualquier reserva, con acciones de editar/eliminar para recepcion
+   y admin. Al pasar el dia, dejan de aparecer (se piden por la fecha de ops). */
+function renderEventosOps(eventos) {
+  if (!eventos || !eventos.length) return '';
+  APP.bloqueosCache = APP.bloqueosCache || {};
+  var puedeGestionar = ['RECEPCION', 'ADMINISTRADOR'].indexOf(APP.usuarioStaff.Rol) !== -1;
+  var servNombre = {}; (APP.servicios || []).forEach(function (s) { servNombre[s.ID] = s.Nombre; });
+
+  var burbujas = eventos.map(function (ev) {
+    APP.bloqueosCache[ev.ID] = ev;
+    var meta = iconoTipoBloqueo(ev.Tipo);
+    var col = meta.color;
+    var servTxt = ev.ServicioID ? (servNombre[ev.ServicioID] || ev.ServicioID) : 'Todos los servicios';
+    var horarioTxt = (ev.HoraInicio || ev.HoraFin) ? ((ev.HoraInicio || '—') + ' - ' + (ev.HoraFin || '—')) : 'Todo el dia';
+    var rangoTxt = (ev.FechaInicio !== ev.FechaFin) ? (' · ' + ev.FechaInicio + ' → ' + ev.FechaFin) : '';
+    var acciones = puedeGestionar
+      ? '<div class="flex gap-1 justify-end mt-2">' +
+          '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="abrirEditorBloqueo(\'' + ev.ID + '\')" title="Editar"><i class="fa-solid fa-pen"></i></button>' +
+          '<button class="btn btn-peligro !py-1 !px-2 text-xs" onclick="eliminarBloqueoStaff(\'' + ev.ID + '\')" title="Eliminar"><i class="fa-solid fa-trash"></i></button>' +
+        '</div>'
+      : '';
+    return '<div class="card p-3 mb-2" style="border-left:6px solid ' + col + '; background:' + col + '1F;">' +
+      '<div class="flex items-start gap-3">' +
+        '<div class="shrink-0 flex items-center justify-center rounded-full" style="width:44px;height:44px;font-size:1.15rem;background:' + col + ';color:#fff"><i class="fa-solid ' + meta.icono + '"></i></div>' +
+        '<div class="flex-1 min-w-0">' +
+          '<p class="font-bold text-xl leading-tight" style="color:var(--grafito)">' + escaparHTML(ev.Tipo || 'Bloqueo') + '</p>' +
+          '<p class="font-semibold text-sm leading-tight" style="color:' + col + '">' + escaparHTML(servTxt) + rangoTxt + '</p>' +
+          '<p class="text-xs opacity-70 mt-0.5"><i class="fa-regular fa-clock"></i> ' + horarioTxt + (ev.Motivo ? ' · ' + escaparHTML(ev.Motivo) : '') + '</p>' +
+        '</div>' +
+      '</div>' + acciones +
+    '</div>';
+  }).join('');
+
+  return '<div class="mb-4"><p class="text-xs font-semibold uppercase opacity-50 mb-2"><i class="fa-solid fa-calendar-check"></i> Eventos y bloqueos de hoy</p>' + burbujas + '</div>';
+}
+
 function reponerDesdeOps(productoID) {
   llamarAPI('toggleDisponibleProducto', [productoID, true, APP.usuarioStaff.Email], { loader: false }).then(function (res) {
     mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
@@ -2676,12 +2727,14 @@ function construirMensajeWhatsappOps(it, pedido, fecha) {
   var fechaTxt = String(fecha || '').split('-').reverse().join('-'); // YYYY-MM-DD -> DD-MM-YYYY
   if (fecha === hoyISO()) fechaTxt += ' (HOY)';
   var L = [];
-  L.push('*RESERVA ' + String(it.estado || '').toUpperCase() + '*');
+  L.push('*RESERVA*');
   L.push('🏨 ' + habTxt);
   L.push('🛎️ ' + it.servicioNombre + (it.variante ? ' · ' + it.variante : '') + ' · ' + it.horaInicio + ' hrs');
   L.push('👥 ' + it.personas + (Number(it.personas) === 1 ? ' persona' : ' personas'));
   L.push('📅 ' + fechaTxt);
   if (it.notas) L.push('📝 ' + it.notas);
+  // El grupo de WhatsApp es del personal, asi que la nota interna tambien va.
+  if (it.notasInternas) L.push('🔒 ' + it.notasInternas);
 
   // El grupo de WhatsApp no maneja valores: se copia el detalle del pedido
   // (platos, punto de coccion/observaciones) pero SIN precios ni total.
@@ -2785,8 +2838,10 @@ function abrirEditarReserva(reservaID, origen) {
         '<select id="edHora" class="input flex-1"><option value="' + r.horaInicio + '">' + r.horaInicio + ' (actual)</option></select>' +
         '<button class="btn btn-outline !py-2 !px-3" onclick="buscarHorariosEdicion()" title="Ver horarios disponibles"><i class="fa-solid fa-clock"></i></button>' +
       '</div>' +
-      '<label class="lbl">Notas</label>' +
-      '<textarea id="edNotas" class="input" rows="2">' + escaparHTML(r.notas || '') + '</textarea>',
+      '<label class="lbl">Notas <span class="opacity-50 normal-case">(las ve el huesped)</span></label>' +
+      '<textarea id="edNotas" class="input" rows="2">' + escaparHTML(r.notas || '') + '</textarea>' +
+      '<label class="lbl mt-3"><i class="fa-solid fa-lock text-xs"></i> Nota interna <span class="opacity-50 normal-case">(solo personal)</span></label>' +
+      '<textarea id="edNotasInternas" class="input" rows="2" placeholder="Ej: cargar cenas a la habitacion">' + escaparHTML(r.notasInternas || '') + '</textarea>',
     botones: [
       { texto: 'Cancelar', clase: 'btn-outline', accion: cerrarModal },
       { texto: 'Guardar cambios', clase: 'btn-primary', accion: guardarEdicionReserva }
@@ -2820,7 +2875,8 @@ function guardarEdicionReserva() {
     fecha: document.getElementById('edFecha').value,
     horaInicio: document.getElementById('edHora').value,
     personas: document.getElementById('edPersonas').value,
-    notas: document.getElementById('edNotas').value
+    notas: document.getElementById('edNotas').value,
+    notasInternas: document.getElementById('edNotasInternas').value
   };
   llamarAPI('modificarReserva', [APP.edicionReservaID, datos]).then(function (res) {
     mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
@@ -2856,9 +2912,11 @@ function abrirNuevaReservaStaff() {
         '<div id="nrVarianteBox" class="mb-3 oculto"><label class="lbl">Opcion</label><select id="nrVariante" class="input"></select></div>' +
         '<button class="btn btn-outline w-full mb-2" onclick="buscarHorariosNuevaReserva()"><i class="fa-solid fa-clock"></i> Ver horarios disponibles</button>' +
         '<div id="nrHorarios" class="grid grid-cols-3 gap-2 mb-3"></div>' +
-        '<label class="lbl">Notas</label>' +
+        '<label class="lbl">Notas <span class="opacity-50 normal-case">(las ve el huesped)</span></label>' +
         '<textarea id="nrNotas" class="input" rows="2" placeholder="Preferencias, ocasion especial, etc."></textarea>' +
-        '<p class="text-xs opacity-50 mt-2">La reserva quedara Confirmada de inmediato (salvo servicios que requieren aprobacion). Recepcion no tiene limite de dias.</p>',
+        '<label class="lbl mt-3"><i class="fa-solid fa-lock text-xs"></i> Nota interna <span class="opacity-50 normal-case">(solo personal, no la ve el huesped)</span></label>' +
+        '<textarea id="nrNotasInternas" class="input" rows="2" placeholder="Ej: cargar cenas a la habitacion"></textarea>' +
+        '<p class="text-xs opacity-50 mt-2">La reserva quedara Confirmada de inmediato. Recepcion no tiene limite de dias.</p>',
       botones: [
         { texto: 'Cancelar', clase: 'btn-outline', accion: cerrarModal },
         { texto: 'Crear reserva', clase: 'btn-primary', accion: crearReservaDesdeStaff }
@@ -2974,6 +3032,7 @@ function crearReservaDesdeStaff() {
     horaInicio: hora,
     personas: document.getElementById('nrPersonas').value,
     notas: document.getElementById('nrNotas').value,
+    notasInternas: document.getElementById('nrNotasInternas').value,
     solicitadoPor: 'Recepcion (' + (APP.usuarioStaff.Nombre || APP.usuarioStaff.Email) + ')',
     emailStaff: APP.usuarioStaff.Email
   };
@@ -3010,7 +3069,8 @@ function aplicarFiltrosReservas() {
     fechaDesde: document.getElementById('filtroDesde').value || '',
     fechaHasta: document.getElementById('filtroHasta').value || '',
     habitacion: document.getElementById('filtroHab').value || '',
-    servicioID: document.getElementById('filtroServicio').value || ''
+    servicioID: document.getElementById('filtroServicio').value || '',
+    incluirInternas: true // panel de staff: recibe las notas internas
   };
   var tabla = document.getElementById('tablaReservas');
   tabla.innerHTML = '<div class="flex justify-center py-6"><div class="spinner"></div></div>';
@@ -3029,7 +3089,7 @@ function filaReservaStaff(r) {
   APP.reservasCache = APP.reservasCache || {};
   APP.reservasCache[r.ID] = {
     servicioID: r.ServicioID, fecha: r.Fecha, horaInicio: r.HoraInicio,
-    personas: r.Personas, notas: r.Notas
+    personas: r.Personas, notas: r.Notas, notasInternas: r.NotasInternas
   };
   var acciones = '';
   if (['Solicitada', 'Pendiente aprobacion'].indexOf(r.Estado) !== -1) {
@@ -3423,32 +3483,86 @@ function buscarHistorial() {
   });
 }
 
-/* ---------- Bloqueos ---------- */
+/* ---------- Bloqueos y Eventos ---------- */
 function renderBloqueos() {
   var cont = document.getElementById('staffBloqueos');
-  var serviciosOpts = '<option value="">Todos los servicios</option>' + APP.servicios.map(function (s) {
-    return '<option value="' + s.ID + '">' + escaparHTML(s.Nombre) + '</option>';
-  }).join('');
   cont.innerHTML =
-    '<h2 class="text-2xl mb-4" style="color:var(--verde-bosque)">Bloqueos y Eventos</h2>' +
-    '<div class="card p-4 mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">' +
-      '<div><label class="lbl">Tipo</label><select id="blqTipo" class="input"><option>Mantencion</option><option>Evento privado</option><option>Cierre</option><option>Bloqueo</option></select></div>' +
-      '<div><label class="lbl">Servicio</label><select id="blqServicio" class="input">' + serviciosOpts + '</select></div>' +
-      '<div><label class="lbl">Motivo</label><input id="blqMotivo" class="input" placeholder="Motivo"></div>' +
-      '<div><label class="lbl">Fecha inicio</label><input id="blqFechaIni" class="input"></div>' +
-      '<div><label class="lbl">Fecha fin</label><input id="blqFechaFin" class="input"></div>' +
-      '<div class="grid grid-cols-2 gap-2"><div><label class="lbl">Hora inicio</label><input id="blqHoraIni" class="input" placeholder="HH:MM"></div>' +
-        '<div><label class="lbl">Hora fin</label><input id="blqHoraFin" class="input" placeholder="HH:MM"></div></div>' +
+    '<div class="flex items-center justify-between flex-wrap gap-3 mb-4">' +
+      '<h2 class="text-2xl" style="color:var(--verde-bosque)">Bloqueos y Eventos</h2>' +
+      '<button class="btn btn-primary" onclick="abrirEditorBloqueo(null)"><i class="fa-solid fa-plus"></i> Crear bloqueo o evento</button>' +
     '</div>' +
-    '<div class="mb-4"><button class="btn btn-primary" onclick="crearBloqueoStaff()"><i class="fa-solid fa-lock"></i> Crear bloqueo</button></div>' +
     '<div class="card p-4 overflow-x-auto"><div id="tablaBloqueos"></div></div>';
-  flatpickr('#blqFechaIni', { locale: 'es', dateFormat: 'Y-m-d', minDate: 'today' });
-  flatpickr('#blqFechaFin', { locale: 'es', dateFormat: 'Y-m-d', minDate: 'today' });
   cargarTablaBloqueos();
 }
 
-function crearBloqueoStaff() {
+function cargarTablaBloqueos() {
+  var tabla = document.getElementById('tablaBloqueos');
+  var hoy = hoyISO();
+  var enUnAno = (new Date().getFullYear() + 1) + '-12-31';
+  llamarAPI('obtenerBloqueos', [hoy, enUnAno, ''], { loader: false }).then(function (bloqueos) {
+    if (!bloqueos.length) { tabla.innerHTML = '<p class="text-sm opacity-60 py-4 text-center">Sin bloqueos ni eventos vigentes.</p>'; return; }
+    APP.bloqueosCache = APP.bloqueosCache || {};
+    var servNombre = {}; APP.servicios.forEach(function (s) { servNombre[s.ID] = s.Nombre; });
+    tabla.innerHTML = '<table class="tabla"><thead><tr><th>Tipo</th><th>Servicio</th><th>Desde</th><th>Hasta</th><th>Horario</th><th>Motivo</th><th>Acciones</th></tr></thead><tbody>' +
+      bloqueos.map(function (b) {
+        APP.bloqueosCache[b.ID] = b;
+        var horario = (b.HoraInicio || b.HoraFin) ? ((b.HoraInicio || '—') + ' - ' + (b.HoraFin || '—')) : 'Todo el dia';
+        return '<tr><td>' + escaparHTML(b.Tipo) + '</td><td>' + escaparHTML(servNombre[b.ServicioID] || 'Todos') + '</td>' +
+          '<td>' + b.FechaInicio + '</td><td>' + b.FechaFin + '</td>' +
+          '<td>' + horario + '</td>' +
+          '<td class="text-xs">' + escaparHTML(b.Motivo) + '</td>' +
+          '<td class="whitespace-nowrap">' +
+            '<button class="btn btn-outline !py-1 !px-2 text-xs mr-1" onclick="abrirEditorBloqueo(\'' + b.ID + '\')" title="Editar"><i class="fa-solid fa-pen"></i></button>' +
+            '<button class="btn btn-peligro !py-1 !px-2 text-xs" onclick="eliminarBloqueoStaff(\'' + b.ID + '\')" title="Eliminar"><i class="fa-solid fa-trash"></i></button>' +
+          '</td></tr>';
+      }).join('') + '</tbody></table>';
+  }).catch(function () {
+    tabla.innerHTML = htmlError('No pudimos cargar los bloqueos.', 'cargarTablaBloqueos()');
+  });
+}
+
+/* Editor de bloqueo/evento (modal). Si se pasa un id, edita ese bloqueo (los
+   datos salen de APP.bloqueosCache, que llenan tanto la tabla como las burbujas
+   del Centro de Operaciones); si no, crea uno nuevo. */
+function abrirEditorBloqueo(id) {
+  var b = id ? (APP.bloqueosCache || {})[id] : null;
+  APP.edicionBloqueoID = id || null;
+  var tipos = ['Mantencion', 'Evento privado', 'Cierre', 'Bloqueo'];
+  var tipoActual = b ? b.Tipo : 'Bloqueo';
+  var tipoOpts = tipos.map(function (t) {
+    return '<option value="' + t + '"' + (t === tipoActual ? ' selected' : '') + '>' + t + '</option>';
+  }).join('');
+  var serviciosOpts = '<option value="">Todos los servicios</option>' + APP.servicios.map(function (s) {
+    var sel = (b && b.ServicioID === s.ID) ? ' selected' : '';
+    return '<option value="' + s.ID + '"' + sel + '>' + escaparHTML(s.Nombre) + '</option>';
+  }).join('');
+
+  mostrarModal({
+    titulo: id ? 'Editar bloqueo o evento' : 'Nuevo bloqueo o evento',
+    contenidoHTML:
+      '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">' +
+        '<div><label class="lbl">Tipo</label><select id="blqTipo" class="input">' + tipoOpts + '</select></div>' +
+        '<div><label class="lbl">Servicio afectado</label><select id="blqServicio" class="input">' + serviciosOpts + '</select></div>' +
+        '<div><label class="lbl">Fecha inicio</label><input id="blqFechaIni" class="input" value="' + (b ? b.FechaInicio : '') + '"></div>' +
+        '<div><label class="lbl">Fecha fin</label><input id="blqFechaFin" class="input" value="' + (b ? b.FechaFin : '') + '"></div>' +
+        '<div><label class="lbl">Hora inicio <span class="opacity-50 normal-case">(opcional)</span></label><input id="blqHoraIni" class="input" placeholder="HH:MM" value="' + (b && b.HoraInicio ? b.HoraInicio : '') + '"></div>' +
+        '<div><label class="lbl">Hora fin <span class="opacity-50 normal-case">(opcional)</span></label><input id="blqHoraFin" class="input" placeholder="HH:MM" value="' + (b && b.HoraFin ? b.HoraFin : '') + '"></div>' +
+      '</div>' +
+      '<label class="lbl">Motivo</label>' +
+      '<input id="blqMotivo" class="input" placeholder="Ej: Evento privado familia Perez" value="' + (b ? escaparHTML(b.Motivo || '') : '') + '">' +
+      '<p class="text-xs opacity-50 mt-2">Deja las horas vacias para un bloqueo/evento de todo el dia.</p>',
+    botones: [
+      { texto: 'Cancelar', clase: 'btn-outline', accion: cerrarModal },
+      { texto: id ? 'Guardar cambios' : 'Crear', clase: 'btn-primary', accion: guardarBloqueoDesdeEditor }
+    ]
+  });
+  flatpickr('#blqFechaIni', { locale: 'es', dateFormat: 'Y-m-d', minDate: 'today', defaultDate: b ? b.FechaInicio : null });
+  flatpickr('#blqFechaFin', { locale: 'es', dateFormat: 'Y-m-d', minDate: 'today', defaultDate: b ? b.FechaFin : null });
+}
+
+function guardarBloqueoDesdeEditor() {
   var datos = {
+    id: APP.edicionBloqueoID || undefined,
     tipo: document.getElementById('blqTipo').value,
     servicioID: document.getElementById('blqServicio').value,
     motivo: document.getElementById('blqMotivo').value,
@@ -3459,28 +3573,35 @@ function crearBloqueoStaff() {
     email: APP.usuarioStaff.Email
   };
   if (!datos.fechaInicio) { mostrarToast('Selecciona la fecha de inicio.', 'error'); return; }
-  llamarAPI('crearBloqueo', [datos]).then(function (res) {
+  var fn = datos.id ? 'editarBloqueo' : 'crearBloqueo';
+  llamarAPI(fn, [datos]).then(function (res) {
     mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
-    if (res.success) cargarTablaBloqueos();
+    if (res.success) {
+      cerrarModal();
+      // Refresca donde corresponda: la tabla de Bloqueos y/o el Centro de Operaciones.
+      if (APP.staffVistaActual === 'Bloqueos') cargarTablaBloqueos();
+      if (APP.staffVistaActual === 'Operaciones') cargarOpsContenido();
+    }
   });
 }
 
-function cargarTablaBloqueos() {
-  var tabla = document.getElementById('tablaBloqueos');
-  var hoy = hoyISO();
-  var enUnAno = (new Date().getFullYear() + 1) + '-12-31';
-  llamarAPI('obtenerBloqueos', [hoy, enUnAno, ''], { loader: false }).then(function (bloqueos) {
-    if (!bloqueos.length) { tabla.innerHTML = '<p class="text-sm opacity-60 py-4 text-center">Sin bloqueos vigentes.</p>'; return; }
-    var servNombre = {}; APP.servicios.forEach(function (s) { servNombre[s.ID] = s.Nombre; });
-    tabla.innerHTML = '<table class="tabla"><thead><tr><th>Tipo</th><th>Servicio</th><th>Desde</th><th>Hasta</th><th>Horario</th><th>Motivo</th></tr></thead><tbody>' +
-      bloqueos.map(function (b) {
-        return '<tr><td>' + escaparHTML(b.Tipo) + '</td><td>' + escaparHTML(servNombre[b.ServicioID] || 'Todos') + '</td>' +
-          '<td>' + b.FechaInicio + '</td><td>' + b.FechaFin + '</td>' +
-          '<td>' + (b.HoraInicio || '—') + ' - ' + (b.HoraFin || '—') + '</td>' +
-          '<td class="text-xs">' + escaparHTML(b.Motivo) + '</td></tr>';
-      }).join('') + '</tbody></table>';
-  }).catch(function () {
-    tabla.innerHTML = htmlError('No pudimos cargar los bloqueos.', 'cargarTablaBloqueos()');
+function eliminarBloqueoStaff(id) {
+  mostrarModal({
+    titulo: 'Eliminar',
+    contenidoHTML: '<p class="text-sm">¿Seguro que quieres eliminar este bloqueo/evento?</p>',
+    botones: [
+      { texto: 'Cancelar', clase: 'btn-outline', accion: cerrarModal },
+      { texto: 'Eliminar', clase: 'btn-peligro', accion: function () {
+        llamarAPI('eliminarBloqueo', [id, APP.usuarioStaff.Email]).then(function (res) {
+          mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+          if (res.success) {
+            cerrarModal();
+            if (APP.staffVistaActual === 'Bloqueos') cargarTablaBloqueos();
+            if (APP.staffVistaActual === 'Operaciones') cargarOpsContenido();
+          }
+        });
+      } }
+    ]
   });
 }
 

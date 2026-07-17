@@ -417,6 +417,15 @@ function _asegurarColumnaPasswordUsuarios() {
 }
 
 /**
+ * Auto-reparacion: asegura que la hoja Reservas tenga la columna NotasInternas
+ * (notas que SOLO ve el personal en el Centro de Operaciones; el huesped nunca
+ * las ve). Vacia por defecto, no cambia el comportamiento de reservas viejas.
+ */
+function _asegurarColumnaNotasInternas() {
+  _asegurarColumna(_hoja(HOJAS.RESERVAS), 'NotasInternas', '');
+}
+
+/**
  * Escribe un valor en una columna por nombre, solo si la columna existe.
  * Evita romper hojas que aun no tengan la columna bilingue.
  */
@@ -1322,12 +1331,14 @@ function crearReserva(datos) {
     var estado = _estadoInicialSegunServicio(servicio);
 
     // Si la crea personal validado (recepcion en persona), queda confirmada
-    // de inmediato, salvo servicios que requieren aprobacion.
-    if (esStaff && !servicio.RequiereAprobacion) {
+    // de inmediato, sin importar el servicio (incluso los que requieren
+    // aprobacion): recepcion la esta creando presencialmente, ya esta OK.
+    if (esStaff) {
       estado = ESTADOS.CONFIRMADA;
     }
 
     // Inserta la fila.
+    _asegurarColumnaNotasInternas();
     var id = generarID();
     var horaFin = _minutosAHora(finMin);
     var hojaReservas = _hoja(HOJAS.RESERVAS);
@@ -1336,10 +1347,16 @@ function crearReserva(datos) {
       datos.horaInicio, horaFin, personas, estado,
       datos.solicitadoPor || 'Huesped', datos.notas || '', '', '', 'FALSE'
     ]);
+    var filaNueva = hojaReservas.getLastRow();
     // Guarda la variante elegida (columna agregada por migracion, al final).
     if (variante) {
       var colVariante = _indiceColumna(hojaReservas, 'Variante');
-      if (colVariante !== -1) hojaReservas.getRange(hojaReservas.getLastRow(), colVariante + 1).setValue(variante);
+      if (colVariante !== -1) hojaReservas.getRange(filaNueva, colVariante + 1).setValue(variante);
+    }
+    // Nota interna (solo personal): la escribe recepcion, el huesped no la ve.
+    if (datos.notasInternas) {
+      var colNI = _indiceColumna(hojaReservas, 'NotasInternas');
+      if (colNI !== -1) hojaReservas.getRange(filaNueva, colNI + 1).setValue(datos.notasInternas);
     }
 
     var nombreCompleto = servicio.Nombre + (variante ? ' (' + variante + ')' : '');
@@ -1429,6 +1446,11 @@ function modificarReserva(id, datos) {
     hoja.getRange(fila, _indiceColumna(hoja, 'Personas') + 1).setValue(personas);
     if (datos.notas !== undefined) {
       hoja.getRange(fila, _indiceColumna(hoja, 'Notas') + 1).setValue(datos.notas);
+    }
+    if (datos.notasInternas !== undefined) {
+      _asegurarColumnaNotasInternas();
+      var colNI = _indiceColumna(hoja, 'NotasInternas');
+      if (colNI !== -1) hoja.getRange(fila, colNI + 1).setValue(datos.notasInternas);
     }
 
     registrarLog('Modificar reserva', id, reserva.Habitacion);
@@ -1545,6 +1567,7 @@ function cambiarEstadoReserva(id, nuevoEstado) {
  */
 function obtenerReservas(filtros) {
   filtros = filtros || {};
+  if (filtros.incluirInternas) _asegurarColumnaNotasInternas();
   _finalizarReservasVencidas(); // limpieza automatica de reservas pasadas
   return _construirReservas(filtros, _leerHojaComoObjetos(HOJAS.RESERVAS));
 }
@@ -1581,7 +1604,7 @@ function _construirReservas(filtros, todasReservas) {
     }
     return true;
   }).map(function (r) {
-    return {
+    var obj = {
       ID: r.ID,
       Timestamp: _fechaHoraTexto(r.Timestamp),
       Habitacion: String(r.Habitacion),
@@ -1599,6 +1622,11 @@ function _construirReservas(filtros, todasReservas) {
       MotivoCancelacion: r.MotivoCancelacion,
       EsEvento: _aBooleano(r.EsEvento)
     };
+    // Las notas internas SOLO se incluyen cuando lo pide el panel de staff
+    // (filtros.incluirInternas). Las llamadas del huesped nunca lo piden, asi
+    // que nunca las recibe.
+    if (filtros.incluirInternas) obj.NotasInternas = r.NotasInternas ? String(r.NotasInternas) : '';
+    return obj;
   }).sort(function (a, b) {
     return (a.Fecha + a.HoraInicio) < (b.Fecha + b.HoraInicio) ? -1 : 1;
   });
@@ -1993,6 +2021,7 @@ function obtenerCentroOperaciones(fecha, reservasPre) {
       estado: r.Estado,
       horaInicio: hora,
       notas: r.Notas ? String(r.Notas) : '',
+      notasInternas: r.NotasInternas ? String(r.NotasInternas) : '',
       variante: r.Variante ? String(r.Variante) : '',
       tienePedido: !!r.PrepedidoID
     });
@@ -2038,6 +2067,7 @@ function obtenerCentroOperaciones(fecha, reservasPre) {
  */
 function obtenerDatosOperaciones(fecha) {
   fecha = _fechaISO(fecha || new Date());
+  _asegurarColumnaNotasInternas(); // la columna debe existir antes de leer
   _finalizarReservasVencidas(); // una sola vez para todo el endpoint
   var todasReservas = _leerHojaComoObjetos(HOJAS.RESERVAS);
 
@@ -2045,7 +2075,9 @@ function obtenerDatosOperaciones(fecha) {
   return {
     centro: obtenerCentroOperaciones(fecha, todasReservas),
     agotados: obtenerProductosAgotados(),
-    reservasProximas: _construirReservas({ estados: estadosProximas }, todasReservas)
+    reservasProximas: _construirReservas({ estados: estadosProximas }, todasReservas),
+    // Bloqueos/eventos que caen en este dia, para mostrarlos como burbujas.
+    eventos: obtenerBloqueos(fecha, fecha, '')
   };
 }
 
@@ -2264,6 +2296,50 @@ function crearBloqueo(datos) {
   ]);
   registrarLog('Crear bloqueo', datos.tipo + ' ' + (datos.servicioID || 'TODOS'), '');
   return { success: true, id: id, mensaje: 'Bloqueo creado.' };
+}
+
+/**
+ * Edita un bloqueo/evento existente. Solo RECEPCION o ADMINISTRADOR.
+ * @param {Object} datos {id, tipo, servicioID, fechaInicio, fechaFin, horaInicio, horaFin, motivo, email}
+ */
+function editarBloqueo(datos) {
+  if (!_validarRolPermitido(datos.email, ['RECEPCION', 'ADMINISTRADOR'])) {
+    return { success: false, mensaje: 'No tienes permisos para editar bloqueos.' };
+  }
+  if (!datos.id) return { success: false, mensaje: 'Falta el bloqueo a editar.' };
+  if (!datos.fechaInicio) return { success: false, mensaje: 'Falta la fecha de inicio.' };
+
+  var hoja = _hoja(HOJAS.EVENTOS_BLOQUEOS);
+  var filas = _leerHojaComoObjetos(HOJAS.EVENTOS_BLOQUEOS);
+  var fila = filas.filter(function (b) { return b.ID === datos.id; })[0];
+  if (!fila) return { success: false, mensaje: 'Bloqueo no encontrado.' };
+
+  var set = function (col, val) {
+    var i = _indiceColumna(hoja, col);
+    if (i !== -1) hoja.getRange(fila._fila, i + 1).setValue(val);
+  };
+  set('Tipo', datos.tipo || 'Bloqueo');
+  set('ServicioID', datos.servicioID || '');
+  set('FechaInicio', _fechaISO(datos.fechaInicio));
+  set('FechaFin', _fechaISO(datos.fechaFin || datos.fechaInicio));
+  set('HoraInicio', datos.horaInicio || '');
+  set('HoraFin', datos.horaFin || '');
+  set('Motivo', datos.motivo || '');
+  registrarLog('Editar bloqueo', datos.tipo + ' ' + (datos.servicioID || 'TODOS'), '');
+  return { success: true, mensaje: 'Bloqueo actualizado.' };
+}
+
+/** Elimina un bloqueo/evento. Solo RECEPCION o ADMINISTRADOR. */
+function eliminarBloqueo(id, email) {
+  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR'])) {
+    return { success: false, mensaje: 'No tienes permisos para eliminar bloqueos.' };
+  }
+  var hoja = _hoja(HOJAS.EVENTOS_BLOQUEOS);
+  var fila = _leerHojaComoObjetos(HOJAS.EVENTOS_BLOQUEOS).filter(function (b) { return b.ID === id; })[0];
+  if (!fila) return { success: false, mensaje: 'Bloqueo no encontrado.' };
+  hoja.deleteRow(fila._fila);
+  registrarLog('Eliminar bloqueo', id, '');
+  return { success: true, mensaje: 'Bloqueo eliminado.' };
 }
 
 // ===========================================================================
