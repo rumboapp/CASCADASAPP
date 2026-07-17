@@ -408,6 +408,15 @@ function _asegurarColumnaPuntoCoccion() {
 }
 
 /**
+ * Auto-reparacion: asegura que la hoja Usuarios tenga la columna Password
+ * (vacia por defecto = sin contrasena, mantiene el comportamiento actual).
+ * Se llama antes de leer/escribir Usuarios relacionado con el login.
+ */
+function _asegurarColumnaPasswordUsuarios() {
+  _asegurarColumna(_hoja(HOJAS.USUARIOS), 'Password', '');
+}
+
+/**
  * Escribe un valor en una columna por nombre, solo si la columna existe.
  * Evita romper hojas que aun no tengan la columna bilingue.
  */
@@ -2777,15 +2786,47 @@ function obtenerUsuarioPorEmail(email) {
 }
 
 /**
- * Login de staff: valida email contra la hoja Usuarios.
+ * Login de staff: valida email contra la hoja Usuarios. Si el usuario tiene
+ * una contrasena definida en la columna Password, tambien se exige y valida;
+ * si esa columna esta vacia para ese usuario, no se pide contrasena (igual
+ * que el comportamiento anterior).
  * @param {string} email
+ * @param {string} password
  * @return {Object} {success, usuario, mensaje}
  */
-function autenticarStaff(email) {
+function autenticarStaff(email, password) {
+  _asegurarColumnaPasswordUsuarios();
   var usuario = obtenerUsuarioPorEmail(email);
   if (!usuario) return { success: false, mensaje: 'Usuario no encontrado o inactivo.' };
+
+  var usuarios = _leerHojaComoObjetos(HOJAS.USUARIOS);
+  var fila = usuarios.filter(function (u) { return String(u.Email).toLowerCase() === String(email).toLowerCase(); })[0];
+  var passwordGuardada = fila ? String(fila.Password || '') : '';
+  if (passwordGuardada && passwordGuardada !== String(password || '')) {
+    return { success: false, mensaje: 'Contrasena incorrecta.' };
+  }
+
   registrarLog('Login staff', usuario.Rol, '');
   return { success: true, usuario: usuario, mensaje: 'Bienvenido ' + usuario.Nombre };
+}
+
+/**
+ * Lista publica (sin login previo) de los usuarios de staff activos, para
+ * pintar los botones de acceso rapido. NUNCA devuelve la contrasena, solo si
+ * el usuario tiene una definida (para saber si hay que pedirla o no).
+ * @return {Array} [{email, nombre, rol, requierePassword}]
+ */
+function obtenerUsuariosStaffLogin() {
+  _asegurarColumnaPasswordUsuarios();
+  var usuarios = _leerHojaComoObjetos(HOJAS.USUARIOS);
+  return usuarios
+    .filter(function (u) { return _aBooleano(u.Activo); })
+    .map(function (u) {
+      return {
+        email: u.Email, nombre: u.Nombre, rol: u.Rol,
+        requierePassword: !!String(u.Password || '').trim()
+      };
+    });
 }
 
 /** Valida que el email pertenezca a alguno de los roles indicados. */

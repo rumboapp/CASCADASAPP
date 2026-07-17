@@ -531,11 +531,29 @@
       <button class="btn btn-dorado w-full" onclick="entrarComoHuesped()" data-i18n="enter">Ingresar</button>
     </div>
 
-    <!-- Acceso staff: email -->
+    <!-- Acceso staff: botones de usuarios guardados + contrasena si corresponde -->
     <div id="accesoStaff" class="oculto mt-6 text-left slide-up">
-      <label class="lbl">Correo del personal</label>
-      <input id="inputEmailStaff" class="input mb-3" placeholder="recepcion@cascadas.cl" inputmode="email">
-      <button class="btn btn-primary w-full" onclick="entrarComoStaff()">Ingresar</button>
+      <label class="lbl">Selecciona tu usuario</label>
+      <div id="listaUsuariosStaff" class="space-y-2 mb-1"></div>
+
+      <div id="passwordStaffWrap" class="oculto mt-2">
+        <label class="lbl" id="passwordStaffLabel">Contrasena</label>
+        <input id="inputPasswordStaff" type="password" class="input mb-3" placeholder="Contrasena" onkeydown="if(event.key==='Enter')confirmarLoginStaffConPassword()">
+        <div class="flex gap-2">
+          <button class="btn btn-outline flex-1" onclick="cancelarPasswordStaff()">Volver</button>
+          <button class="btn btn-primary flex-1" onclick="confirmarLoginStaffConPassword()">Ingresar</button>
+        </div>
+      </div>
+
+      <button class="text-xs opacity-60 hover:opacity-100 underline mt-3" onclick="mostrarEntradaManualStaff()">¿No apareces aqui? Ingresa tu correo</button>
+
+      <div id="accesoStaffManual" class="oculto mt-3">
+        <label class="lbl">Correo del personal</label>
+        <input id="inputEmailStaff" class="input mb-2" placeholder="recepcion@cascadas.cl" inputmode="email">
+        <label class="lbl">Contrasena (si tienes una asignada)</label>
+        <input id="inputPasswordStaffManual" type="password" class="input mb-3" placeholder="Contrasena">
+        <button class="btn btn-primary w-full" onclick="entrarComoStaff()">Ingresar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1147,6 +1165,57 @@ function mostrarAccesoHuesped() {
 function mostrarAccesoStaff() {
   document.getElementById('accesoStaff').classList.remove('oculto');
   document.getElementById('accesoHuesped').classList.add('oculto');
+  document.getElementById('passwordStaffWrap').classList.add('oculto');
+  document.getElementById('listaUsuariosStaff').classList.remove('oculto');
+  document.getElementById('accesoStaffManual').classList.add('oculto');
+  if (!APP.usuariosStaffLogin) cargarUsuariosStaffLogin();
+}
+
+/* Lista de usuarios de staff activos, para pintar los botones de acceso
+   rapido (sin exponer un campo abierto donde cualquiera escriba un correo). */
+function cargarUsuariosStaffLogin() {
+  llamarAPI('obtenerUsuariosStaffLogin', [], { loader: false, silencioso: true }).then(function (lista) {
+    APP.usuariosStaffLogin = lista || [];
+    pintarUsuariosStaffLogin();
+  }).catch(function () { APP.usuariosStaffLogin = null; });
+}
+function pintarUsuariosStaffLogin() {
+  var cont = document.getElementById('listaUsuariosStaff');
+  var lista = APP.usuariosStaffLogin || [];
+  if (!lista.length) { cont.innerHTML = ''; return; }
+  cont.innerHTML = lista.map(function (u, i) {
+    return '<button type="button" class="btn btn-outline w-full justify-between" onclick="seleccionarUsuarioStaff(' + i + ')">' +
+      '<span><i class="fa-solid fa-user"></i> ' + escaparHTML(u.nombre || u.email) + '</span>' +
+      (u.requierePassword ? '<i class="fa-solid fa-lock text-xs opacity-50"></i>' : '<i class="fa-solid fa-chevron-right text-xs opacity-40"></i>') +
+      '</button>';
+  }).join('');
+}
+/* Boton de un usuario guardado: si no tiene contrasena, entra directo; si
+   tiene, pide la contrasena antes de autenticar. */
+function seleccionarUsuarioStaff(idx) {
+  var u = (APP.usuariosStaffLogin || [])[idx];
+  if (!u) return;
+  if (!u.requierePassword) { intentarLoginStaff(u.email, ''); return; }
+  APP.staffSeleccionado = u;
+  document.getElementById('listaUsuariosStaff').classList.add('oculto');
+  document.getElementById('passwordStaffLabel').textContent = 'Contrasena de ' + (u.nombre || u.email);
+  document.getElementById('passwordStaffWrap').classList.remove('oculto');
+  var input = document.getElementById('inputPasswordStaff');
+  input.value = '';
+  input.focus();
+}
+function cancelarPasswordStaff() {
+  APP.staffSeleccionado = null;
+  document.getElementById('passwordStaffWrap').classList.add('oculto');
+  document.getElementById('listaUsuariosStaff').classList.remove('oculto');
+}
+function confirmarLoginStaffConPassword() {
+  var u = APP.staffSeleccionado;
+  if (!u) return;
+  intentarLoginStaff(u.email, document.getElementById('inputPasswordStaff').value);
+}
+function mostrarEntradaManualStaff() {
+  document.getElementById('accesoStaffManual').classList.toggle('oculto');
 }
 function entrarComoHuesped() {
   var hab = (document.getElementById('inputHabManual').value || '').trim();
@@ -1159,7 +1228,13 @@ function entrarComoHuesped() {
 function entrarComoStaff() {
   var email = (document.getElementById('inputEmailStaff').value || '').trim();
   if (!email) { mostrarToast('Ingresa tu correo.', 'error'); return; }
-  llamarAPI('autenticarStaff', [email]).then(function (res) {
+  var pass = document.getElementById('inputPasswordStaffManual').value;
+  intentarLoginStaff(email, pass);
+}
+/* Punto unico de login staff: lo usan los botones de usuario guardado, el
+   campo de contrasena y la entrada manual de correo. */
+function intentarLoginStaff(email, password) {
+  llamarAPI('autenticarStaff', [email, password]).then(function (res) {
     if (!res.success) { mostrarToast(res.mensaje, 'error'); return; }
     APP.usuarioStaff = res.usuario;
     sessionStorage.setItem('staffEmail', email);
@@ -1168,9 +1243,14 @@ function entrarComoStaff() {
   });
 }
 function reanudarStaff(email) {
-  llamarAPI('autenticarStaff', [email], { loader: false, silencioso: true }).then(function (res) {
+  // Solo reanuda automaticamente cuentas SIN contrasena; si el usuario tiene
+  // una asignada, se le pide de nuevo por seguridad (no se guarda en el navegador).
+  llamarAPI('autenticarStaff', [email, ''], { loader: false, silencioso: true }).then(function (res) {
     if (res.success) { APP.usuarioStaff = res.usuario; iniciarStaff(); }
-    else { document.getElementById('vistaAcceso').classList.remove('oculto'); }
+    else {
+      sessionStorage.removeItem('staffEmail');
+      document.getElementById('vistaAcceso').classList.remove('oculto');
+    }
   }).catch(function () {
     document.getElementById('vistaAcceso').classList.remove('oculto');
   });
