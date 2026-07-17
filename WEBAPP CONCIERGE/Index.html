@@ -2422,15 +2422,18 @@ function cargarOpsContenido() {
   if (!zona) return;
   Promise.all([
     llamarAPI('obtenerCentroOperaciones', [fecha], { loader: false, silencioso: true }),
-    llamarAPI('obtenerProductosAgotados', [], { loader: false, silencioso: true })
+    llamarAPI('obtenerProductosAgotados', [], { loader: false, silencioso: true }),
+    llamarAPI('obtenerReservas', [{ estados: ['Solicitada', 'Pendiente aprobacion', 'Confirmada'] }], { loader: false, silencioso: true })
   ]).then(function (res) {
     var data = res[0];
     APP.productosAgotadosOps = res[1] || [];
+    APP.reservasProximas = res[2] || [];
     var alertasHTML = (data.alertas || []).length ?
       '<div class="card p-4 mb-4" style="border-left:4px solid var(--dorado)"><p class="font-semibold mb-2"><i class="fa-solid fa-triangle-exclamation" style="color:var(--dorado)"></i> Alertas</p>' +
       data.alertas.map(function (a) { return '<p class="text-sm opacity-80">· ' + escaparHTML(a) + '</p>'; }).join('') + '</div>' : '';
 
     var agotadosHTML = widgetProductosAgotados(APP.productosAgotadosOps);
+    var proximasHTML = widgetProximasReservas(APP.reservasProximas);
 
     // Guarda datos de cada reserva para el editor (sin otra llamada).
     APP.reservasCache = APP.reservasCache || {};
@@ -2521,7 +2524,7 @@ function cargarOpsContenido() {
     }).join('') : '<div class="card p-8 text-center opacity-60 text-sm"><i class="fa-regular fa-calendar text-2xl block mb-2 opacity-50"></i>Sin actividad registrada para ' + (esHoy ? 'hoy' : 'este dia') + '.</div>';
 
     // Solo el contenido se reemplaza; la barra de fechas queda intacta.
-    zona.innerHTML = alertasHTML + agotadosHTML + resumenHTML + timelineHTML;
+    zona.innerHTML = alertasHTML + agotadosHTML + proximasHTML + resumenHTML + timelineHTML;
   }).catch(function () {
     zona.innerHTML = htmlError('No pudimos cargar el centro de operaciones.', 'renderOperaciones()');
   });
@@ -2576,6 +2579,64 @@ function toggleWidgetAgotados() {
   var chev = document.getElementById('agotadosChevron');
   if (body) body.classList.toggle('oculto', APP.agotadosColapsado);
   if (chev) chev.style.transform = APP.agotadosColapsado ? 'rotate(-90deg)' : '';
+}
+
+/* ---------- Widget "Reservas por venir" ---------- */
+/* Lista compacta y colapsable (mismo patron que el widget "86") de TODAS las
+   reservas activas con fecha posterior a hoy, agrupadas por dia y ordenadas
+   de la mas cercana a la mas lejana. Al pasar la fecha de una reserva, esta
+   sale sola de la lista (se recalcula cada vez que se carga Operaciones,
+   filtrando siempre "> hoy"), sin necesidad de marcarla ni limpiarla a mano.
+   Asi el staff (ej. garzones) puede anticipar grupos grandes que vienen en
+   dias, semanas o meses mas, sin tener que ir revisando fecha por fecha. */
+function widgetProximasReservas(lista) {
+  var hoy = hoyISO();
+  var futuras = (lista || []).filter(function (r) { return r.Fecha > hoy; });
+  if (!futuras.length) return '';
+  // Orden explicito (ademas de venir ya ordenado del backend): de la fecha
+  // mas cercana a la mas lejana.
+  futuras.sort(function (a, b) { return (a.Fecha + a.HoraInicio) < (b.Fecha + b.HoraInicio) ? -1 : 1; });
+
+  // Agrupa por fecha, ya ordenada de mas cercana a mas lejana.
+  var porFecha = {}, ordenFechas = [];
+  futuras.forEach(function (r) {
+    if (!porFecha[r.Fecha]) { porFecha[r.Fecha] = []; ordenFechas.push(r.Fecha); }
+    porFecha[r.Fecha].push(r);
+  });
+
+  var itemsHTML = ordenFechas.map(function (f) {
+    var filas = porFecha[f].map(function (r) {
+      var col = colorDeServicio(r.ServicioID, r.ServicioNombre);
+      return '<div class="flex items-center justify-between gap-2 py-1">' +
+        '<span class="text-sm min-w-0"><b>' + etiquetaHab(r.Habitacion) + '</b> · ' +
+          '<span style="color:' + col + '">' + escaparHTML(r.ServicioNombre) + '</span> ' +
+          r.HoraInicio + ' · ' + r.Personas + ' pers.' +
+        '</span>' +
+        '<span class="pill ' + claseEstado(r.Estado) + ' text-xs shrink-0">' + r.Estado + '</span>' +
+      '</div>';
+    }).join('');
+    return '<div class="mb-2"><p class="text-xs font-semibold uppercase opacity-60 mb-1">' + nombreDia(f) + '</p>' + filas + '</div>';
+  }).join('');
+
+  // Colapsado por defecto (solo se expande si el usuario lo abre a proposito).
+  var colapsado = APP.proximasColapsado !== false;
+
+  return '<div class="card p-4 mb-4 proximas-widget" style="border-left:4px solid var(--verde-bosque)">' +
+    '<div class="flex items-center justify-between cursor-pointer" onclick="toggleWidgetProximas()">' +
+      '<p class="font-semibold"><i class="fa-solid fa-calendar-days opacity-70"></i> Reservas por venir <span class="pill" style="background:var(--verde-bosque); color:#fff;">' + futuras.length + '</span></p>' +
+      '<i class="fa-solid fa-chevron-down text-sm opacity-60" id="proximasChevron" style="transform:' + (colapsado ? 'rotate(-90deg)' : '') + '"></i>' +
+    '</div>' +
+    '<div id="proximasBody" class="mt-2' + (colapsado ? ' oculto' : '') + '">' + itemsHTML + '</div>' +
+  '</div>';
+}
+
+function toggleWidgetProximas() {
+  var colapsadoActual = APP.proximasColapsado !== false;
+  APP.proximasColapsado = !colapsadoActual;
+  var body = document.getElementById('proximasBody');
+  var chev = document.getElementById('proximasChevron');
+  if (body) body.classList.toggle('oculto', APP.proximasColapsado);
+  if (chev) chev.style.transform = APP.proximasColapsado ? 'rotate(-90deg)' : '';
 }
 
 function reponerDesdeOps(productoID) {
