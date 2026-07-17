@@ -2431,14 +2431,14 @@ function cargarOpsContenido() {
   var esHoy = fecha === hoyISO();
   var zona = document.getElementById('opsContenido');
   if (!zona) return;
-  Promise.all([
-    llamarAPI('obtenerCentroOperaciones', [fecha], { loader: false, silencioso: true }),
-    llamarAPI('obtenerProductosAgotados', [], { loader: false, silencioso: true }),
-    llamarAPI('obtenerReservas', [{ estados: ['Solicitada', 'Pendiente aprobacion', 'Confirmada'] }], { loader: false, silencioso: true })
-  ]).then(function (res) {
-    var data = res[0];
-    APP.productosAgotadosOps = res[1] || [];
-    APP.reservasProximas = res[2] || [];
+  // Una sola llamada combinada (centro + agotados + reservas por venir) en vez
+  // de 3 en paralelo: un solo viaje al servidor y sin releer hojas duplicadas.
+  llamarAPI('obtenerDatosOperaciones', [fecha], { loader: false, silencioso: true })
+  .then(function (res) {
+    res = res || {};
+    var data = res.centro || { bloques: [], alertas: [], pedidos: [] };
+    APP.productosAgotadosOps = res.agotados || [];
+    APP.reservasProximas = res.reservasProximas || [];
     var alertasHTML = (data.alertas || []).length ?
       '<div class="card p-4 mb-4" style="border-left:4px solid var(--dorado)"><p class="font-semibold mb-2"><i class="fa-solid fa-triangle-exclamation" style="color:var(--dorado)"></i> Alertas</p>' +
       data.alertas.map(function (a) { return '<p class="text-sm opacity-80">· ' + escaparHTML(a) + '</p>'; }).join('') + '</div>' : '';

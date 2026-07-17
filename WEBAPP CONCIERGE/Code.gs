@@ -642,6 +642,11 @@ function _leerHojaComoObjetos(nombreHoja) {
 // ---------------------------------------------------------------------------
 var CACHE_TTL_SEGUNDOS = 120;
 
+// La hoja Notificaciones crece con cada reserva/pedido y el polling la lee
+// entera cada 20s. Se purgan las mas antiguas para que la lectura siga siendo
+// rapida sin importar cuantos meses lleve operando la app.
+var DIAS_RETENER_NOTIFICACIONES = 30;
+
 /** Lee un objeto JSON del cache de script (o null). */
 function _cacheGet(clave) {
   try {
@@ -1541,14 +1546,27 @@ function cambiarEstadoReserva(id, nuevoEstado) {
 function obtenerReservas(filtros) {
   filtros = filtros || {};
   _finalizarReservasVencidas(); // limpieza automatica de reservas pasadas
+  return _construirReservas(filtros, _leerHojaComoObjetos(HOJAS.RESERVAS));
+}
 
+/**
+ * Filtra/enriquece un conjunto de reservas YA leido. Se separa de
+ * obtenerReservas para poder reutilizar una unica lectura de la hoja Reservas
+ * cuando varios calculos la necesitan en la misma ejecucion (ej. el centro de
+ * operaciones), evitando releer la planilla (lo mas lento de Apps Script).
+ * @param {Object} filtros
+ * @param {Array<Object>} todasReservas Reservas ya leidas de la hoja.
+ * @return {Array<Object>}
+ */
+function _construirReservas(filtros, todasReservas) {
+  filtros = filtros || {};
   var servicios = {};
   _leerHojaComoObjetos(HOJAS.SERVICIOS).forEach(function (s) { servicios[s.ID] = s.Nombre; });
   var hoy = _fechaISO(new Date());
   var estadosCerrados = [ESTADOS.FINALIZADA, ESTADOS.CANCELADA_HUESPED,
     ESTADOS.CANCELADA_HOTEL, ESTADOS.NO_ASISTIO];
 
-  return _leerHojaComoObjetos(HOJAS.RESERVAS).filter(function (r) {
+  return todasReservas.filter(function (r) {
     var fecha = _fechaISO(r.Fecha);
     if (filtros.fechaDesde && fecha < _fechaISO(filtros.fechaDesde)) return false;
     if (filtros.fechaHasta && fecha > _fechaISO(filtros.fechaHasta)) return false;
@@ -1942,9 +1960,11 @@ function obtenerPedidosPorReserva(reservaID) {
  * @param {string} fecha "YYYY-MM-DD"
  * @return {Object} {fecha, bloques:[{hora, items:[...]}], alertas:[...]}
  */
-function obtenerCentroOperaciones(fecha) {
+function obtenerCentroOperaciones(fecha, reservasPre) {
   fecha = _fechaISO(fecha || new Date());
-  _finalizarReservasVencidas(); // limpieza automatica de reservas pasadas
+  // Si el llamador ya finalizo vencidas y leyo las reservas (endpoint
+  // combinado), no repetimos ese trabajo.
+  if (!reservasPre) _finalizarReservasVencidas();
 
   var servicios = {};
   _leerHojaComoObjetos(HOJAS.SERVICIOS).forEach(function (s) {
@@ -1952,7 +1972,7 @@ function obtenerCentroOperaciones(fecha) {
   });
 
   // Lee TODAS las reservas una sola vez y reutilizalas (optimizacion).
-  var todasReservas = _leerHojaComoObjetos(HOJAS.RESERVAS);
+  var todasReservas = reservasPre || _leerHojaComoObjetos(HOJAS.RESERVAS);
   var reservas = todasReservas.filter(function (r) {
     return _fechaISO(r.Fecha) === fecha && !_esEstadoCancelado(r.Estado);
   });
@@ -2006,6 +2026,30 @@ function obtenerCentroOperaciones(fecha) {
 }
 
 /**
+ * Endpoint COMBINADO del Centro de Operaciones: en UNA sola llamada devuelve
+ * el centro del dia, los productos agotados ("86") y las reservas por venir.
+ * Antes el frontend hacia 3 llamadas en paralelo (3 viajes al servidor de
+ * ~1-2s cada uno) que ademas leian Reservas y Servicios por duplicado; ahora
+ * es 1 viaje y cada hoja se lee una sola vez (Reservas se comparte, y los
+ * catalogos se sirven del cache de lectura por-ejecucion). Esto tambien aligera
+ * el refresco automatico que corre cada 20s mientras el staff esta en la vista.
+ * @param {string} fecha
+ * @return {Object} {centro, agotados, reservasProximas}
+ */
+function obtenerDatosOperaciones(fecha) {
+  fecha = _fechaISO(fecha || new Date());
+  _finalizarReservasVencidas(); // una sola vez para todo el endpoint
+  var todasReservas = _leerHojaComoObjetos(HOJAS.RESERVAS);
+
+  var estadosProximas = [ESTADOS.SOLICITADA, ESTADOS.PENDIENTE, ESTADOS.CONFIRMADA];
+  return {
+    centro: obtenerCentroOperaciones(fecha, todasReservas),
+    agotados: obtenerProductosAgotados(),
+    reservasProximas: _construirReservas({ estados: estadosProximas }, todasReservas)
+  };
+}
+
+/**
  * Genera alertas de cupos. Redaccion neutra (sin genero): usa "Sin cupos para X"
  * en vez de "completo/completa".
  * @param {Array} reservasDelDia Reservas ya filtradas del dia.
@@ -2043,6 +2087,7 @@ function _generarAlertasCapacidad(reservasDelDia, servicios) {
 function obtenerNotificaciones(rol, habitacion, soloNoLeidas) {
   // Lectura liviana de UNA hoja: apta para consultarse por polling cada 20s.
   // (Las alertas de capacidad ya se muestran en el Centro de Operaciones.)
+  _purgarNotificacionesAntiguas(); // mantiene la hoja chica (auto-limpieza)
   return _leerHojaComoObjetos(HOJAS.NOTIFICACIONES).filter(function (n) {
     if (soloNoLeidas && _aBooleano(n.Leida)) return false;
     if (rol && !_esNotifParaRol(n, rol)) return false;
@@ -2078,6 +2123,52 @@ function _crearNotificacion(tipo, mensaje, destinatarioRol, habitacion, servicio
     generarID(), new Date(), tipo, mensaje, destinatarioRol || 'TODOS',
     habitacion || '', servicioID || '', 'FALSE', _fechaISO(fechaReferencia || new Date())
   ]);
+}
+
+/**
+ * Borra las notificaciones con mas de DIAS_RETENER_NOTIFICACIONES dias, para
+ * que la hoja no crezca sin limite y el polling cada 20s siga siendo rapido.
+ * Corre como mucho una vez por hora (guardada por cache) y reescribe la hoja
+ * en UNA sola operacion (clear + setValues) en lugar de borrar fila por fila.
+ * Nunca rompe el flujo: cualquier error se traga.
+ */
+function _purgarNotificacionesAntiguas() {
+  try {
+    var cache = CacheService.getScriptCache();
+    if (cache.get('purgaNotifReciente')) return;
+    cache.put('purgaNotifReciente', '1', 3600); // a lo mas 1 vez por hora
+  } catch (e) { return; }
+
+  var lock = LockService.getScriptLock();
+  try {
+    if (!lock.tryLock(3000)) return; // si otra ejecucion la esta haciendo, se salta
+    var hoja = _hoja(HOJAS.NOTIFICACIONES);
+    var datos = hoja.getDataRange().getValues();
+    if (datos.length < 2) return;
+    var encabezados = datos[0];
+    var colTs = encabezados.indexOf('Timestamp');
+    if (colTs === -1) return;
+
+    var limite = new Date();
+    limite.setDate(limite.getDate() - DIAS_RETENER_NOTIFICACIONES);
+
+    var sobreviven = [encabezados];
+    for (var i = 1; i < datos.length; i++) {
+      var ts = datos[i][colTs];
+      var fecha = ts instanceof Date ? ts : new Date(ts);
+      // Si la fecha es invalida, se conserva (mejor no borrar por las dudas).
+      if (isNaN(fecha.getTime()) || fecha >= limite) sobreviven.push(datos[i]);
+    }
+    if (sobreviven.length === datos.length) return; // nada que purgar
+
+    hoja.clearContents();
+    hoja.getRange(1, 1, sobreviven.length, encabezados.length).setValues(sobreviven);
+    _lecturaCache[HOJAS.NOTIFICACIONES] = null; // por si acaso (no es cacheable, pero limpio)
+  } catch (e) {
+    /* la purga nunca debe romper una lectura de notificaciones */
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
+  }
 }
 
 /**
