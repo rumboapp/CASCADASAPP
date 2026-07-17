@@ -2448,6 +2448,8 @@ function cargarOpsContenido() {
 
     // Guarda datos de cada reserva para el editor (sin otra llamada).
     APP.reservasCache = APP.reservasCache || {};
+    // Mensajes de WhatsApp listos para copiar, por reserva (se arman al pintar).
+    APP.whatsappMsgOps = {};
 
     // Indexa pedidos por reserva para mostrarlos DENTRO de cada reserva.
     APP.pedidosOps = data.pedidos || [];
@@ -2483,12 +2485,17 @@ function cargarOpsContenido() {
             var esComida = servicioPermitePedido(it.servicioID);
             var pedido = pedidoPorReserva[it.reservaID];
 
+            // Mensaje listo para copiar y pegar en el grupo de WhatsApp del hotel.
+            APP.whatsappMsgOps[it.reservaID] = construirMensajeWhatsappOps(it, pedido, fecha);
+
             var acciones = '';
             if (['Solicitada', 'Pendiente aprobacion'].indexOf(it.estado) !== -1) {
               acciones += '<button class="btn btn-primary !py-1 !px-2 text-xs" onclick="confirmarReservaStaff(\'' + it.reservaID + '\',\'ops\')" title="Confirmar"><i class="fa-solid fa-check"></i></button>';
             }
             if (['Solicitada', 'Pendiente aprobacion', 'Confirmada', 'En curso'].indexOf(it.estado) !== -1) {
               acciones += '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="abrirEditarReserva(\'' + it.reservaID + '\',\'ops\')" title="Editar"><i class="fa-solid fa-pen"></i></button>';
+              // Copia el aviso de la reserva para pegarlo en el grupo de WhatsApp.
+              acciones += '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="copiarWhatsappOps(\'' + it.reservaID + '\')" title="Copiar aviso para WhatsApp"><i class="fa-brands fa-whatsapp" style="color:#25D366"></i></button>';
               // Agregar/editar pedido para servicios de comida (recepcion).
               if (esComida) {
                 acciones += '<button class="btn btn-dorado !py-1 !px-2 text-xs" onclick="abrirPrepedidoOps(\'' + it.reservaID + '\',\'' + it.horaInicio + '\')" title="' + (pedido ? 'Editar pedido' : 'Agregar pedido') + '"><i class="fa-solid fa-utensils"></i></button>';
@@ -2660,6 +2667,58 @@ function reponerDesdeOps(productoID) {
       cargarOpsContenido();
     }
   });
+}
+
+/* Arma el aviso de una reserva en texto plano, listo para pegar en el grupo de
+   WhatsApp del hotel (usa *asteriscos* para negrita, que WhatsApp interpreta). */
+function construirMensajeWhatsappOps(it, pedido, fecha) {
+  var habTxt = /^\d+$/.test(String(it.habitacion)) ? 'Hab ' + it.habitacion : String(it.habitacion || '');
+  var fechaTxt = String(fecha || '').split('-').reverse().join('-'); // YYYY-MM-DD -> DD-MM-YYYY
+  var L = [];
+  L.push('*RESERVA ' + String(it.estado || '').toUpperCase() + '*');
+  L.push('🏨 ' + habTxt);
+  L.push('🛎️ ' + it.servicioNombre + (it.variante ? ' · ' + it.variante : '') + ' · ' + it.horaInicio + ' hrs');
+  L.push('👥 ' + it.personas + (Number(it.personas) === 1 ? ' persona' : ' personas'));
+  L.push('📅 ' + fechaTxt);
+  if (it.notas) L.push('📝 ' + it.notas);
+
+  if (pedido && pedido.Detalles && pedido.Detalles.length) {
+    var entrega = pedido.Entrega === 'Habitacion' ? 'A la habitación' : 'En restaurant';
+    L.push('');
+    L.push('🧾 *Pedido* (' + entrega + '):');
+    pedido.Detalles.forEach(function (d) {
+      L.push('• ' + d.Cantidad + 'x ' + d.Nombre + (d.Notas ? ' (' + d.Notas + ')' : ''));
+    });
+    if (pedido.Notas) L.push('✏️ Obs: ' + pedido.Notas);
+    L.push('💵 Total: ' + fmtMoneda(pedido.Total));
+  }
+  return L.join('\n');
+}
+
+/* Copia el aviso de la reserva al portapapeles para pegarlo en WhatsApp. */
+function copiarWhatsappOps(reservaID) {
+  var msg = (APP.whatsappMsgOps || {})[reservaID];
+  if (!msg) { mostrarToast('No pudimos armar el mensaje.', 'error'); return; }
+  copiarAlPortapapeles(msg, 'Aviso copiado, pegalo en WhatsApp');
+}
+
+/* Copia texto al portapapeles con respaldo para navegadores/contextos sin
+   la API moderna (mismo patron usado en la app de Encuesta). */
+function copiarAlPortapapeles(texto, msgOk) {
+  msgOk = msgOk || 'Copiado';
+  var exito = function () { mostrarToast(msgOk, 'exito'); };
+  var fallback = function () {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = texto; ta.style.cssText = 'position:fixed;left:-9999px;top:0;';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      var ok = document.execCommand('copy'); document.body.removeChild(ta);
+      if (ok) exito(); else mostrarToast('No se pudo copiar automaticamente.', 'error');
+    } catch (e) { mostrarToast('No se pudo copiar automaticamente.', 'error'); }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(texto).then(exito, fallback);
+  } else { fallback(); }
 }
 
 /* Etiqueta de la "habitacion" (o pasante/grupo si es externo). */
