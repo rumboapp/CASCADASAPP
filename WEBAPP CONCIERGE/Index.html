@@ -2633,8 +2633,8 @@ function widgetProximasReservas(lista) {
   var itemsHTML = ordenFechas.map(function (f) {
     var filas = porFecha[f].map(function (r) {
       var col = colorDeServicio(r.ServicioID, r.ServicioNombre);
-      // Cada reserva es su propia burbuja con tinte ambar y fuente mas grande.
-      return '<div class="rounded-xl px-3 py-2 mb-1.5" style="background: rgba(184,134,11,0.12); border-left:4px solid ' + AMBAR + ';">' +
+      // Cada reserva es su propia burbuja con tinte ambar solido y fuente mas grande.
+      return '<div class="rounded-xl px-3 py-2 mb-1.5" style="background:#F0E2A8; border-left:4px solid ' + AMBAR + ';">' +
         '<div class="flex items-center justify-between gap-2">' +
           '<p class="font-bold text-base leading-tight" style="color:var(--grafito)">' + etiquetaHab(r.Habitacion) + ' <span style="opacity:.7">· ' + r.Personas + ' pers.</span></p>' +
           '<span class="pill ' + claseEstado(r.Estado) + ' shrink-0">' + r.Estado + '</span>' +
@@ -2648,7 +2648,7 @@ function widgetProximasReservas(lista) {
   // Colapsado por defecto (solo se expande si el usuario lo abre a proposito).
   var colapsado = APP.proximasColapsado !== false;
 
-  return '<div class="card p-4 mb-4 proximas-widget" style="border-left:4px solid ' + AMBAR + '; background: rgba(184,134,11,0.05)">' +
+  return '<div class="card p-4 mb-4 proximas-widget" style="border-left:4px solid ' + AMBAR + '; background:#FBF3D6">' +
     '<div class="flex items-center justify-between cursor-pointer" onclick="toggleWidgetProximas()">' +
       '<p class="font-semibold text-lg"><i class="fa-solid fa-calendar-days" style="color:' + AMBAR + '"></i> Reservas por venir <span class="pill" style="background:' + AMBAR + '; color:#fff;">' + futuras.length + '</span></p>' +
       '<i class="fa-solid fa-chevron-down text-sm opacity-60" id="proximasChevron" style="transform:' + (colapsado ? 'rotate(-90deg)' : '') + '"></i>' +
