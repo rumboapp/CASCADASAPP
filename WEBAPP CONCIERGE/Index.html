@@ -2674,6 +2674,7 @@ function reponerDesdeOps(productoID) {
 function construirMensajeWhatsappOps(it, pedido, fecha) {
   var habTxt = /^\d+$/.test(String(it.habitacion)) ? 'Hab ' + it.habitacion : String(it.habitacion || '');
   var fechaTxt = String(fecha || '').split('-').reverse().join('-'); // YYYY-MM-DD -> DD-MM-YYYY
+  if (fecha === hoyISO()) fechaTxt += ' (HOY)';
   var L = [];
   L.push('*RESERVA ' + String(it.estado || '').toUpperCase() + '*');
   L.push('🏨 ' + habTxt);
@@ -2682,6 +2683,8 @@ function construirMensajeWhatsappOps(it, pedido, fecha) {
   L.push('📅 ' + fechaTxt);
   if (it.notas) L.push('📝 ' + it.notas);
 
+  // El grupo de WhatsApp no maneja valores: se copia el detalle del pedido
+  // (platos, punto de coccion/observaciones) pero SIN precios ni total.
   if (pedido && pedido.Detalles && pedido.Detalles.length) {
     var entrega = pedido.Entrega === 'Habitacion' ? 'A la habitación' : 'En restaurant';
     L.push('');
@@ -2690,7 +2693,6 @@ function construirMensajeWhatsappOps(it, pedido, fecha) {
       L.push('• ' + d.Cantidad + 'x ' + d.Nombre + (d.Notas ? ' (' + d.Notas + ')' : ''));
     });
     if (pedido.Notas) L.push('✏️ Obs: ' + pedido.Notas);
-    L.push('💵 Total: ' + fmtMoneda(pedido.Total));
   }
   return L.join('\n');
 }
