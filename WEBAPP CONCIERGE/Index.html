@@ -1124,6 +1124,12 @@ window.addEventListener('DOMContentLoaded', function () {
   // recien ahi pedirlo): asi no se ve aparecer el boton un segundo despues.
   if (APP.habitacion) {
     APP.whatsappPromise = llamarAPI('obtenerWhatsappHabitacion', [APP.habitacion], { loader: false, silencioso: true }).catch(function () { return ''; });
+  } else {
+    // Sin habitacion => se mostrara el selector de acceso. Precargamos la lista
+    // de usuarios de staff EN PARALELO con la carga inicial, para que al tocar
+    // "Soy Personal" las burbujas aparezcan al instante (antes tardaban 1-3s
+    // porque recien ahi se pedian al servidor).
+    cargarUsuariosStaffLogin();
   }
 
   // Carga TODO lo inicial en UNA sola llamada (config + servicios + categorias):
@@ -1168,16 +1174,21 @@ function mostrarAccesoStaff() {
   document.getElementById('passwordStaffWrap').classList.add('oculto');
   document.getElementById('listaUsuariosStaff').classList.remove('oculto');
   document.getElementById('accesoStaffManual').classList.add('oculto');
-  if (!APP.usuariosStaffLogin) cargarUsuariosStaffLogin();
+  // Solo pide la lista si no esta ya cargada NI en camino (la precarga del
+  // arranque suele haberla dejado lista antes de este clic).
+  if (!APP.usuariosStaffLogin && !APP.cargandoUsuariosStaff) cargarUsuariosStaffLogin();
 }
 
 /* Lista de usuarios de staff activos, para pintar los botones de acceso
    rapido (sin exponer un campo abierto donde cualquiera escriba un correo). */
 function cargarUsuariosStaffLogin() {
+  if (APP.cargandoUsuariosStaff) return;
+  APP.cargandoUsuariosStaff = true;
   llamarAPI('obtenerUsuariosStaffLogin', [], { loader: false, silencioso: true }).then(function (lista) {
     APP.usuariosStaffLogin = lista || [];
+    APP.cargandoUsuariosStaff = false;
     pintarUsuariosStaffLogin();
-  }).catch(function () { APP.usuariosStaffLogin = null; });
+  }).catch(function () { APP.usuariosStaffLogin = null; APP.cargandoUsuariosStaff = false; });
 }
 function pintarUsuariosStaffLogin() {
   var cont = document.getElementById('listaUsuariosStaff');
