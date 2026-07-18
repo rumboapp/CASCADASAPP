@@ -108,7 +108,7 @@
   <div id="toast" class="toast"></div>
 
   <script>
-    var APP = { inventario: [], enVuelo: {} };
+    var APP = { inventario: [] };
 
     window.addEventListener('DOMContentLoaded', function () {
       cargarInventario();
@@ -156,18 +156,17 @@
         html += '<div class="cat-head"><h2>' + escapeHtml(cat) + '</h2><span class="conteo">' + items.length + ' item' + (items.length === 1 ? '' : 's') + '</span></div>';
         items.forEach(function (it) {
           var est = estadoItem(it.cantidad, it.minimo, it.ideal);
-          var enVuelo = !!APP.enVuelo[it.id];
           html += '' +
             '<div class="item-card" data-id="' + it.id + '">' +
               '<div class="info">' +
                 '<div class="nombre">' + escapeHtml(it.producto) + '</div>' +
-                '<div class="meta">' + escapeHtml(it.unidad || 'un.') + (it.ubicacion ? ' &middot; ' + escapeHtml(it.ubicacion) : '') + '</div>' +
+                '<div class="meta">' + escapeHtml(it.unidad || 'un.') + '</div>' +
                 '<span class="estado-txt ' + est.clase + '">' + est.label + '</span>' +
               '</div>' +
               '<div class="contador">' +
-                '<button class="btn-pm menos" ' + (enVuelo ? 'disabled' : '') + ' onclick="cambiarCantidad(\'' + it.id + '\', -1)">&minus;</button>' +
+                '<button class="btn-pm menos" onclick="cambiarCantidad(\'' + it.id + '\', -1)">&minus;</button>' +
                 '<span class="num-actual" id="num-' + it.id + '">' + it.cantidad + '</span>' +
-                '<button class="btn-pm mas" ' + (enVuelo ? 'disabled' : '') + ' onclick="cambiarCantidad(\'' + it.id + '\', 1)">+</button>' +
+                '<button class="btn-pm mas" onclick="cambiarCantidad(\'' + it.id + '\', 1)">+</button>' +
               '</div>' +
             '</div>';
         });
@@ -176,39 +175,39 @@
       cont.innerHTML = html;
     }
 
+    // Cada tap actualiza el numero al toque (optimista) y queda enabled
+    // siempre; los taps se acumulan y se mandan al servidor juntos tras una
+    // pequena pausa, en vez de bloquear el boton mientras viaja cada request.
+    var PEND = {}; var PEND_TIMERS = {};
     function cambiarCantidad(id, delta) {
       var item = APP.inventario.find(function (x) { return x.id === id; });
-      if (!item || APP.enVuelo[id]) return;
+      if (!item) return;
       if (delta < 0 && item.cantidad <= 0) return;
 
-      APP.enVuelo[id] = true;
-      var tarjeta = document.querySelector('.item-card[data-id="' + id + '"]');
-      if (tarjeta) {
-        tarjeta.querySelectorAll('.btn-pm').forEach(function (b) { b.disabled = true; });
-      }
-
-      // Optimista: refleja el cambio de inmediato, se corrige si el server difiere.
-      var previo = item.cantidad;
       item.cantidad = Math.max(0, item.cantidad + delta);
       actualizarNumero(id, item.cantidad);
 
+      PEND[id] = (PEND[id] || 0) + delta;
+      if (PEND_TIMERS[id]) clearTimeout(PEND_TIMERS[id]);
+      PEND_TIMERS[id] = setTimeout(function () { enviarPendiente(id); }, 500);
+    }
+
+    function enviarPendiente(id) {
+      var delta = PEND[id];
+      if (!delta) return;
+      PEND[id] = 0;
+      var item = APP.inventario.find(function (x) { return x.id === id; });
+
       google.script.run.withSuccessHandler(function (res) {
-        APP.enVuelo[id] = false;
         if (res && res.success) {
-          item.cantidad = res.cantidad;
-          actualizarNumero(id, res.cantidad);
+          if (item) { item.cantidad = res.cantidad; actualizarNumero(id, res.cantidad); }
         } else {
-          item.cantidad = previo;
-          actualizarNumero(id, previo);
           mostrarToast('No se pudo actualizar', 'error');
         }
-        if (tarjeta) tarjeta.querySelectorAll('.btn-pm').forEach(function (b) { b.disabled = false; });
       }).withFailureHandler(function () {
-        APP.enVuelo[id] = false;
-        item.cantidad = previo;
-        actualizarNumero(id, previo);
-        if (tarjeta) tarjeta.querySelectorAll('.btn-pm').forEach(function (b) { b.disabled = false; });
-        mostrarToast('Sin conexion, intenta de nuevo', 'error');
+        mostrarToast('Sin conexion, reintentando...', 'error');
+        PEND[id] = (PEND[id] || 0) + delta;
+        PEND_TIMERS[id] = setTimeout(function () { enviarPendiente(id); }, 1500);
       }).incrementarCantidad(id, delta);
     }
 

@@ -203,10 +203,10 @@ function _crearHoja(ss, nombre, encabezados, filas) {
 
 function _crearHojaInventario(ss) {
   var filas = CATEGORIAS_SEED.map(function (par, i) {
-    return [generarID(), par[0], par[1], 'un.', 0, 0, 0, '', '', i + 1];
+    return [generarID(), par[0], par[1], 'un.', 0, 0, 0, '', i + 1];
   });
   _crearHoja(ss, 'Inventario', [
-    'ID', 'Categoria', 'Producto', 'Unidad', 'Cantidad', 'Minimo', 'Ideal', 'Ubicacion', 'Detalle', 'Orden'
+    'ID', 'Categoria', 'Producto', 'Unidad', 'Cantidad', 'Minimo', 'Ideal', 'Detalle', 'Orden'
   ], filas);
 }
 
@@ -276,7 +276,7 @@ function obtenerInventario() {
     return {
       id: r.ID, categoria: r.Categoria, producto: r.Producto, unidad: r.Unidad || 'un.',
       cantidad: numero_(r.Cantidad), minimo: numero_(r.Minimo), ideal: numero_(r.Ideal),
-      ubicacion: r.Ubicacion || '', detalle: r.Detalle || '', orden: numero_(r.Orden)
+      detalle: r.Detalle || '', orden: numero_(r.Orden)
     };
   });
 }
@@ -284,7 +284,7 @@ function obtenerInventario() {
 /**
  * Crea o actualiza un item. Si datos.id viene, actualiza; si no, crea uno
  * nuevo al final de su categoria.
- * @param {Object} datos {id, categoria, producto, unidad, cantidad, minimo, ideal, ubicacion, detalle}
+ * @param {Object} datos {id, categoria, producto, unidad, cantidad, minimo, ideal, detalle}
  */
 function guardarItem(datos) {
   datos = datos || {};
@@ -314,18 +314,24 @@ function guardarItem(datos) {
       if (datos.cantidad !== undefined) set(fila, 'Cantidad', numero_(datos.cantidad));
       set(fila, 'Minimo', numero_(datos.minimo));
       set(fila, 'Ideal', numero_(datos.ideal));
-      set(fila, 'Ubicacion', String(datos.ubicacion || ''));
       set(fila, 'Detalle', String(datos.detalle || ''));
       return { success: true, id: datos.id, mensaje: 'Item actualizado.' };
     }
 
     var maxOrden = filas.reduce(function (m, r) { return Math.max(m, numero_(r.Orden)); }, 0);
     var id = generarID();
-    hoja.appendRow([
-      id, categoria, producto, String(datos.unidad || 'un.').trim() || 'un.',
-      numero_(datos.cantidad), numero_(datos.minimo), numero_(datos.ideal),
-      String(datos.ubicacion || ''), String(datos.detalle || ''), maxOrden + 1
-    ]);
+    // Arma la fila por nombre de columna (no por posicion): en instalaciones
+    // creadas antes de quitar "Ubicacion" el orden de columnas es distinto,
+    // y esto evita que los valores queden desalineados.
+    var encabezados = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0];
+    var valoresPorNombre = {
+      ID: id, Categoria: categoria, Producto: producto,
+      Unidad: String(datos.unidad || 'un.').trim() || 'un.',
+      Cantidad: numero_(datos.cantidad), Minimo: numero_(datos.minimo), Ideal: numero_(datos.ideal),
+      Detalle: String(datos.detalle || ''), Orden: maxOrden + 1
+    };
+    var fila = encabezados.map(function (h) { return valoresPorNombre.hasOwnProperty(h) ? valoresPorNombre[h] : ''; });
+    hoja.appendRow(fila);
     return { success: true, id: id, mensaje: 'Item agregado.' };
   } finally {
     lock.releaseLock();

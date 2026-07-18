@@ -102,6 +102,14 @@
     .badge-cant.na { background: var(--na-tint); color: var(--na); }
     .pedido-txt { font-size: 10.5px; color: var(--text-sec); min-width: 78px; }
     .pedido-txt b { color: var(--crit); }
+    .btn-cant {
+      width: 30px; height: 30px; border: none; border-radius: 9px; font-size: 15px; font-weight: 700; color: #fff;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 1px 0 rgba(0,0,0,.18);
+    }
+    .btn-cant.menos { background: linear-gradient(180deg, #b04d47, #8B3A3A 60%, #7a2f2f); }
+    .btn-cant.mas { background: linear-gradient(180deg, #4a9b4a, #3a8a3a 60%, #2f7a2f); }
+    .btn-cant:active { transform: translateY(1px); }
     .item-acciones { display: flex; gap: 4px; flex-shrink: 0; }
     .btn-icon { width: 32px; height: 32px; border: none; border-radius: 9px; background: var(--input-bg); color: var(--text-sec); cursor: pointer; font-size: 12px; }
     .btn-icon.danger:hover { background: var(--crit-tint); color: var(--crit); }
@@ -182,6 +190,7 @@
           <button class="btn-mini dark" onclick="abrirFormItem(null)"><i class="fa-solid fa-plus"></i> Agregar item</button>
           <button class="btn-mini outline" onclick="exportarPlantillaPDF()"><i class="fa-solid fa-file-pdf"></i> Plantilla en blanco</button>
           <button class="btn-mini outline" onclick="exportarInventarioPDF()"><i class="fa-solid fa-file-arrow-down"></i> Inventario actualizado</button>
+          <button class="btn-mini outline" onclick="exportarPedidoPDF()"><i class="fa-solid fa-cart-shopping"></i> Pedido</button>
           <button class="btn-mini peligro" onclick="confirmarBorrarTodo()"><i class="fa-solid fa-broom"></i> Borrar todo el stock</button>
         </div>
 
@@ -261,10 +270,6 @@
           <label>Ideal</label>
           <input type="number" id="mi_ideal" min="0" step="1" placeholder="0">
         </div>
-      </div>
-      <div class="mfield">
-        <label>Ubicacion</label>
-        <input type="text" id="mi_ubicacion" placeholder="Ej: Bodega bar">
       </div>
       <div class="mfield">
         <label>Detalle</label>
@@ -357,14 +362,16 @@
           var est = estadoItem(it.cantidad, it.minimo, it.ideal);
           var aPedir = Math.max(0, (it.ideal || 0) - it.cantidad);
           var metaTxt = it.ideal ? ('min ' + it.minimo + ' · ideal ' + it.ideal) : 'sin meta';
-          return '<div class="item-row">' +
+          return '<div class="item-row" data-id="' + it.id + '">' +
             '<div class="item-info">' +
               '<div class="nombre">' + escaparHTML(it.producto) + '</div>' +
-              '<div class="meta">' + metaTxt + (it.ubicacion ? ' · ' + escaparHTML(it.ubicacion) : '') + (it.detalle ? ' · ' + escaparHTML(it.detalle) : '') + '</div>' +
+              '<div class="meta">' + metaTxt + (it.detalle ? ' · ' + escaparHTML(it.detalle) : '') + '</div>' +
             '</div>' +
-            '<span class="pedido-txt">' + (aPedir > 0 ? 'Pedir <b>' + aPedir + '</b> ' + escaparHTML(it.unidad) : '') + '</span>' +
+            '<span class="pedido-txt" id="pedido-' + it.id + '">' + (aPedir > 0 ? 'Pedir <b>' + aPedir + '</b> ' + escaparHTML(it.unidad) : '') + '</span>' +
             '<div class="item-cant">' +
-              '<div class="badge-cant ' + est.clase + '"><b>' + it.cantidad + '</b><span>' + escaparHTML(it.unidad) + '</span></div>' +
+              '<button class="btn-cant menos" onclick="cambiarCantidad(\'' + it.id + '\', -1)">&minus;</button>' +
+              '<div class="badge-cant ' + est.clase + '" id="badge-' + it.id + '"><b id="cant-' + it.id + '">' + it.cantidad + '</b><span>' + escaparHTML(it.unidad) + '</span></div>' +
+              '<button class="btn-cant mas" onclick="cambiarCantidad(\'' + it.id + '\', 1)">+</button>' +
             '</div>' +
             '<div class="item-acciones">' +
               '<button class="btn-icon" title="Editar" onclick="abrirFormItem(\'' + it.id + '\')"><i class="fa-solid fa-pen"></i></button>' +
@@ -388,6 +395,70 @@
       pintarInventario();
     }
 
+    // ---- suma/resta rapida (+/-), con debounce para no saturar el servidor ----
+    var PEND = {}; var PEND_TIMERS = {};
+    function cambiarCantidad(id, delta) {
+      var it = APP.inventario.filter(function (x) { return x.id === id; })[0];
+      if (!it) return;
+      if (delta < 0 && it.cantidad <= 0) return;
+      it.cantidad = Math.max(0, it.cantidad + delta);
+      actualizarBadgeItem(id);
+
+      PEND[id] = (PEND[id] || 0) + delta;
+      if (PEND_TIMERS[id]) clearTimeout(PEND_TIMERS[id]);
+      PEND_TIMERS[id] = setTimeout(function () { enviarPendiente(id); }, 600);
+    }
+
+    function enviarPendiente(id) {
+      var delta = PEND[id];
+      if (!delta) return;
+      PEND[id] = 0;
+      google.script.run.withSuccessHandler(function (res) {
+        var it = APP.inventario.filter(function (x) { return x.id === id; })[0];
+        if (res && res.success) {
+          if (it) { it.cantidad = res.cantidad; actualizarBadgeItem(id); }
+        } else {
+          mostrarToast((res && res.mensaje) || 'No se pudo actualizar', 'error');
+          cargarInventario();
+        }
+      }).withFailureHandler(function () {
+        mostrarToast('Sin conexion, reintentando...', 'error');
+        PEND[id] = (PEND[id] || 0) + delta;
+        PEND_TIMERS[id] = setTimeout(function () { enviarPendiente(id); }, 1500);
+      }).incrementarCantidad(id, delta);
+    }
+
+    function actualizarBadgeItem(id) {
+      var it = APP.inventario.filter(function (x) { return x.id === id; })[0];
+      if (!it) return;
+      var est = estadoItem(it.cantidad, it.minimo, it.ideal);
+      var badge = document.getElementById('badge-' + id);
+      var num = document.getElementById('cant-' + id);
+      var pedido = document.getElementById('pedido-' + id);
+      if (badge) badge.className = 'badge-cant ' + est.clase;
+      if (num) num.textContent = it.cantidad;
+      if (pedido) {
+        var aPedir = Math.max(0, (it.ideal || 0) - it.cantidad);
+        pedido.innerHTML = aPedir > 0 ? 'Pedir <b>' + aPedir + '</b> ' + escaparHTML(it.unidad) : '';
+      }
+    }
+
+    function hayPendientes() {
+      return Object.keys(PEND).some(function (k) { return PEND[k]; });
+    }
+
+    // ---- auto-refresh: refleja cambios hechos desde el celular sin recargar ----
+    setInterval(function () {
+      if (!document.getElementById('vistaInventario').classList.contains('activa')) return;
+      if (document.getElementById('modalItem').classList.contains('show')) return;
+      if (document.getElementById('modalConfirmar').classList.contains('show')) return;
+      if (hayPendientes()) return;
+      google.script.run.withSuccessHandler(function (lista) {
+        APP.inventario = lista || [];
+        pintarInventario();
+      }).obtenerInventario();
+    }, 15000);
+
     // ---- alta/edicion de items ----
     var mpEditandoId = null;
     function abrirFormItem(id) {
@@ -400,7 +471,6 @@
       document.getElementById('mi_cantidad').value = it ? it.cantidad : 0;
       document.getElementById('mi_minimo').value = it ? it.minimo : 0;
       document.getElementById('mi_ideal').value = it ? it.ideal : 0;
-      document.getElementById('mi_ubicacion').value = it ? it.ubicacion : '';
       document.getElementById('mi_detalle').value = it ? it.detalle : '';
 
       var categorias = Array.from(new Set(APP.inventario.map(function (x) { return x.categoria; })));
@@ -419,7 +489,6 @@
         cantidad: document.getElementById('mi_cantidad').value,
         minimo: document.getElementById('mi_minimo').value,
         ideal: document.getElementById('mi_ideal').value,
-        ubicacion: document.getElementById('mi_ubicacion').value,
         detalle: document.getElementById('mi_detalle').value
       };
       if (!datos.categoria || !datos.producto) { mostrarToast('Falta categoria o producto'); return; }
@@ -538,48 +607,137 @@
       var d = new Date();
       return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
     }
-    function encabezadoPDF(doc, pageWidth) {
-      doc.setFontSize(14); doc.setFont(undefined, 'bold'); doc.setTextColor(58, 58, 60);
-      doc.text('FICHA INVENTARIO RESTAURANT', pageWidth / 2, 14, { align: 'center' });
-      doc.text('CASCADAS HOTEL', pageWidth / 2, 20, { align: 'center' });
-      doc.setFontSize(10); doc.setFont(undefined, 'normal');
-      doc.text('Fecha inventario: ' + fechaHoy(), 14, 30);
-    }
 
-    function exportarPlantillaPDF() {
-      if (!APP.inventario.length) { mostrarToast('Primero carga el inventario'); return; }
-      var doc = new jspdf.jsPDF('p', 'mm', 'a4');
-      var pageWidth = doc.internal.pageSize.getWidth();
-      encabezadoPDF(doc, pageWidth);
-      doc.autoTable({
-        startY: 36,
-        head: [['Tipo', 'Ubicacion', 'Producto', 'Cantidad', 'Detalle']],
-        body: APP.inventario.map(function (it) { return [it.categoria, '', it.producto, '', '']; }),
-        theme: 'grid', headStyles: { fillColor: [65, 65, 67], textColor: 255, fontSize: 9 },
-        styles: { fontSize: 8.5, cellPadding: 2.4 },
-        columnStyles: { 0: { cellWidth: 26 }, 1: { cellWidth: 30 }, 2: { cellWidth: 70 }, 3: { cellWidth: 24 } }
+    var LOGO_URL = 'https://lh3.googleusercontent.com/d/1l-GRXICSU6fHGe9uGsnGdZ6M0FKgKevJ';
+    var logoBase64Promise = null;
+    function obtenerLogoBase64() {
+      if (logoBase64Promise) return logoBase64Promise;
+      logoBase64Promise = new Promise(function (resolve) {
+        try {
+          var img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = function () {
+            try {
+              var canvas = document.createElement('canvas');
+              canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+              canvas.getContext('2d').drawImage(img, 0, 0);
+              resolve(canvas.toDataURL('image/png'));
+            } catch (e) { resolve(null); }
+          };
+          img.onerror = function () { resolve(null); };
+          img.src = LOGO_URL;
+        } catch (e) { resolve(null); }
       });
-      doc.save('Ficha_Inventario_Blanco_' + new Date().toISOString().slice(0, 10) + '.pdf');
+      return logoBase64Promise;
     }
 
-    function exportarInventarioPDF() {
+    function dibujarBannerPDF(doc, pageWidth, linea1, linea2, logoData) {
+      doc.setFillColor(65, 65, 67);
+      doc.rect(0, 0, pageWidth, 25, 'F');
+      if (logoData) {
+        try { doc.addImage(logoData, 'PNG', 10, 4.5, 16, 16); } catch (e) {}
+      }
+      doc.setTextColor(255, 255, 255);
+      doc.setFont(undefined, 'bold'); doc.setFontSize(13);
+      doc.text(linea1, pageWidth / 2, 12, { align: 'center' });
+      doc.setFont(undefined, 'normal'); doc.setFontSize(9);
+      doc.text(linea2, pageWidth / 2, 19, { align: 'center' });
+    }
+
+    // Genera la tabla probando tamanos de letra cada vez mas compactos hasta
+    // que entre en maxPaginas (evita una ultima pagina casi vacia). Agrega
+    // el banner (color + logo) y pie de pagina en cada hoja.
+    function construirPDF(opciones) {
+      var intentos = [
+        { fontSize: 8.5, cellPadding: 2.2, headSize: 9 },
+        { fontSize: 8, cellPadding: 2, headSize: 8.5 },
+        { fontSize: 7.5, cellPadding: 1.8, headSize: 8 },
+        { fontSize: 7, cellPadding: 1.5, headSize: 7.5 },
+        { fontSize: 6.5, cellPadding: 1.2, headSize: 7 }
+      ];
+      var doc, pageWidth, pageHeight, totalPaginas;
+      for (var i = 0; i < intentos.length; i++) {
+        doc = new jspdf.jsPDF('p', 'mm', 'a4');
+        pageWidth = doc.internal.pageSize.getWidth();
+        pageHeight = doc.internal.pageSize.getHeight();
+        var est = intentos[i];
+        doc.autoTable({
+          startY: 31,
+          margin: { top: 31, right: 12, bottom: 16, left: 12 },
+          head: [opciones.columnas],
+          body: opciones.filas,
+          theme: 'grid',
+          headStyles: { fillColor: [65, 65, 67], textColor: 255, fontSize: est.headSize },
+          styles: { fontSize: est.fontSize, cellPadding: est.cellPadding, overflow: 'linebreak', valign: 'middle' },
+          columnStyles: opciones.columnStyles,
+          didDrawPage: function () {
+            dibujarBannerPDF(doc, pageWidth, opciones.linea1, opciones.linea2, opciones.logoData);
+          }
+        });
+        totalPaginas = doc.internal.getNumberOfPages();
+        if (!opciones.maxPaginas || totalPaginas <= opciones.maxPaginas || i === intentos.length - 1) break;
+      }
+      for (var p = 1; p <= totalPaginas; p++) {
+        doc.setPage(p);
+        doc.setFontSize(7.5); doc.setTextColor(150, 150, 150); doc.setFont(undefined, 'normal');
+        doc.text('Cascadas Hotel · Inventario Bar/Restaurant', 12, pageHeight - 8);
+        doc.text('Pagina ' + p + ' de ' + totalPaginas, pageWidth - 12, pageHeight - 8, { align: 'right' });
+      }
+      doc.save(opciones.nombreArchivo);
+    }
+
+    async function exportarPlantillaPDF() {
       if (!APP.inventario.length) { mostrarToast('Primero carga el inventario'); return; }
-      var doc = new jspdf.jsPDF('p', 'mm', 'a4');
-      var pageWidth = doc.internal.pageSize.getWidth();
-      encabezadoPDF(doc, pageWidth);
-      doc.autoTable({
-        startY: 36,
-        head: [['Tipo', 'Producto', 'Unidad', 'Cantidad', 'Estado', 'A pedir', 'Ubicacion', 'Detalle']],
-        body: APP.inventario.map(function (it) {
+      var logoData = await obtenerLogoBase64();
+      construirPDF({
+        linea1: 'FICHA INVENTARIO RESTAURANT',
+        linea2: 'Fecha inventario: ' + fechaHoy(),
+        columnas: ['Tipo', 'Producto', 'Cantidad', 'Detalle'],
+        filas: APP.inventario.map(function (it) { return [it.categoria, it.producto, '', '']; }),
+        columnStyles: { 0: { cellWidth: 28 }, 1: { cellWidth: 96 }, 2: { cellWidth: 28 } },
+        maxPaginas: 4,
+        nombreArchivo: 'Ficha_Inventario_Blanco_' + new Date().toISOString().slice(0, 10) + '.pdf',
+        logoData: logoData
+      });
+    }
+
+    async function exportarInventarioPDF() {
+      if (!APP.inventario.length) { mostrarToast('Primero carga el inventario'); return; }
+      var logoData = await obtenerLogoBase64();
+      construirPDF({
+        linea1: 'INVENTARIO ACTUALIZADO',
+        linea2: 'Fecha: ' + fechaHoy(),
+        columnas: ['Tipo', 'Producto', 'Unidad', 'Cantidad', 'Estado', 'A pedir', 'Detalle'],
+        filas: APP.inventario.map(function (it) {
           var est = estadoItem(it.cantidad, it.minimo, it.ideal);
           var aPedir = Math.max(0, (it.ideal || 0) - it.cantidad);
-          return [it.categoria, it.producto, it.unidad, it.cantidad, est.label, aPedir > 0 ? aPedir : '-', it.ubicacion || '', it.detalle || ''];
+          return [it.categoria, it.producto, it.unidad, it.cantidad, est.label, aPedir > 0 ? aPedir : '-', it.detalle || ''];
         }),
-        theme: 'grid', headStyles: { fillColor: [65, 65, 67], textColor: 255, fontSize: 8 },
-        styles: { fontSize: 7.5, cellPadding: 2 },
-        columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 44 }, 2: { cellWidth: 16 }, 3: { cellWidth: 16 }, 4: { cellWidth: 18 }, 5: { cellWidth: 16 } }
+        columnStyles: { 0: { cellWidth: 22 }, 1: { cellWidth: 52 }, 2: { cellWidth: 18 }, 3: { cellWidth: 18 }, 4: { cellWidth: 22 }, 5: { cellWidth: 18 } },
+        maxPaginas: 4,
+        nombreArchivo: 'Inventario_Actualizado_' + new Date().toISOString().slice(0, 10) + '.pdf',
+        logoData: logoData
       });
-      doc.save('Inventario_Actualizado_' + new Date().toISOString().slice(0, 10) + '.pdf');
+    }
+
+    async function exportarPedidoPDF() {
+      if (!APP.inventario.length) { mostrarToast('Primero carga el inventario'); return; }
+      var pendientes = APP.inventario.filter(function (it) { return Math.max(0, (it.ideal || 0) - it.cantidad) > 0; });
+      if (!pendientes.length) { mostrarToast('No hay items por debajo del ideal'); return; }
+      var logoData = await obtenerLogoBase64();
+      construirPDF({
+        linea1: 'PEDIDO DE REPOSICION',
+        linea2: 'Fecha: ' + fechaHoy(),
+        columnas: ['Tipo', 'Producto', 'Unidad', 'Cantidad actual', 'A pedir'],
+        filas: pendientes.map(function (it) {
+          var aPedir = Math.max(0, (it.ideal || 0) - it.cantidad);
+          return [it.categoria, it.producto, it.unidad, it.cantidad, aPedir];
+        }),
+        columnStyles: { 0: { cellWidth: 26 }, 1: { cellWidth: 74 }, 2: { cellWidth: 22 }, 3: { cellWidth: 28 }, 4: { cellWidth: 24 } },
+        maxPaginas: null,
+        nombreArchivo: 'Pedido_Reposicion_' + new Date().toISOString().slice(0, 10) + '.pdf',
+        logoData: logoData
+      });
     }
 
     // ───────────────────────────────────────────────────────────
