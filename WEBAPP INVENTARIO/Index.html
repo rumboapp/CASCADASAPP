@@ -206,7 +206,6 @@
     <div class="tabs">
       <button class="tab-btn activo" data-tab="Inventario" onclick="mostrarTab('Inventario')">Inventario</button>
       <button class="tab-btn" data-tab="Chef" onclick="mostrarTab('Chef')">Sugerencia del Chef</button>
-      <button class="tab-btn" data-tab="Historial" onclick="mostrarTab('Historial')">Menus anteriores</button>
     </div>
   </div>
 
@@ -267,15 +266,16 @@
           <button class="btn-mini dark" onclick="generarMenuPDF()"><i class="fa-solid fa-file-pdf"></i> Generar PDF</button>
         </div>
       </div>
-    </div>
 
-
-    <!-- ===== HISTORIAL (menus del chef) ===== -->
-    <div id="vistaHistorial" class="vista">
       <div class="card">
-        <h2>Menus anteriores</h2>
-        <p class="sub">Cada vez que se genera un PDF de Sugerencia del Chef queda una copia aca para volver a imprimirlo.</p>
-        <div id="listaMenus"></div>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <div>
+            <h2>Menus anteriores</h2>
+            <p class="sub" style="margin-bottom:0;">Cada vez que generas un PDF queda una copia aca para volver a imprimirlo.</p>
+          </div>
+          <button class="btn-mini outline" onclick="cargarMenus()"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+        </div>
+        <div id="listaMenus" style="margin-top:16px;"></div>
       </div>
     </div>
 
@@ -374,7 +374,6 @@
       document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.toggle('activo', b.getAttribute('data-tab') === nombre); });
       document.querySelectorAll('.vista').forEach(function (v) { v.classList.remove('activa'); });
       document.getElementById('vista' + nombre).classList.add('activa');
-      if (nombre === 'Historial') cargarHistorial();
       if (nombre === 'Chef') inicializarChefTab();
     }
 
@@ -591,9 +590,13 @@
     // ───────────────────────────────────────────────────────────
     var chefInicializado = false;
     function inicializarChefTab() {
-      if (chefInicializado) return;
-      chefInicializado = true;
-      limpiarFormularioChef();
+      if (!chefInicializado) {
+        chefInicializado = true;
+        limpiarFormularioChef();
+      }
+      // Siempre refresca los menus anteriores al entrar a la pestaña, asi
+      // se ve al toque lo que se acaba de generar (o lo que genero otra persona).
+      cargarMenus();
     }
 
     var TIEMPOS_PRESET = ['Aperitivo', 'Entrada', 'Fondo', 'Postre', 'Postre y Café'];
@@ -731,7 +734,7 @@
         if (!res || !res.success) { mostrarToast((res && res.mensaje) || 'No se pudo guardar', 'error'); return; }
         mostrarToast('Menu guardado, generando PDF...', 'exito');
         await construirPDFMenu(datos);
-        historialCargado = false;
+        cargarMenus();
       } catch (e) {
         console.error('Error al generar el menu', e);
         mostrarToast('No se pudo guardar el menu: ' + (e && e.message ? e.message : 'error desconocido'), 'error');
@@ -783,13 +786,18 @@
     }
 
     // ───────────────────────────────────────────────────────────
-    // HISTORIAL
+    // MENUS ANTERIORES (dentro de la pestaña Sugerencia del Chef)
     // ───────────────────────────────────────────────────────────
-    var historialCargado = false;
-    function cargarHistorial() {
-      if (historialCargado) return;
-      historialCargado = true;
-      google.script.run.withSuccessHandler(function (lista) { pintarMenus(lista || []); }).obtenerHistorialMenus();
+    // Se recarga siempre (al entrar a la pestaña, al generar un menu, o con
+    // el boton Actualizar), sin cache, asi nunca queda desactualizado.
+    function cargarMenus() {
+      var cont = document.getElementById('listaMenus');
+      if (!cont) return;
+      cont.innerHTML = '<div class="loader show" style="padding:20px;"><i class="fa-solid fa-circle-notch spin"></i> Cargando...</div>';
+      google.script.run
+        .withSuccessHandler(function (lista) { pintarMenus(lista || []); })
+        .withFailureHandler(function () { cont.innerHTML = '<p class="empty">No se pudo cargar el historial de menus.</p>'; })
+        .obtenerHistorialMenus();
     }
 
     function pintarMenus(lista) {

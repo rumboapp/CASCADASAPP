@@ -493,6 +493,7 @@ function guardarMenuChef(datos) {
       ];
     });
     hoja.getRange(hoja.getLastRow() + 1, 1, filas.length, filas[0].length).setValues(filas);
+    SpreadsheetApp.flush(); // asegura que quede persistido antes de responder
 
     return {
       success: true, snapshotId: snapshotId, mensaje: 'Menu guardado en el historial.',
