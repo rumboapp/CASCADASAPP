@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Inventario Bar/Restaurant</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #F4F4F5; --surface: #FFFFFF; --text: #3A3A3C; --text-sec: #6E6C69;
+      --accent: #414143; --accent-light: #ECECEE; --border: #C9C6C2; --input-bg: #F3F3F4;
+      --shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(0,0,0,0.06), 0 10px 24px -14px rgba(46,46,48,0.30);
+      --good: #0ca30c; --good-tint: #dcf1dc;
+      --warn: #d98c12; --warn-tint: #faecd2;
+      --crit: #d03b3b; --crit-tint: #f8dcdc;
+      --sobra: #2a78d6; --sobra-tint: #dce8f8;
+      --na: #9c9995; --na-tint: #ececea;
+    }
+    html, body {
+      min-height: 100%; font-family: 'Oswald', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-weight: 300; background-color: var(--bg);
+      background-image:
+        radial-gradient(ellipse at 50% -20%, rgba(255,255,255,.7), transparent 55%),
+        repeating-linear-gradient(0deg, rgba(65,65,67,.02) 0 1px, transparent 1px 4px),
+        repeating-linear-gradient(90deg, rgba(65,65,67,.02) 0 1px, transparent 1px 4px);
+      color: var(--text); -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3 { font-family: 'Bebas Neue', sans-serif; font-weight: 400; letter-spacing: .5px; }
+
+    .topbar {
+      background: repeating-linear-gradient(90deg, rgba(255,255,255,.03) 0 1px, transparent 1px 3px), linear-gradient(180deg, #4C4C4F, #414143 60%, #38383A);
+      padding: 16px 20px; box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 3px 10px rgba(0,0,0,.28);
+    }
+    .topbar-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .topbar h1 { color: #E9E7E5; font-size: 22px; text-shadow: 0 -1px 0 rgba(0,0,0,.5); }
+    .topbar p { color: #C9C6C2; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+
+    .tabs { display: flex; gap: 4px; max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+    .tab-btn {
+      background: transparent; border: none; color: #C9C6C2; font-family: 'Oswald', sans-serif;
+      font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+      padding: 12px 16px; cursor: pointer; border-bottom: 3px solid transparent;
+    }
+    .tab-btn.activo { color: #fff; border-color: var(--good); }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
+    .vista { display: none; }
+    .vista.activa { display: block; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 22px; box-shadow: var(--shadow); margin-bottom: 18px; }
+    .card h2 { font-size: 22px; margin-bottom: 4px; }
+    .card .sub { font-size: 12.5px; color: var(--text-sec); margin-bottom: 16px; }
+
+    .btn-mini {
+      font-family: 'Oswald', sans-serif; border: none; border-radius: 12px; padding: 0 16px; height: 44px; font-size: 12.5px; font-weight: 600;
+      cursor: pointer; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; text-transform: uppercase; letter-spacing: .03em;
+    }
+    .btn-mini.dark { background: linear-gradient(180deg, #57575A, #414143 50%, #39393B); color: #F2F0EE; box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 2px 0 #242426; }
+    .btn-mini.outline { background: var(--surface); color: var(--text); box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.05), inset 0 0 0 1px var(--border); }
+    .btn-mini.peligro { background: linear-gradient(180deg, #b04d47, #8B3A3A 60%, #7a2f2f); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 2px 0 #5f2626; }
+    .btn-mini:active { transform: translateY(1px); }
+    .btn-mini:disabled { opacity: .5; cursor: default; }
+
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+    .toolbar input[type=text].buscar { flex: 1; min-width: 180px; height: 44px; padding: 0 14px; border: none; border-radius: 12px; font-family: 'Oswald', sans-serif; font-size: 13.5px; background: var(--input-bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); }
+
+    /* ===== categorias / items ===== */
+    .cat-block { margin-bottom: 10px; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--surface); }
+    .cat-head {
+      display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; cursor: pointer;
+      background: var(--accent-light);
+    }
+    .cat-head h3 { font-size: 17px; letter-spacing: .3px; }
+    .cat-head .conteo { font-size: 11px; color: var(--text-sec); font-weight: 600; text-transform: uppercase; }
+    .cat-body { padding: 4px 10px 8px; }
+    .cat-body.oculto { display: none; }
+
+    .item-row { display: flex; align-items: center; gap: 10px; padding: 10px 6px; border-bottom: 1px solid #EFEDEA; }
+    .item-row:last-child { border-bottom: none; }
+    .item-info { flex: 1; min-width: 0; }
+    .item-info .nombre { font-size: 14px; font-weight: 500; color: var(--text); }
+    .item-info .meta { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
+    .item-cant { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .badge-cant {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-width: 62px; padding: 5px 10px; border-radius: 12px; font-weight: 700;
+    }
+    .badge-cant b { font-size: 17px; line-height: 1; font-family: 'Oswald', sans-serif; }
+    .badge-cant span { font-size: 8.5px; text-transform: uppercase; letter-spacing: .04em; margin-top: 2px; }
+    .badge-cant.good { background: var(--good-tint); color: var(--good); }
+    .badge-cant.warn { background: var(--warn-tint); color: var(--warn); }
+    .badge-cant.crit { background: var(--crit-tint); color: var(--crit); }
+    .badge-cant.sobra { background: var(--sobra-tint); color: var(--sobra); }
+    .badge-cant.na { background: var(--na-tint); color: var(--na); }
+    .pedido-txt { font-size: 10.5px; color: var(--text-sec); min-width: 78px; }
+    .pedido-txt b { color: var(--crit); }
+    .item-acciones { display: flex; gap: 4px; flex-shrink: 0; }
+    .btn-icon { width: 32px; height: 32px; border: none; border-radius: 9px; background: var(--input-bg); color: var(--text-sec); cursor: pointer; font-size: 12px; }
+    .btn-icon.danger:hover { background: var(--crit-tint); color: var(--crit); }
+
+    .leyenda { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11px; color: var(--text-sec); margin-bottom: 14px; }
+    .leyenda .sw { width: 9px; height: 9px; border-radius: 3px; display: inline-block; margin-right: 5px; }
+
+    /* ===== modal ===== */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(20,20,20,.5); z-index: 200; align-items: center; justify-content: center; padding: 16px; }
+    .modal-overlay.show { display: flex; }
+    .modal-card { width: 100%; max-width: 440px; max-height: 88vh; overflow-y: auto; background: var(--surface); border-radius: 20px; padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,.35); }
+    .modal-card h3 { font-size: 20px; margin-bottom: 16px; }
+    .mfield { margin-bottom: 14px; }
+    .mfield label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-sec); margin-bottom: 6px; }
+    .mfield input, .mfield select {
+      width: 100%; padding: 0 12px; height: 42px; border: none; border-radius: 10px; font-family: 'Oswald', sans-serif;
+      font-size: 13.5px; background: var(--input-bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--border);
+    }
+    .mfield input:focus, .mfield select:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+    .mgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* ===== QR ===== */
+    .qr-wrap { text-align: center; padding: 20px 0; }
+    #qrCanvas { display: inline-block; padding: 18px; background: #fff; border-radius: 20px; box-shadow: var(--shadow); }
+    .qr-link-row { display: flex; gap: 8px; max-width: 480px; margin: 20px auto 0; }
+    .qr-link-row input { flex: 1; height: 44px; padding: 0 14px; border: none; border-radius: 12px; font-family: monospace; font-size: 12.5px; background: var(--input-bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); }
+
+    /* ===== historial ===== */
+    .consumo-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 4px; border-bottom: 1px solid #EFEDEA; font-size: 13px; }
+    .consumo-row:last-child { border-bottom: none; }
+    .consumo-row .rank { display: inline-block; width: 22px; color: var(--text-sec); font-weight: 700; font-size: 11px; }
+    .snap-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 4px; border-bottom: 1px solid #EFEDEA; cursor: pointer; }
+    .snap-row:last-child { border-bottom: none; }
+    .snap-row .fecha { font-weight: 500; }
+    .snap-row .meta { font-size: 11.5px; color: var(--text-sec); }
+    .snap-detalle { display: none; padding: 6px 4px 14px; }
+    .snap-detalle.show { display: block; }
+    table.mini { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table.mini th { text-align: left; color: var(--text-sec); font-size: 9.5px; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+    table.mini td { padding: 6px 8px; border-bottom: 1px solid #EFEDEA; }
+
+    .empty { text-align: center; padding: 30px 10px; color: #A8A5A0; font-size: 13px; }
+    .loader { display: none; align-items: center; justify-content: center; gap: 10px; padding: 40px 10px; color: var(--text-sec); font-weight: 600; font-size: 13px; }
+    .loader.show { display: flex; }
+    .spin { display: inline-block; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #F2F0EE; padding: 11px 20px; border-radius: 12px; font-size: 13px; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,.3); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 999; }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div>
+        <h1><i class="fa-solid fa-martini-glass-citrus"></i> Inventario Bar/Restaurant</h1>
+        <p>Cascadas Hotel</p>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn activo" data-tab="Inventario" onclick="mostrarTab('Inventario')">Inventario</button>
+      <button class="tab-btn" data-tab="QR" onclick="mostrarTab('QR')">QR</button>
+      <button class="tab-btn" data-tab="Historial" onclick="mostrarTab('Historial')">Historial</button>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <!-- ===== INVENTARIO ===== -->
+    <div id="vistaInventario" class="vista activa">
+      <div class="card">
+        <h2>Inventario</h2>
+        <p class="sub">Cantidades actuales del bar. Los colores muestran el estado segun el minimo e ideal de cada producto.</p>
+
+        <div class="toolbar">
+          <input type="text" class="buscar" id="buscarItem" placeholder="Buscar producto..." oninput="pintarInventario()">
+          <button class="btn-mini dark" onclick="abrirFormItem(null)"><i class="fa-solid fa-plus"></i> Agregar item</button>
+          <button class="btn-mini outline" onclick="exportarPlantillaPDF()"><i class="fa-solid fa-file-pdf"></i> Plantilla en blanco</button>
+          <button class="btn-mini outline" onclick="exportarInventarioPDF()"><i class="fa-solid fa-file-arrow-down"></i> Inventario actualizado</button>
+          <button class="btn-mini peligro" onclick="confirmarBorrarTodo()"><i class="fa-solid fa-broom"></i> Borrar todo el stock</button>
+        </div>
+
+        <div class="leyenda">
+          <span><i class="sw" style="background:var(--crit)"></i>Critico (bajo el minimo)</span>
+          <span><i class="sw" style="background:var(--warn)"></i>Falta stock</span>
+          <span><i class="sw" style="background:var(--good)"></i>Bien</span>
+          <span><i class="sw" style="background:var(--sobra)"></i>Sobra</span>
+          <span><i class="sw" style="background:var(--na)"></i>Sin meta definida</span>
+        </div>
+
+        <div id="loaderInv" class="loader"><i class="fa-solid fa-circle-notch spin"></i> Cargando inventario...</div>
+        <div id="listaInventario"></div>
+      </div>
+    </div>
+
+    <!-- ===== QR ===== -->
+    <div id="vistaQR" class="vista">
+      <div class="card">
+        <h2>Conteo por celular</h2>
+        <p class="sub">Escanea este codigo con el celular para abrir el inventario y contar caminando por el bar, sumando o restando cada producto.</p>
+        <div class="qr-wrap">
+          <div id="qrCanvas"></div>
+        </div>
+        <div class="qr-link-row">
+          <input type="text" id="linkMovil" readonly value="Cargando...">
+          <button class="btn-mini dark" onclick="copiarLinkMovil()"><i class="fa-solid fa-link"></i> Copiar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== HISTORIAL ===== -->
+    <div id="vistaHistorial" class="vista">
+      <div class="card">
+        <h2>Mas consumido</h2>
+        <p class="sub">Estimado a partir de las bajas de stock entre cada conteo. Si llega mercaderia nueva entre medio, el numero real puede ser mayor.</p>
+        <div id="listaConsumo"></div>
+      </div>
+      <div class="card">
+        <h2>Conteos anteriores</h2>
+        <p class="sub">Se guarda una copia automatica cada vez que se usa "Borrar todo el stock".</p>
+        <div id="listaSnapshots"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MODAL: agregar/editar item -->
+  <div id="modalItem" class="modal-overlay">
+    <div class="modal-card">
+      <h3 id="modalItemTitulo">Nuevo item</h3>
+      <div class="mfield">
+        <label>Categoria</label>
+        <input type="text" id="mi_categoria" list="listaCategorias" placeholder="Ej: Cerveza">
+        <datalist id="listaCategorias"></datalist>
+      </div>
+      <div class="mfield">
+        <label>Producto</label>
+        <input type="text" id="mi_producto" placeholder="Nombre del producto">
+      </div>
+      <div class="mgrid">
+        <div class="mfield">
+          <label>Unidad</label>
+          <input type="text" id="mi_unidad" placeholder="un. / botella / caja">
+        </div>
+        <div class="mfield">
+          <label>Cantidad actual</label>
+          <input type="number" id="mi_cantidad" min="0" step="1" placeholder="0">
+        </div>
+      </div>
+      <div class="mgrid">
+        <div class="mfield">
+          <label>Minimo</label>
+          <input type="number" id="mi_minimo" min="0" step="1" placeholder="0">
+        </div>
+        <div class="mfield">
+          <label>Ideal</label>
+          <input type="number" id="mi_ideal" min="0" step="1" placeholder="0">
+        </div>
+      </div>
+      <div class="mfield">
+        <label>Ubicacion</label>
+        <input type="text" id="mi_ubicacion" placeholder="Ej: Bodega bar">
+      </div>
+      <div class="mfield">
+        <label>Detalle</label>
+        <input type="text" id="mi_detalle" placeholder="Notas (opcional)">
+      </div>
+      <div style="display:flex; gap:8px; margin-top:18px;">
+        <button class="btn-mini outline" style="flex:1; justify-content:center;" onclick="cerrarModalItem()">Cancelar</button>
+        <button class="btn-mini dark" style="flex:1; justify-content:center;" onclick="guardarItemUI()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: confirmar borrar todo -->
+  <div id="modalConfirmar" class="modal-overlay">
+    <div class="modal-card">
+      <h3>Borrar todo el stock</h3>
+      <p style="font-size:13.5px; color:var(--text-sec); line-height:1.5; margin-bottom:18px;">
+        Se guardara una copia del inventario actual en el Historial, y luego todas las cantidades quedaran en 0
+        para empezar un conteo nuevo. Esta accion no se puede deshacer.
+      </p>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-mini outline" style="flex:1; justify-content:center;" onclick="cerrarModalConfirmar()">Cancelar</button>
+        <button class="btn-mini peligro" style="flex:1; justify-content:center;" onclick="ejecutarBorrarTodo()">Si, borrar todo</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    var APP = { inventario: [], catAbiertas: {} };
+
+    function escaparHTML(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+    function mostrarToast(txt, tipo) {
+      var t = document.getElementById('toast');
+      t.textContent = txt; t.classList.add('show');
+      clearTimeout(t._timer); t._timer = setTimeout(function () { t.classList.remove('show'); }, 2400);
+    }
+
+    function mostrarTab(nombre) {
+      document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.toggle('activo', b.getAttribute('data-tab') === nombre); });
+      document.querySelectorAll('.vista').forEach(function (v) { v.classList.remove('activa'); });
+      document.getElementById('vista' + nombre).classList.add('activa');
+      if (nombre === 'QR') cargarQR();
+      if (nombre === 'Historial') cargarHistorial();
+    }
+
+    // ───────────────────────────────────────────────────────────
+    // INVENTARIO
+    // ───────────────────────────────────────────────────────────
+    function cargarInventario() {
+      document.getElementById('loaderInv').classList.add('show');
+      google.script.run.withSuccessHandler(function (lista) {
+        document.getElementById('loaderInv').classList.remove('show');
+        APP.inventario = lista || [];
+        pintarInventario();
+      }).withFailureHandler(function () {
+        document.getElementById('loaderInv').classList.remove('show');
+        mostrarToast('No se pudo cargar el inventario', 'error');
+      }).obtenerInventario();
+    }
+
+    function estadoItem(cantidad, minimo, ideal) {
+      if (!ideal || ideal <= 0) return { label: 'Sin meta', clase: 'na' };
+      if (cantidad < minimo) return { label: 'Critico', clase: 'crit' };
+      if (cantidad < ideal) return { label: 'Falta stock', clase: 'warn' };
+      if (cantidad <= ideal * 1.15) return { label: 'Bien', clase: 'good' };
+      return { label: 'Sobra', clase: 'sobra' };
+    }
+
+    function pintarInventario() {
+      var cont = document.getElementById('listaInventario');
+      var filtro = (document.getElementById('buscarItem').value || '').toLowerCase().trim();
+      var lista = APP.inventario.filter(function (it) {
+        if (!filtro) return true;
+        return (it.producto + ' ' + it.categoria).toLowerCase().indexOf(filtro) !== -1;
+      });
+      if (!lista.length) { cont.innerHTML = '<p class="empty">Sin resultados.</p>'; return; }
+
+      var porCat = {}, ordenCat = [];
+      lista.forEach(function (it) {
+        if (!porCat[it.categoria]) { porCat[it.categoria] = []; ordenCat.push(it.categoria); }
+        porCat[it.categoria].push(it);
+      });
+
+      cont.innerHTML = ordenCat.map(function (cat) {
+        var items = porCat[cat];
+        var abierta = filtro ? true : (APP.catAbiertas[cat] !== false);
+        var filas = items.map(function (it) {
+          var est = estadoItem(it.cantidad, it.minimo, it.ideal);
+          var aPedir = Math.max(0, (it.ideal || 0) - it.cantidad);
+          var metaTxt = it.ideal ? ('min ' + it.minimo + ' · ideal ' + it.ideal) : 'sin meta';
+          return '<div class="item-row">' +
+            '<div class="item-info">' +
+              '<div class="nombre">' + escaparHTML(it.producto) + '</div>' +
+              '<div class="meta">' + metaTxt + (it.ubicacion ? ' · ' + escaparHTML(it.ubicacion) : '') + (it.detalle ? ' · ' + escaparHTML(it.detalle) : '') + '</div>' +
+            '</div>' +
+            '<span class="pedido-txt">' + (aPedir > 0 ? 'Pedir <b>' + aPedir + '</b> ' + escaparHTML(it.unidad) : '') + '</span>' +
+            '<div class="item-cant">' +
+              '<div class="badge-cant ' + est.clase + '"><b>' + it.cantidad + '</b><span>' + escaparHTML(it.unidad) + '</span></div>' +
+            '</div>' +
+            '<div class="item-acciones">' +
+              '<button class="btn-icon" title="Editar" onclick="abrirFormItem(\'' + it.id + '\')"><i class="fa-solid fa-pen"></i></button>' +
+              '<button class="btn-icon danger" title="Eliminar" onclick="eliminarItemUI(\'' + it.id + '\')"><i class="fa-solid fa-trash"></i></button>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+
+        return '<div class="cat-block">' +
+          '<div class="cat-head" onclick="toggleCategoria(\'' + escaparHTML(cat).replace(/'/g, "\\'") + '\')">' +
+            '<h3>' + escaparHTML(cat) + '</h3>' +
+            '<span class="conteo">' + items.length + ' items <i class="fa-solid fa-chevron-down" style="margin-left:6px; transform:' + (abierta ? '' : 'rotate(-90deg)') + '"></i></span>' +
+          '</div>' +
+          '<div class="cat-body' + (abierta ? '' : ' oculto') + '" id="catBody_' + cat.replace(/[^a-zA-Z0-9]/g, '_') + '">' + filas + '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function toggleCategoria(cat) {
+      APP.catAbiertas[cat] = APP.catAbiertas[cat] === false ? true : false;
+      pintarInventario();
+    }
+
+    // ---- alta/edicion de items ----
+    var mpEditandoId = null;
+    function abrirFormItem(id) {
+      mpEditandoId = id;
+      var it = id ? APP.inventario.filter(function (x) { return x.id === id; })[0] : null;
+      document.getElementById('modalItemTitulo').textContent = it ? 'Editar item' : 'Nuevo item';
+      document.getElementById('mi_categoria').value = it ? it.categoria : '';
+      document.getElementById('mi_producto').value = it ? it.producto : '';
+      document.getElementById('mi_unidad').value = it ? it.unidad : 'un.';
+      document.getElementById('mi_cantidad').value = it ? it.cantidad : 0;
+      document.getElementById('mi_minimo').value = it ? it.minimo : 0;
+      document.getElementById('mi_ideal').value = it ? it.ideal : 0;
+      document.getElementById('mi_ubicacion').value = it ? it.ubicacion : '';
+      document.getElementById('mi_detalle').value = it ? it.detalle : '';
+
+      var categorias = Array.from(new Set(APP.inventario.map(function (x) { return x.categoria; })));
+      document.getElementById('listaCategorias').innerHTML = categorias.map(function (c) { return '<option value="' + escaparHTML(c) + '">'; }).join('');
+
+      document.getElementById('modalItem').classList.add('show');
+    }
+    function cerrarModalItem() { document.getElementById('modalItem').classList.remove('show'); }
+
+    function guardarItemUI() {
+      var datos = {
+        id: mpEditandoId || undefined,
+        categoria: document.getElementById('mi_categoria').value,
+        producto: document.getElementById('mi_producto').value,
+        unidad: document.getElementById('mi_unidad').value,
+        cantidad: document.getElementById('mi_cantidad').value,
+        minimo: document.getElementById('mi_minimo').value,
+        ideal: document.getElementById('mi_ideal').value,
+        ubicacion: document.getElementById('mi_ubicacion').value,
+        detalle: document.getElementById('mi_detalle').value
+      };
+      if (!datos.categoria || !datos.producto) { mostrarToast('Falta categoria o producto'); return; }
+      google.script.run.withSuccessHandler(function (res) {
+        if (res && res.success) { mostrarToast(res.mensaje || 'Guardado', 'exito'); cerrarModalItem(); cargarInventario(); }
+        else mostrarToast((res && res.mensaje) || 'No se pudo guardar');
+      }).guardarItem(datos);
+    }
+
+    function eliminarItemUI(id) {
+      var it = APP.inventario.filter(function (x) { return x.id === id; })[0];
+      if (!it) return;
+      if (!confirm('¿Eliminar "' + it.producto + '" del inventario?')) return;
+      google.script.run.withSuccessHandler(function (res) {
+        if (res && res.success) { mostrarToast('Item eliminado', 'exito'); cargarInventario(); }
+        else mostrarToast((res && res.mensaje) || 'No se pudo eliminar');
+      }).eliminarItem(id);
+    }
+
+    // ---- borrar todo el stock ----
+    function confirmarBorrarTodo() { document.getElementById('modalConfirmar').classList.add('show'); }
+    function cerrarModalConfirmar() { document.getElementById('modalConfirmar').classList.remove('show'); }
+    function ejecutarBorrarTodo() {
+      google.script.run.withSuccessHandler(function (res) {
+        cerrarModalConfirmar();
+        mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+        if (res.success) cargarInventario();
+      }).borrarTodoElStock();
+    }
+
+    // ───────────────────────────────────────────────────────────
+    // QR
+    // ───────────────────────────────────────────────────────────
+    var qrPintado = false;
+    function cargarQR() {
+      google.script.run.withSuccessHandler(function (url) {
+        document.getElementById('linkMovil').value = url || '(no se pudo detectar la URL; publica la app primero)';
+        if (url && !qrPintado) {
+          new QRCode(document.getElementById('qrCanvas'), { text: url, width: 240, height: 240, colorDark: '#3A3A3C', colorLight: '#ffffff' });
+          qrPintado = true;
+        }
+      }).obtenerUrlMovil();
+    }
+    function copiarLinkMovil() {
+      var link = document.getElementById('linkMovil').value;
+      if (!link || link.indexOf('http') !== 0) { mostrarToast('El enlace aun no esta disponible'); return; }
+      copiarAlPortapapeles(link);
+    }
+    function copiarAlPortapapeles(texto) {
+      var ok = function () { mostrarToast('Copiado', 'exito'); };
+      var fallback = function () {
+        try {
+          var ta = document.createElement('textarea');
+          ta.value = texto; ta.style.cssText = 'position:fixed;left:-9999px;top:0;';
+          document.body.appendChild(ta); ta.focus(); ta.select();
+          var r = document.execCommand('copy'); document.body.removeChild(ta);
+          if (r) ok(); else mostrarToast('No se pudo copiar automaticamente');
+        } catch (e) { mostrarToast('No se pudo copiar automaticamente'); }
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(texto).then(ok, fallback);
+      else fallback();
+    }
+
+    // ───────────────────────────────────────────────────────────
+    // HISTORIAL
+    // ───────────────────────────────────────────────────────────
+    var historialCargado = false;
+    function cargarHistorial() {
+      if (historialCargado) return;
+      historialCargado = true;
+      google.script.run.withSuccessHandler(function (lista) { pintarConsumo(lista || []); }).obtenerConsumoEstimado();
+      google.script.run.withSuccessHandler(function (lista) { pintarSnapshots(lista || []); }).obtenerListaHistorial();
+    }
+    function pintarConsumo(lista) {
+      var cont = document.getElementById('listaConsumo');
+      if (!lista.length) { cont.innerHTML = '<p class="empty">Aun no hay suficiente historial para estimar consumo.</p>'; return; }
+      cont.innerHTML = lista.slice(0, 20).map(function (it, i) {
+        return '<div class="consumo-row"><span><span class="rank">' + (i + 1) + '.</span>' + escaparHTML(it.producto) +
+          ' <span style="color:var(--text-sec); font-size:11px;">(' + escaparHTML(it.categoria) + ')</span></span>' +
+          '<b>' + it.total + ' ' + escaparHTML(it.unidad) + '</b></div>';
+      }).join('');
+    }
+    function pintarSnapshots(lista) {
+      var cont = document.getElementById('listaSnapshots');
+      if (!lista.length) { cont.innerHTML = '<p class="empty">Aun no se ha guardado ningun conteo.</p>'; return; }
+      cont.innerHTML = lista.map(function (s) {
+        return '<div>' +
+          '<div class="snap-row" onclick="toggleSnapshot(\'' + s.snapshotId + '\')">' +
+            '<span class="fecha"><i class="fa-regular fa-calendar"></i> ' + s.fecha + '</span>' +
+            '<span class="meta">' + s.items + ' items · ' + s.totalUnidades + ' unidades <i class="fa-solid fa-chevron-down"></i></span>' +
+          '</div>' +
+          '<div class="snap-detalle" id="snapDet_' + s.snapshotId + '"></div>' +
+        '</div>';
+      }).join('');
+    }
+    function toggleSnapshot(id) {
+      var el = document.getElementById('snapDet_' + id);
+      var mostrando = el.classList.contains('show');
+      if (mostrando) { el.classList.remove('show'); return; }
+      el.classList.add('show');
+      if (el.dataset.cargado) return;
+      el.innerHTML = '<div class="loader show" style="padding:14px;"><i class="fa-solid fa-circle-notch spin"></i> Cargando...</div>';
+      google.script.run.withSuccessHandler(function (items) {
+        el.dataset.cargado = '1';
+        el.innerHTML = '<div class="table-scroll" style="overflow-x:auto;"><table class="mini"><thead><tr><th>Categoria</th><th>Producto</th><th>Cantidad</th></tr></thead><tbody>' +
+          (items || []).map(function (it) {
+            return '<tr><td>' + escaparHTML(it.categoria) + '</td><td>' + escaparHTML(it.producto) + '</td><td>' + it.cantidad + ' ' + escaparHTML(it.unidad) + '</td></tr>';
+          }).join('') + '</tbody></table></div>';
+      }).obtenerDetalleSnapshot(id);
+    }
+
+    // ───────────────────────────────────────────────────────────
+    // PDF
+    // ───────────────────────────────────────────────────────────
+    function fechaHoy() {
+      var d = new Date();
+      return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+    }
+    function encabezadoPDF(doc, pageWidth) {
+      doc.setFontSize(14); doc.setFont(undefined, 'bold'); doc.setTextColor(58, 58, 60);
+      doc.text('FICHA INVENTARIO RESTAURANT', pageWidth / 2, 14, { align: 'center' });
+      doc.text('CASCADAS HOTEL', pageWidth / 2, 20, { align: 'center' });
+      doc.setFontSize(10); doc.setFont(undefined, 'normal');
+      doc.text('Fecha inventario: ' + fechaHoy(), 14, 30);
+    }
+
+    function exportarPlantillaPDF() {
+      if (!APP.inventario.length) { mostrarToast('Primero carga el inventario'); return; }
+      var doc = new jspdf.jsPDF('p', 'mm', 'a4');
+      var pageWidth = doc.internal.pageSize.getWidth();
+      encabezadoPDF(doc, pageWidth);
+      doc.autoTable({
+        startY: 36,
+        head: [['Tipo', 'Ubicacion', 'Producto', 'Cantidad', 'Detalle']],
+        body: APP.inventario.map(function (it) { return [it.categoria, '', it.producto, '', '']; }),
+        theme: 'grid', headStyles: { fillColor: [65, 65, 67], textColor: 255, fontSize: 9 },
+        styles: { fontSize: 8.5, cellPadding: 2.4 },
+        columnStyles: { 0: { cellWidth: 26 }, 1: { cellWidth: 30 }, 2: { cellWidth: 70 }, 3: { cellWidth: 24 } }
+      });
+      doc.save('Ficha_Inventario_Blanco_' + new Date().toISOString().slice(0, 10) + '.pdf');
+    }
+
+    function exportarInventarioPDF() {
+      if (!APP.inventario.length) { mostrarToast('Primero carga el inventario'); return; }
+      var doc = new jspdf.jsPDF('p', 'mm', 'a4');
+      var pageWidth = doc.internal.pageSize.getWidth();
+      encabezadoPDF(doc, pageWidth);
+      doc.autoTable({
+        startY: 36,
+        head: [['Tipo', 'Producto', 'Unidad', 'Cantidad', 'Estado', 'A pedir', 'Ubicacion', 'Detalle']],
+        body: APP.inventario.map(function (it) {
+          var est = estadoItem(it.cantidad, it.minimo, it.ideal);
+          var aPedir = Math.max(0, (it.ideal || 0) - it.cantidad);
+          return [it.categoria, it.producto, it.unidad, it.cantidad, est.label, aPedir > 0 ? aPedir : '-', it.ubicacion || '', it.detalle || ''];
+        }),
+        theme: 'grid', headStyles: { fillColor: [65, 65, 67], textColor: 255, fontSize: 8 },
+        styles: { fontSize: 7.5, cellPadding: 2 },
+        columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 44 }, 2: { cellWidth: 16 }, 3: { cellWidth: 16 }, 4: { cellWidth: 18 }, 5: { cellWidth: 16 } }
+      });
+      doc.save('Inventario_Actualizado_' + new Date().toISOString().slice(0, 10) + '.pdf');
+    }
+
+    // ───────────────────────────────────────────────────────────
+    // ARRANQUE
+    // ───────────────────────────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', function () {
+      cargarInventario();
+    });
+  </script>
+</body>
+</html>
