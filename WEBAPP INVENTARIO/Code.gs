@@ -19,8 +19,11 @@
  * La planilla es siempre "Cascadas Hotel - Inventario Bar" (SPREADSHEET_ID_FIJO
  * mas abajo, el ID esta fijo en el codigo, no hay que configurar nada).
  * Ejecuta crearBaseDeDatos() UNA vez desde el editor de Apps Script para
- * asegurar que esten todas las hojas (Inventario/Historial/MenuHistorial):
- * es segura de re-correr, solo agrega lo que falte sin tocar datos existentes.
+ * asegurar que esten todas las hojas (Inventario/Historial): es segura de
+ * re-correr, solo agrega lo que falte sin tocar datos existentes.
+ *
+ * Sugerencia del Chef no guarda historial: cada PDF se genera al momento a
+ * partir de lo que hay cargado en el formulario, sin pasar por la planilla.
  * ============================================================================
  */
 
@@ -174,7 +177,6 @@ function crearBaseDeDatos() {
   var ss = _ss();
   if (!ss.getSheetByName('Inventario')) _crearHojaInventario(ss);
   if (!ss.getSheetByName('Historial')) _crearHojaHistorial(ss);
-  if (!ss.getSheetByName('MenuHistorial')) _crearHojaMenuChef(ss);
   Logger.log('Listo. Planilla: ' + ss.getUrl());
   return ss.getId();
 }
@@ -208,26 +210,6 @@ function _crearHojaHistorial(ss) {
   _crearHoja(ss, 'Historial', [
     'SnapshotID', 'Fecha', 'ItemID', 'Categoria', 'Producto', 'Unidad', 'Cantidad', 'Minimo', 'Ideal'
   ], []);
-}
-
-function _crearHojaMenuChef(ss) {
-  _crearHoja(ss, 'MenuHistorial', [
-    'SnapshotID', 'FechaGenerado', 'Titulo', 'FechaCena', 'PlatoOrden', 'Tiempo', 'Nombre', 'Descripcion'
-  ], []);
-}
-
-// La hoja de Sugerencia del Chef se agrego despues del lanzamiento inicial
-// de Inventario; esto la crea sola si alguien no volvio a correr
-// crearBaseDeDatos() tras actualizar el codigo, en vez de tirar error. Ademas
-// repone el encabezado si la hoja quedo sin el.
-var _MENU_ENCABEZADOS = ['SnapshotID', 'FechaGenerado', 'Titulo', 'FechaCena', 'PlatoOrden', 'Tiempo', 'Nombre', 'Descripcion'];
-function _asegurarHojaMenuChef() {
-  var ss = _ss();
-  var hoja = ss.getSheetByName('MenuHistorial');
-  if (!hoja) { _crearHojaMenuChef(ss); return; }
-  if (hoja.getLastRow() === 0) {
-    hoja.getRange(1, 1, 1, _MENU_ENCABEZADOS.length).setValues([_MENU_ENCABEZADOS]);
-  }
 }
 
 function _eliminarHojaPorDefecto(ss) {
@@ -443,111 +425,4 @@ function obtenerUrlMovil() {
   var base = '';
   try { base = ScriptApp.getService().getUrl() || ''; } catch (err) {}
   return base ? (base + '?movil=1') : '';
-}
-
-// ---------------------------------------------------------------------------
-// SUGERENCIA DEL CHEF
-// ---------------------------------------------------------------------------
-
-/**
- * Guarda una copia del menu en el historial. Se llama cada vez que se genera
- * el PDF, para que recepcion pueda volver a imprimir una cena pasada.
- * @param {Object} datos {titulo, fechaCena, platos: [{tiempo, nombre, descripcion}]}
- */
-function guardarMenuChef(datos) {
-  datos = datos || {};
-  var platos = (datos.platos || []).filter(function (p) { return p && String(p.nombre || '').trim(); });
-  if (!platos.length) return { success: false, mensaje: 'Agrega al menos un plato con nombre.' };
-
-  var lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(10000);
-    _asegurarHojaMenuChef();
-    var hoja = _hoja('MenuHistorial');
-    var snapshotId = generarID();
-    var fechaGenerado = new Date();
-    var titulo = String(datos.titulo || '').trim();
-    var fechaCena = String(datos.fechaCena || '').trim();
-
-    var filas = platos.map(function (p, i) {
-      return [
-        snapshotId, fechaGenerado, titulo, fechaCena, i + 1,
-        String(p.tiempo || '').trim(), String(p.nombre || '').trim(), String(p.descripcion || '').trim()
-      ];
-    });
-    hoja.getRange(hoja.getLastRow() + 1, 1, filas.length, filas[0].length).setValues(filas);
-    SpreadsheetApp.flush(); // asegura que quede persistido antes de responder
-
-    return {
-      success: true, snapshotId: snapshotId, mensaje: 'Menu guardado en el historial.',
-      fecha: _fechaHoraTexto(fechaGenerado)
-    };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-/** Lista de menus guardados, mas reciente primero. */
-function obtenerHistorialMenus() {
-  _asegurarHojaMenuChef();
-  var filas = _leerHojaComoObjetos('MenuHistorial');
-  var porSnapshot = {};
-  var orden = [];
-  filas.forEach(function (r) {
-    var id = String(r.SnapshotID || '').trim();
-    if (!id) return; // fila sin id (vacia/corrupta): se ignora, no rompe el resto
-    if (!porSnapshot[id]) {
-      porSnapshot[id] = {
-        snapshotId: id, fecha: _fechaHoraTexto(r.FechaGenerado),
-        fechaOrden: r.FechaGenerado instanceof Date ? r.FechaGenerado.getTime() : 0,
-        titulo: r.Titulo || '', fechaCena: r.FechaCena || '', cantidadPlatos: 0
-      };
-      orden.push(id);
-    }
-    porSnapshot[id].cantidadPlatos++;
-  });
-  return orden.map(function (id) { return porSnapshot[id]; })
-    .sort(function (a, b) { return b.fechaOrden - a.fechaOrden; });
-}
-
-/** Detalle completo (platos ordenados) de un menu guardado. */
-function obtenerDetalleMenu(snapshotId) {
-  _asegurarHojaMenuChef();
-  var filas = _leerHojaComoObjetos('MenuHistorial').filter(function (r) { return r.SnapshotID === snapshotId; });
-  if (!filas.length) return null;
-  filas.sort(function (a, b) { return numero_(a.PlatoOrden) - numero_(b.PlatoOrden); });
-  return {
-    titulo: filas[0].Titulo || '', fechaCena: filas[0].FechaCena || '',
-    fecha: _fechaHoraTexto(filas[0].FechaGenerado),
-    platos: filas.map(function (r) { return { tiempo: r.Tiempo || '', nombre: r.Nombre || '', descripcion: r.Descripcion || '' }; })
-  };
-}
-
-/**
- * Diagnostico del historial de menus: dice si la hoja existe, cuantas filas
- * tiene, y que devuelve exactamente obtenerHistorialMenus() (la MISMA
- * funcion que usa la app, llamada aca mismo) para que sea imposible que el
- * diagnostico y la lista real digan cosas distintas. Si esta funcion no
- * existe al llamarla desde la web, es señal de que el Code.gs desplegado
- * esta desactualizado.
- */
-function diagnosticoMenus() {
-  var info = { ok: true, version: 'menus-5-id-fijo' };
-  try {
-    var ss = _ss();
-    info.spreadsheetId = ss.getId();
-    info.spreadsheetUrl = ss.getUrl();
-    info.spreadsheetNombre = ss.getName();
-    var hoja = ss.getSheetByName('MenuHistorial');
-    info.hojaExiste = !!hoja;
-    if (hoja) {
-      info.ultimaFila = hoja.getLastRow();
-      info.registros = _leerHojaComoObjetos('MenuHistorial').length;
-      info.menusDistintos = obtenerHistorialMenus().length;
-    }
-  } catch (e) {
-    info.ok = false;
-    info.error = String(e && e.message ? e.message : e);
-  }
-  return info;
 }

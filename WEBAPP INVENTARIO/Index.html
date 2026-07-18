@@ -171,18 +171,6 @@
       letter-spacing: .03em; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px;
     }
     .btn-agregar-plato:hover { border-color: var(--accent); color: var(--accent); }
-    .menu-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 4px; border-bottom: 1px solid #EFEDEA; cursor: pointer; }
-    .menu-row:last-child { border-bottom: none; }
-    .menu-row .titulo { font-weight: 500; }
-    .menu-row .meta { font-size: 11.5px; color: var(--text-sec); }
-    .menu-detalle { display: none; padding: 6px 4px 16px; }
-    .menu-detalle.show { display: block; }
-    .menu-detalle .plato-preview { padding: 8px 0; border-bottom: 1px solid #EFEDEA; }
-    .menu-detalle .plato-preview:last-child { border-bottom: none; }
-    .menu-detalle .plato-preview .tiempo { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-sec); }
-    .menu-detalle .plato-preview .nombre { font-size: 14px; font-weight: 500; margin-top: 2px; }
-    .menu-detalle .plato-preview .desc { font-size: 12px; color: var(--text-sec); margin-top: 2px; font-style: italic; }
-
 
     .empty { text-align: center; padding: 30px 10px; color: #A8A5A0; font-size: 13px; }
     .loader { display: none; align-items: center; justify-content: center; gap: 10px; padding: 40px 10px; color: var(--text-sec); font-weight: 600; font-size: 13px; }
@@ -266,17 +254,6 @@
           <button class="btn-mini dark" onclick="generarMenuPDF('single')"><i class="fa-solid fa-file-pdf"></i> Generar PDF</button>
           <button class="btn-mini dark" onclick="generarMenuPDF('cuadruple')"><i class="fa-solid fa-table-cells-large"></i> PDF 4 en 1 (para cortar)</button>
         </div>
-      </div>
-
-      <div class="card">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-          <div>
-            <h2>Menus anteriores</h2>
-            <p class="sub" style="margin-bottom:0;">Cada vez que generas un PDF queda una copia aca para volver a imprimirlo.</p>
-          </div>
-          <button class="btn-mini outline" onclick="cargarMenus()"><i class="fa-solid fa-rotate"></i> Actualizar</button>
-        </div>
-        <div id="listaMenus" style="margin-top:16px;"></div>
       </div>
     </div>
 
@@ -591,13 +568,9 @@
     // ───────────────────────────────────────────────────────────
     var chefInicializado = false;
     function inicializarChefTab() {
-      if (!chefInicializado) {
-        chefInicializado = true;
-        limpiarFormularioChef();
-      }
-      // Siempre refresca los menus anteriores al entrar a la pestaña, asi
-      // se ve al toque lo que se acaba de generar (o lo que genero otra persona).
-      cargarMenus();
+      if (chefInicializado) return;
+      chefInicializado = true;
+      limpiarFormularioChef();
     }
 
     var TIEMPOS_PRESET = ['Aperitivo', 'Entrada', 'Fondo', 'Postre', 'Postre y Café'];
@@ -714,19 +687,6 @@
       agregarFilaPlato({ tiempo: 'Postre' });
     }
 
-    function llamarServidor(nombreFn) {
-      var args = Array.prototype.slice.call(arguments, 1);
-      return new Promise(function (resolve, reject) {
-        var runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
-        runner[nombreFn].apply(runner, args);
-      });
-    }
-
-    // Guarda la huella del ultimo menu guardado para no crear una copia
-    // duplicada en el historial si se generan los dos PDF (1 hoja y 4 en 1)
-    // del mismo menu sin editar nada entre medio.
-    var ultimaHuellaMenu = null;
-
     async function generarMenuPDF(modo) {
       var platos = recolectarPlatos();
       if (!platos.length) { mostrarToast('Agrega al menos un plato con nombre'); return; }
@@ -735,27 +695,14 @@
         fechaCena: document.getElementById('chef_fecha').value,
         platos: platos
       };
-      var huella = JSON.stringify(datos);
       try {
-        if (huella !== ultimaHuellaMenu) {
-          var res = await llamarServidor('guardarMenuChef', datos);
-          if (!res || !res.success) { mostrarToast((res && res.mensaje) || 'No se pudo guardar', 'error'); return; }
-          ultimaHuellaMenu = huella;
-          cargarMenus();
-        }
         mostrarToast('Generando PDF...', 'exito');
         if (modo === 'cuadruple') await construirPDFMenu4Up(datos);
         else await construirPDFMenu(datos);
       } catch (e) {
-        console.error('Error al generar el menu', e);
-        mostrarToast('No se pudo guardar el menu: ' + (e && e.message ? e.message : 'error desconocido'), 'error');
+        console.error('Error al generar el PDF', e);
+        mostrarToast('No se pudo generar el PDF: ' + (e && e.message ? e.message : 'error desconocido'), 'error');
       }
-    }
-
-    function formatearFechaCena(fechaISO) {
-      var partes = String(fechaISO || '').split('-');
-      if (partes.length !== 3) return fechaISO || '';
-      return partes[2] + '/' + partes[1] + '/' + partes[0];
     }
 
     // ───────────────────────────────────────────────────────────
@@ -794,138 +741,6 @@
       };
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(texto).then(ok, fallback);
       else fallback();
-    }
-
-    // ───────────────────────────────────────────────────────────
-    // MENUS ANTERIORES (dentro de la pestaña Sugerencia del Chef)
-    // ───────────────────────────────────────────────────────────
-    // Se recarga siempre (al entrar a la pestaña, al generar un menu, o con
-    // el boton Actualizar), sin cache, asi nunca queda desactualizado.
-    // Token de la solicitud mas reciente: si dos llamadas se cruzan, una
-    // respuesta vieja que llega tarde no pisa a una mas nueva.
-    var tokenCargaMenus = 0;
-
-    function cargarMenus() {
-      var cont = document.getElementById('listaMenus');
-      if (!cont) return;
-      var miToken = ++tokenCargaMenus;
-      cont.innerHTML = '<div class="loader show" style="padding:20px;"><i class="fa-solid fa-circle-notch spin"></i> Cargando...</div>';
-      google.script.run
-        .withSuccessHandler(function (lista) {
-          if (miToken !== tokenCargaMenus) return;
-          pintarMenus(lista || []);
-        })
-        .withFailureHandler(function (err) {
-          if (miToken !== tokenCargaMenus) return;
-          console.error('obtenerHistorialMenus fallo', err);
-          cont.innerHTML = '<p class="empty">No se pudo cargar el historial de menus.</p>' + botonDiagnosticoHTML();
-        })
-        .obtenerHistorialMenus();
-    }
-
-    function botonDiagnosticoHTML() {
-      return '<div style="text-align:center; margin-top:8px;">' +
-        '<button class="btn-mini outline" onclick="verDiagnosticoMenus()"><i class="fa-solid fa-stethoscope"></i> Revisar por que</button>' +
-        '</div><div id="diagMenus"></div>';
-    }
-
-    // automatico=true: se llama solo (sin boton) para no hacer esperar al
-    // usuario un segundo click cuando la lista viene vacia.
-    function verDiagnosticoMenus(automatico) {
-      var box = document.getElementById('diagMenus');
-      if (!box) return; // la lista SI tenia datos, no hace falta diagnosticar
-      if (!automatico) box.innerHTML = '<div class="loader show" style="padding:12px;"><i class="fa-solid fa-circle-notch spin"></i> Revisando...</div>';
-      google.script.run
-        .withSuccessHandler(function (info) { mostrarDiagnosticoMenus(info); })
-        .withFailureHandler(function (err) {
-          console.error('diagnosticoMenus fallo', err);
-          var b = document.getElementById('diagMenus');
-          if (b) b.innerHTML = '<div style="background:var(--crit-tint); color:var(--crit); border-radius:12px; padding:14px; font-size:11.5px; margin-top:10px; line-height:1.5;">' +
-            '<b>La llamada a diagnosticoMenus fallo (esto es distinto a que devuelva ok:false).</b><br>' +
-            'Error: <span style="font-family:monospace;">' + escaparHTML((err && (err.message || err.toString && err.toString())) || JSON.stringify(err) || 'sin detalle') + '</span><br><br>' +
-            'Si el error dice algo como "is not defined" o "is not a function", el Code.gs desplegado no tiene esa funcion: revisa que este todo el contenido pegado y republica una <b>version nueva</b>.</div>';
-        })
-        .diagnosticoMenus();
-    }
-
-    function mostrarDiagnosticoMenus(info) {
-      var box = document.getElementById('diagMenus');
-      if (!box) return;
-      console.log('diagnosticoMenus crudo:', info);
-      if (!info || !info.ok) {
-        // Muestra el objeto crudo tal cual llego (sin filtrar ni resumir) para
-        // no perder informacion util adivinando un mensaje.
-        box.innerHTML = '<div style="background:var(--crit-tint); color:var(--crit); border-radius:12px; padding:14px; font-size:11.5px; margin-top:10px; font-family:monospace; white-space:pre-wrap; word-break:break-word;">' +
-          'Respuesta del servidor (sin filtrar):\n' + escaparHTML(JSON.stringify(info, null, 2)) +
-          '</div>';
-        return;
-      }
-      var msg;
-      if (info.menusDistintos > 0) {
-        // El diagnostico ahora llama a la MISMA funcion que usa la app (no
-        // una copia paralela), asi que si esto aparece es casi seguro un
-        // desfase de un instante entre guardar y leer en Sheets. La app ya
-        // reintenta sola una vez; toca "Actualizar" si persiste.
-        msg = '<b>La funcion real encontro ' + info.menusDistintos + ' menu(s)</b> al volver a intentar. ' +
-          'Puede haber sido un desfase de un instante entre guardar y leer en Google Sheets. ' +
-          'Toca <b>"Actualizar"</b> arriba de esta lista para volver a cargar.';
-      } else if (!info.hojaExiste) {
-        msg = 'La hoja "MenuHistorial" todavia no existe. Genera un menu (se crea sola) y vuelve a revisar.';
-      } else {
-        msg = 'La hoja existe pero no hay menus guardados aun. Si generaste uno y no quedo, avisame con este dato.';
-      }
-      box.innerHTML = '<div style="background:var(--accent-light); border-radius:12px; padding:14px; font-size:12px; margin-top:10px; line-height:1.6;">' +
-        msg +
-        '<div style="margin-top:8px; color:var(--text-sec);">Planilla: <a href="' + escaparHTML(info.spreadsheetUrl || '#') + '" target="_blank">abrir</a> · ' +
-        'registros: ' + (info.registros != null ? info.registros : '-') + ' · menus: ' + (info.menusDistintos != null ? info.menusDistintos : '-') + '</div>' +
-        '</div>';
-    }
-
-    function pintarMenus(lista) {
-      var cont = document.getElementById('listaMenus');
-      if (!lista.length) { cont.innerHTML = '<p class="empty">Aun no se ha generado ningun menu.</p>' + botonDiagnosticoHTML(); return; }
-      cont.innerHTML = lista.map(function (m) {
-        return '<div>' +
-          '<div class="menu-row" onclick="toggleMenu(\'' + m.snapshotId + '\')">' +
-            '<span class="titulo">' + escaparHTML(m.titulo || 'Sugerencia del Chef') + '</span>' +
-            '<span class="meta">' + (m.fechaCena ? formatearFechaCena(m.fechaCena) + ' · ' : '') + m.cantidadPlatos + ' platos · generado ' + m.fecha + ' <i class="fa-solid fa-chevron-down"></i></span>' +
-          '</div>' +
-          '<div class="menu-detalle" id="menuDet_' + m.snapshotId + '"></div>' +
-        '</div>';
-      }).join('');
-    }
-
-    function toggleMenu(id) {
-      var el = document.getElementById('menuDet_' + id);
-      var mostrando = el.classList.contains('show');
-      if (mostrando) { el.classList.remove('show'); return; }
-      el.classList.add('show');
-      if (el.dataset.cargado) return;
-      el.innerHTML = '<div class="loader show" style="padding:14px;"><i class="fa-solid fa-circle-notch spin"></i> Cargando...</div>';
-      google.script.run.withSuccessHandler(function (detalle) {
-        el.dataset.cargado = '1';
-        if (!detalle) { el.innerHTML = '<p class="empty">No se encontro el detalle.</p>'; return; }
-        el.dataset.json = JSON.stringify(detalle);
-        el.innerHTML = detalle.platos.map(function (p) {
-          return '<div class="plato-preview">' +
-            (p.tiempo ? '<div class="tiempo">' + escaparHTML(p.tiempo) + '</div>' : '') +
-            '<div class="nombre">' + escaparHTML(p.nombre) + '</div>' +
-            (p.descripcion ? '<div class="desc">' + escaparHTML(p.descripcion) + '</div>' : '') +
-          '</div>';
-        }).join('') +
-          '<div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">' +
-            '<button class="btn-mini outline" onclick="reimprimirMenu(\'' + id + '\', \'single\')"><i class="fa-solid fa-print"></i> Descargar PDF</button>' +
-            '<button class="btn-mini outline" onclick="reimprimirMenu(\'' + id + '\', \'cuadruple\')"><i class="fa-solid fa-table-cells-large"></i> PDF 4 en 1</button>' +
-          '</div>';
-      }).obtenerDetalleMenu(id);
-    }
-
-    function reimprimirMenu(id, modo) {
-      var el = document.getElementById('menuDet_' + id);
-      if (!el || !el.dataset.json) return;
-      var datos = JSON.parse(el.dataset.json);
-      if (modo === 'cuadruple') construirPDFMenu4Up(datos);
-      else construirPDFMenu(datos);
     }
 
     // ───────────────────────────────────────────────────────────
