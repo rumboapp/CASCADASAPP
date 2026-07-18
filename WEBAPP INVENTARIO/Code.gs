@@ -557,23 +557,38 @@ function obtenerDetalleMenu(snapshotId) {
  * esta desactualizado.
  */
 function diagnosticoMenus() {
-  var info = { ok: true, version: 'menus-3' };
+  var info = { ok: true, version: 'menus-4' };
   try {
-    var ss = _ss();
+    var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+    info.spreadsheetIdGuardado = id || null;
+    if (!id) { info.ok = false; info.error = 'No hay SPREADSHEET_ID guardado. Ejecuta crearBaseDeDatos() desde el editor.'; return info; }
+
+    var ss = SpreadsheetApp.openById(id);
     info.spreadsheetId = ss.getId();
     info.spreadsheetUrl = ss.getUrl();
+    info.spreadsheetNombre = ss.getName();
+
     var hoja = ss.getSheetByName('MenuHistorial');
     info.hojaExiste = !!hoja;
     if (hoja) {
       info.ultimaFila = hoja.getLastRow();
       info.registros = _leerHojaComoObjetos('MenuHistorial').length;
-      var lista = obtenerHistorialMenus(); // la funcion real, no una copia paralela
-      info.menusDistintos = lista.length;
-      info.listaReal = lista;
     }
-  } catch (e) {
+  } catch (e1) {
     info.ok = false;
-    info.error = String(e && e.message ? e.message : e);
+    info.error = 'Fallo leyendo la planilla directamente: ' + (e1 && e1.message ? e1.message : String(e1));
+    return info;
+  }
+
+  // Paso aparte: llama a la funcion real que usa la app, con su propio
+  // try/catch, para poder distinguir si el problema esta en leer la
+  // planilla (arriba) o en la funcion obtenerHistorialMenus en si.
+  try {
+    var lista = obtenerHistorialMenus();
+    info.menusDistintos = lista.length;
+  } catch (e2) {
+    info.ok = false;
+    info.error = 'obtenerHistorialMenus() fallo: ' + (e2 && e2.message ? e2.message : String(e2));
   }
   return info;
 }
