@@ -261,9 +261,10 @@
 
         <button type="button" class="btn-agregar-plato" onclick="agregarFilaPlato()"><i class="fa-solid fa-circle-plus"></i> Agregar otro plato</button>
 
-        <div style="display:flex; gap:8px; margin-top:20px;">
+        <div style="display:flex; gap:8px; margin-top:20px; flex-wrap:wrap;">
           <button class="btn-mini outline" onclick="limpiarFormularioChef()"><i class="fa-solid fa-eraser"></i> Limpiar</button>
-          <button class="btn-mini dark" onclick="generarMenuPDF()"><i class="fa-solid fa-file-pdf"></i> Generar PDF</button>
+          <button class="btn-mini dark" onclick="generarMenuPDF('single')"><i class="fa-solid fa-file-pdf"></i> Generar PDF</button>
+          <button class="btn-mini dark" onclick="generarMenuPDF('cuadruple')"><i class="fa-solid fa-table-cells-large"></i> PDF 4 en 1 (para cortar)</button>
         </div>
       </div>
 
@@ -721,7 +722,12 @@
       });
     }
 
-    async function generarMenuPDF() {
+    // Guarda la huella del ultimo menu guardado para no crear una copia
+    // duplicada en el historial si se generan los dos PDF (1 hoja y 4 en 1)
+    // del mismo menu sin editar nada entre medio.
+    var ultimaHuellaMenu = null;
+
+    async function generarMenuPDF(modo) {
       var platos = recolectarPlatos();
       if (!platos.length) { mostrarToast('Agrega al menos un plato con nombre'); return; }
       var datos = {
@@ -729,12 +735,17 @@
         fechaCena: document.getElementById('chef_fecha').value,
         platos: platos
       };
+      var huella = JSON.stringify(datos);
       try {
-        var res = await llamarServidor('guardarMenuChef', datos);
-        if (!res || !res.success) { mostrarToast((res && res.mensaje) || 'No se pudo guardar', 'error'); return; }
-        mostrarToast('Menu guardado, generando PDF...', 'exito');
-        await construirPDFMenu(datos);
-        cargarMenus();
+        if (huella !== ultimaHuellaMenu) {
+          var res = await llamarServidor('guardarMenuChef', datos);
+          if (!res || !res.success) { mostrarToast((res && res.mensaje) || 'No se pudo guardar', 'error'); return; }
+          ultimaHuellaMenu = huella;
+          cargarMenus();
+        }
+        mostrarToast('Generando PDF...', 'exito');
+        if (modo === 'cuadruple') await construirPDFMenu4Up(datos);
+        else await construirPDFMenu(datos);
       } catch (e) {
         console.error('Error al generar el menu', e);
         mostrarToast('No se pudo guardar el menu: ' + (e && e.message ? e.message : 'error desconocido'), 'error');
@@ -832,14 +843,19 @@
             (p.descripcion ? '<div class="desc">' + escaparHTML(p.descripcion) + '</div>' : '') +
           '</div>';
         }).join('') +
-          '<button class="btn-mini outline" style="margin-top:10px;" onclick="reimprimirMenu(\'' + id + '\')"><i class="fa-solid fa-print"></i> Descargar PDF de nuevo</button>';
+          '<div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">' +
+            '<button class="btn-mini outline" onclick="reimprimirMenu(\'' + id + '\', \'single\')"><i class="fa-solid fa-print"></i> Descargar PDF</button>' +
+            '<button class="btn-mini outline" onclick="reimprimirMenu(\'' + id + '\', \'cuadruple\')"><i class="fa-solid fa-table-cells-large"></i> PDF 4 en 1</button>' +
+          '</div>';
       }).obtenerDetalleMenu(id);
     }
 
-    function reimprimirMenu(id) {
+    function reimprimirMenu(id, modo) {
       var el = document.getElementById('menuDet_' + id);
       if (!el || !el.dataset.json) return;
-      construirPDFMenu(JSON.parse(el.dataset.json));
+      var datos = JSON.parse(el.dataset.json);
+      if (modo === 'cuadruple') construirPDFMenu4Up(datos);
+      else construirPDFMenu(datos);
     }
 
     // ───────────────────────────────────────────────────────────
@@ -1163,6 +1179,103 @@
       }
 
       doc.save('Sugerencia_del_Chef_' + (datos.fechaCena || new Date().toISOString().slice(0, 10)) + '.pdf');
+    }
+
+    // Divisor elegante centrado en un punto arbitrario (para la version 4 en 1).
+    function dibujarDivisorEn(doc, cx, y, semiancho) {
+      doc.setDrawColor(180, 177, 172);
+      doc.setLineWidth(0.2);
+      doc.line(cx - semiancho, y, cx - 2.5, y);
+      doc.line(cx + 2.5, y, cx + semiancho, y);
+      doc.setFillColor(65, 65, 67);
+      doc.circle(cx, y, 0.5, 'F');
+    }
+
+    // Dibuja una version compacta del menu dentro de un rectangulo (ox,oy,w,h).
+    // Se usa 4 veces para armar la hoja "4 en 1" que se corta en cuartos.
+    function dibujarTarjetaMenu(doc, datos, ox, oy, w, h, logoData) {
+      var cx = ox + w / 2;
+      var bannerH = 12;
+      var topFrame = oy + bannerH + 3;
+      var bottomFrame = oy + h - 5;
+      var margenTexto = 15;
+      var anchoTexto = w - margenTexto * 2;
+
+      doc.setFillColor(248, 247, 245);
+      doc.rect(ox, oy, w, h, 'F');
+      doc.setFillColor(65, 65, 67);
+      doc.rect(ox, oy, w, bannerH, 'F');
+      if (logoData) { try { doc.addImage(logoData, 'PNG', ox + 6, oy + 2, 8, 8); } catch (e) {} }
+      doc.setTextColor(255, 255, 255);
+      doc.setFont(fuenteMenu(), 'bold'); doc.setFontSize(7);
+      doc.text('C A S C A D A S   H O T E L', cx, oy + 7.5, { align: 'center' });
+
+      doc.setDrawColor(65, 65, 67);
+      doc.setLineWidth(0.3);
+      doc.rect(ox + 4, topFrame, w - 8, bottomFrame - topFrame);
+      doc.setLineWidth(0.1);
+      doc.rect(ox + 5.5, topFrame + 1.5, w - 11, bottomFrame - topFrame - 3);
+
+      var tonoClaro = [206, 203, 197], tonoMedio = [188, 184, 177];
+      dibujarOndaVertical(doc, ox + 9, topFrame + 3, bottomFrame - 3, 1.4, 3.2, 0, tonoClaro);
+      dibujarOndaVertical(doc, ox + 11, topFrame + 3, bottomFrame - 3, 1.4, 3.2, 1.6, tonoMedio);
+      dibujarOndaVertical(doc, ox + w - 9, topFrame + 3, bottomFrame - 3, 1.4, 3.2, 0.8, tonoClaro);
+      dibujarOndaVertical(doc, ox + w - 11, topFrame + 3, bottomFrame - 3, 1.4, 3.2, 2.3, tonoMedio);
+
+      function recorrer(y0, dibujar) {
+        var y = y0;
+        function centrar(texto, tam, estilo, color, salto) {
+          doc.setFont(fuenteMenu(), estilo); doc.setFontSize(tam);
+          if (dibujar) { doc.setTextColor(color[0], color[1], color[2]); doc.text(texto, cx, y, { align: 'center' }); }
+          y += salto;
+        }
+        centrar('Sugerencia del Chef', 13, 'bold', [58, 58, 60], 5);
+        if (datos.titulo) centrar(datos.titulo, 7.5, 'italic', [110, 108, 105], 4);
+        y += 2;
+        if (dibujar) dibujarDivisorEn(doc, cx, y, 11);
+        y += 6;
+        datos.platos.forEach(function (p, i) {
+          doc.setFont(fuenteMenu(), 'italic'); doc.setFontSize(6.5);
+          var descLines = p.descripcion ? doc.splitTextToSize(p.descripcion, anchoTexto - 4) : [];
+          if (p.tiempo) centrar(p.tiempo.toUpperCase(), 6, 'bold', [65, 65, 67], 3.6);
+          centrar(p.nombre, 9, 'bold', [58, 58, 60], 3.8);
+          descLines.forEach(function (line) { centrar(line, 6.5, 'italic', [110, 108, 105], 3); });
+          y += 2.5;
+          if (i < datos.platos.length - 1) { if (dibujar) dibujarDivisorEn(doc, cx, y, 11); y += 5; }
+        });
+        return y;
+      }
+
+      var alturaContenido = recorrer(0, false);
+      var alturaDisponible = bottomFrame - topFrame;
+      var yInicio = topFrame + Math.max(4, (alturaDisponible - alturaContenido) / 2);
+      recorrer(yInicio, true);
+    }
+
+    // Hoja tamaño carta con 4 copias del mismo menu (2x2) para imprimir una
+    // sola hoja y cortarla en 4, ahorrando papel.
+    async function construirPDFMenu4Up(datos) {
+      var logoData = await obtenerLogoBase64();
+      var doc = new jspdf.jsPDF('p', 'mm', 'letter');
+      registrarFuenteMenu(doc);
+      var pw = doc.internal.pageSize.getWidth();
+      var ph = doc.internal.pageSize.getHeight();
+      var halfW = pw / 2, halfH = ph / 2;
+
+      dibujarTarjetaMenu(doc, datos, 0, 0, halfW, halfH, logoData);
+      dibujarTarjetaMenu(doc, datos, halfW, 0, halfW, halfH, logoData);
+      dibujarTarjetaMenu(doc, datos, 0, halfH, halfW, halfH, logoData);
+      dibujarTarjetaMenu(doc, datos, halfW, halfH, halfW, halfH, logoData);
+
+      // Guias de corte (lineas punteadas tenues en la cruz central).
+      doc.setDrawColor(120, 120, 120);
+      doc.setLineWidth(0.2);
+      if (doc.setLineDashPattern) doc.setLineDashPattern([1.5, 1.5], 0);
+      doc.line(halfW, 0, halfW, ph);
+      doc.line(0, halfH, pw, halfH);
+      if (doc.setLineDashPattern) doc.setLineDashPattern([], 0);
+
+      doc.save('Sugerencia_del_Chef_4en1_' + (datos.fechaCena || new Date().toISOString().slice(0, 10)) + '.pdf');
     }
 
     // ───────────────────────────────────────────────────────────
