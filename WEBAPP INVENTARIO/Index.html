@@ -448,7 +448,7 @@
     }
 
     // ---- auto-refresh: refleja cambios hechos desde el celular sin recargar ----
-    setInterval(function () {
+    function refrescarSiCorresponde() {
       if (!document.getElementById('vistaInventario').classList.contains('activa')) return;
       if (document.getElementById('modalItem').classList.contains('show')) return;
       if (document.getElementById('modalConfirmar').classList.contains('show')) return;
@@ -457,7 +457,13 @@
         APP.inventario = lista || [];
         pintarInventario();
       }).obtenerInventario();
-    }, 15000);
+    }
+    setInterval(refrescarSiCorresponde, 5000);
+    // Al volver a la pestana/ventana, refresca de inmediato en vez de esperar el intervalo.
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) refrescarSiCorresponde();
+    });
+    window.addEventListener('focus', refrescarSiCorresponde);
 
     // ---- alta/edicion de items ----
     var mpEditandoId = null;
