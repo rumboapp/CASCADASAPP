@@ -1098,8 +1098,16 @@ function _horaAMinutos(hora) {
   return (parseInt(partes[0], 10) || 0) * 60 + (parseInt(partes[1], 10) || 0);
 }
 
-/** Convierte minutos desde medianoche a "HH:MM". */
+/**
+ * Convierte minutos desde medianoche a "HH:MM". Si da 1440 (24:00, ej. una
+ * reserva de 22:00 + 2h) lo deja en 23:59: al escribir "24:00" en una celda,
+ * Sheets lo interpreta como el dia siguiente a las 00:00 y luego, al leerlo
+ * de vuelta, esa hora "00:00" hace que _finalizarReservasVencidas() la de
+ * por terminada de inmediato (0 minutos siempre es "menor" que la hora
+ * actual). 23:59 evita esa confusion sin cambiar la duracion real.
+ */
 function _minutosAHora(minutos) {
+  if (minutos >= 1440) minutos = 1439;
   var h = Math.floor(minutos / 60);
   var m = minutos % 60;
   return _pad2(h) + ':' + _pad2(m);

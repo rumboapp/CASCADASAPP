@@ -3910,9 +3910,9 @@ function pintarVariantesForm() {
   if (!cont) return;
   cont.innerHTML = APP.formVariantes.map(function (v, i) {
     return '<div class="border rounded-lg p-2 mb-2" style="border-color: var(--borde)">' +
-      '<div class="flex gap-2 mb-2">' +
-        '<input class="input flex-1 fs-var-nombre" placeholder="Nombre" value="' + escaparHTML(v.nombre) + '">' +
-        '<input class="input !w-28 fs-var-precio" type="number" placeholder="Precio" value="' + (v.precio || 0) + '">' +
+      '<div class="flex gap-2 mb-1 items-end">' +
+        '<div class="flex-1"><label class="text-xs opacity-70">Nombre</label><input class="input fs-var-nombre" placeholder="Ej: 1 hora - Promo" value="' + escaparHTML(v.nombre) + '"></div>' +
+        '<div class="!w-28"><label class="text-xs opacity-70">Precio</label><input class="input fs-var-precio" type="number" placeholder="0" value="' + (v.precio || 0) + '"></div>' +
         '<button type="button" class="btn btn-peligro !px-3" onclick="quitarVarianteForm(' + i + ')"><i class="fa-solid fa-trash"></i></button>' +
       '</div>' +
       '<div class="flex items-center gap-3">' +
