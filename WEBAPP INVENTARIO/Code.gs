@@ -238,6 +238,14 @@ function _crearHojaMenuChef(ss) {
   ], []);
 }
 
+// La hoja de Sugerencia del Chef se agrego despues del lanzamiento inicial
+// de Inventario; esto la crea sola si alguien no volvio a correr
+// crearBaseDeDatos() tras actualizar el codigo, en vez de tirar error.
+function _asegurarHojaMenuChef() {
+  var ss = _ss();
+  if (!ss.getSheetByName('MenuHistorial')) _crearHojaMenuChef(ss);
+}
+
 function _eliminarHojaPorDefecto(ss) {
   var hojaDefault = ss.getSheetByName('Hoja 1') || ss.getSheetByName('Sheet1');
   if (hojaDefault && ss.getSheets().length > 1) ss.deleteSheet(hojaDefault);
@@ -438,94 +446,6 @@ function borrarTodoElStock() {
   }
 }
 
-// ---------------------------------------------------------------------------
-// HISTORIAL / REPORTES
-// ---------------------------------------------------------------------------
-
-/** Lista de snapshots pasados (fecha + cantidad de items), mas reciente primero. */
-function obtenerListaHistorial() {
-  var filas = _leerHojaComoObjetos('Historial');
-  var porSnapshot = {};
-  var orden = [];
-  filas.forEach(function (r) {
-    if (!porSnapshot[r.SnapshotID]) {
-      porSnapshot[r.SnapshotID] = { snapshotId: r.SnapshotID, fecha: _fechaHoraTexto(r.Fecha), fechaObj: r.Fecha, items: 0, totalUnidades: 0 };
-      orden.push(r.SnapshotID);
-    }
-    porSnapshot[r.SnapshotID].items++;
-    porSnapshot[r.SnapshotID].totalUnidades += numero_(r.Cantidad);
-  });
-  return orden.map(function (id) { return porSnapshot[id]; })
-    .sort(function (a, b) { return new Date(b.fechaObj) - new Date(a.fechaObj); })
-    .map(function (s) { delete s.fechaObj; return s; });
-}
-
-/** Detalle completo de un snapshot especifico (para expandirlo en la UI). */
-function obtenerDetalleSnapshot(snapshotId) {
-  return _leerHojaComoObjetos('Historial')
-    .filter(function (r) { return r.SnapshotID === snapshotId; })
-    .map(function (r) {
-      return { categoria: r.Categoria, producto: r.Producto, unidad: r.Unidad || 'un.', cantidad: numero_(r.Cantidad) };
-    })
-    .sort(function (a, b) { return a.categoria !== b.categoria ? (a.categoria < b.categoria ? -1 : 1) : 0; });
-}
-
-/**
- * Ranking de consumo estimado por producto: para cada par de snapshots
- * consecutivos (el mas antiguo primero, terminando en el stock actual), si
- * la cantidad bajo, esa baja se cuenta como "consumido". No se registran
- * entradas de mercaderia, asi que es una aproximacion (si llega stock nuevo
- * entre medio, se subestima el consumo real), pero sirve para ver de un
- * vistazo que se esta moviendo mas.
- * @return {Array} [{producto, categoria, unidad, consumoEstimado}] ordenado desc.
- */
-function obtenerConsumoEstimado() {
-  var hist = _leerHojaComoObjetos('Historial');
-  var actual = _leerHojaComoObjetos('Inventario');
-
-  // Agrupa historial por snapshot, ordenado cronologicamente.
-  var porSnapshot = {};
-  hist.forEach(function (r) {
-    if (!porSnapshot[r.SnapshotID]) porSnapshot[r.SnapshotID] = { fecha: r.Fecha, items: {} };
-    porSnapshot[r.SnapshotID].items[r.ItemID] = {
-      cantidad: numero_(r.Cantidad), producto: r.Producto, categoria: r.Categoria, unidad: r.Unidad || 'un.'
-    };
-  });
-  var snapshotsOrdenados = Object.keys(porSnapshot)
-    .map(function (id) { return porSnapshot[id]; })
-    .sort(function (a, b) { return new Date(a.fecha) - new Date(b.fecha); });
-
-  // Secuencia: snapshot1 -> snapshot2 -> ... -> stock actual.
-  var actualPorId = {};
-  actual.forEach(function (r) {
-    actualPorId[r.ID] = { cantidad: numero_(r.Cantidad), producto: r.Producto, categoria: r.Categoria, unidad: r.Unidad || 'un.' };
-  });
-  var secuencia = snapshotsOrdenados.concat([{ items: actualPorId }]);
-
-  var consumoPorItem = {}; // itemId -> {producto, categoria, unidad, total}
-  for (var i = 0; i < secuencia.length - 1; i++) {
-    var actualEtapa = secuencia[i].items;
-    var siguienteEtapa = secuencia[i + 1].items;
-    Object.keys(actualEtapa).forEach(function (itemId) {
-      var antes = actualEtapa[itemId];
-      var despues = siguienteEtapa[itemId];
-      if (!despues) return;
-      var baja = antes.cantidad - despues.cantidad;
-      if (baja > 0) {
-        if (!consumoPorItem[itemId]) {
-          consumoPorItem[itemId] = { producto: despues.producto, categoria: despues.categoria, unidad: despues.unidad, total: 0 };
-        }
-        consumoPorItem[itemId].total += baja;
-      }
-    });
-  }
-
-  return Object.keys(consumoPorItem)
-    .map(function (id) { return consumoPorItem[id]; })
-    .filter(function (x) { return x.total > 0; })
-    .sort(function (a, b) { return b.total - a.total; });
-}
-
 function _fechaHoraTexto(fecha) {
   if (!fecha) return '';
   var d = fecha instanceof Date ? fecha : new Date(fecha);
@@ -559,6 +479,7 @@ function guardarMenuChef(datos) {
   var lock = LockService.getScriptLock();
   try {
     lock.waitLock(10000);
+    _asegurarHojaMenuChef();
     var hoja = _hoja('MenuHistorial');
     var snapshotId = generarID();
     var fechaGenerado = new Date();
@@ -584,6 +505,7 @@ function guardarMenuChef(datos) {
 
 /** Lista de menus guardados, mas reciente primero. */
 function obtenerHistorialMenus() {
+  _asegurarHojaMenuChef();
   var filas = _leerHojaComoObjetos('MenuHistorial');
   var porSnapshot = {};
   var orden = [];
@@ -604,6 +526,7 @@ function obtenerHistorialMenus() {
 
 /** Detalle completo (platos ordenados) de un menu guardado. */
 function obtenerDetalleMenu(snapshotId) {
+  _asegurarHojaMenuChef();
   var filas = _leerHojaComoObjetos('MenuHistorial').filter(function (r) { return r.SnapshotID === snapshotId; });
   if (!filas.length) return null;
   filas.sort(function (a, b) { return numero_(a.PlatoOrden) - numero_(b.PlatoOrden); });

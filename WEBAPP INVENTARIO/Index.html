@@ -138,16 +138,39 @@
     .qr-link-row input { flex: 1; height: 44px; padding: 0 14px; border: none; border-radius: 12px; font-family: monospace; font-size: 12.5px; background: var(--input-bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); }
 
     /* ===== sugerencia del chef ===== */
-    .plato-card { border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 10px; background: var(--surface); position: relative; }
-    .plato-card .plato-num { position: absolute; top: -9px; left: 14px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 9px; border-radius: 8px; text-transform: uppercase; letter-spacing: .04em; }
-    .plato-card .quitar-plato { position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; border: none; border-radius: 8px; background: var(--input-bg); color: var(--text-sec); cursor: pointer; font-size: 12px; }
-    .plato-card .quitar-plato:hover { background: var(--crit-tint); color: var(--crit); }
-    .plato-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-top: 6px; }
+    .plato-card { border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 12px; background: var(--surface); }
+    .plato-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .plato-head .plato-num { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-sec); }
+    .plato-head-acciones { display: flex; gap: 5px; }
+    .btn-mover, .btn-quitar-plato {
+      width: 30px; height: 30px; border: none; border-radius: 9px; background: var(--input-bg); color: var(--text-sec);
+      cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center;
+    }
+    .btn-mover:hover { background: var(--accent-light); color: var(--text); }
+    .btn-mover:disabled { opacity: .35; cursor: default; }
+    .btn-quitar-plato:hover { background: var(--crit-tint); color: var(--crit); }
+    .tiempo-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .chip {
+      border: 1px solid var(--border); background: var(--surface); color: var(--text-sec); border-radius: 20px;
+      padding: 7px 15px; font-family: 'Oswald', sans-serif; font-size: 11.5px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .03em; cursor: pointer;
+    }
+    .chip.activo { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .plato-tiempo-custom {
+      width: 100%; height: 40px; padding: 0 12px; border: none; border-radius: 10px; font-family: 'Oswald', sans-serif;
+      font-size: 13px; background: var(--input-bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); margin-bottom: 10px;
+    }
     .plato-card textarea {
       width: 100%; margin-top: 10px; padding: 10px 12px; border: none; border-radius: 10px; font-family: 'Oswald', sans-serif;
       font-size: 13px; background: var(--input-bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); resize: vertical; min-height: 54px;
     }
     .plato-card textarea:focus, .plato-card input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+    .btn-agregar-plato {
+      width: 100%; border: 2px dashed var(--border); background: transparent; border-radius: 16px; padding: 18px;
+      color: var(--text-sec); font-family: 'Oswald', sans-serif; font-size: 13px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .03em; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px;
+    }
+    .btn-agregar-plato:hover { border-color: var(--accent); color: var(--accent); }
     .menu-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 4px; border-bottom: 1px solid #EFEDEA; cursor: pointer; }
     .menu-row:last-child { border-bottom: none; }
     .menu-row .titulo { font-weight: 500; }
@@ -160,19 +183,6 @@
     .menu-detalle .plato-preview .nombre { font-size: 14px; font-weight: 500; margin-top: 2px; }
     .menu-detalle .plato-preview .desc { font-size: 12px; color: var(--text-sec); margin-top: 2px; font-style: italic; }
 
-    /* ===== historial ===== */
-    .consumo-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 4px; border-bottom: 1px solid #EFEDEA; font-size: 13px; }
-    .consumo-row:last-child { border-bottom: none; }
-    .consumo-row .rank { display: inline-block; width: 22px; color: var(--text-sec); font-weight: 700; font-size: 11px; }
-    .snap-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 4px; border-bottom: 1px solid #EFEDEA; cursor: pointer; }
-    .snap-row:last-child { border-bottom: none; }
-    .snap-row .fecha { font-weight: 500; }
-    .snap-row .meta { font-size: 11.5px; color: var(--text-sec); }
-    .snap-detalle { display: none; padding: 6px 4px 14px; }
-    .snap-detalle.show { display: block; }
-    table.mini { width: 100%; border-collapse: collapse; font-size: 12px; }
-    table.mini th { text-align: left; color: var(--text-sec); font-size: 9.5px; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--border); }
-    table.mini td { padding: 6px 8px; border-bottom: 1px solid #EFEDEA; }
 
     .empty { text-align: center; padding: 30px 10px; color: #A8A5A0; font-size: 13px; }
     .loader { display: none; align-items: center; justify-content: center; gap: 10px; padding: 40px 10px; color: var(--text-sec); font-weight: 600; font-size: 13px; }
@@ -196,8 +206,7 @@
     <div class="tabs">
       <button class="tab-btn activo" data-tab="Inventario" onclick="mostrarTab('Inventario')">Inventario</button>
       <button class="tab-btn" data-tab="Chef" onclick="mostrarTab('Chef')">Sugerencia del Chef</button>
-      <button class="tab-btn" data-tab="QR" onclick="mostrarTab('QR')">QR</button>
-      <button class="tab-btn" data-tab="Historial" onclick="mostrarTab('Historial')">Historial</button>
+      <button class="tab-btn" data-tab="Historial" onclick="mostrarTab('Historial')">Menus anteriores</button>
     </div>
   </div>
 
@@ -215,6 +224,7 @@
           <button class="btn-mini outline" onclick="exportarPlantillaPDF()"><i class="fa-solid fa-file-pdf"></i> Plantilla en blanco</button>
           <button class="btn-mini outline" onclick="exportarInventarioPDF()"><i class="fa-solid fa-file-arrow-down"></i> Inventario actualizado</button>
           <button class="btn-mini outline" onclick="exportarPedidoPDF()"><i class="fa-solid fa-cart-shopping"></i> Pedido</button>
+          <button class="btn-mini outline" onclick="abrirModalQR()"><i class="fa-solid fa-qrcode"></i> QR para celular</button>
           <button class="btn-mini peligro" onclick="confirmarBorrarTodo()"><i class="fa-solid fa-broom"></i> Borrar todo el stock</button>
         </div>
 
@@ -248,16 +258,9 @@
           </div>
         </div>
 
-        <datalist id="listaTiempos">
-          <option value="Aperitivo">
-          <option value="Entrada">
-          <option value="Fondo">
-          <option value="Postre">
-          <option value="Postre y Café">
-        </datalist>
         <div id="listaPlatos"></div>
 
-        <button class="btn-mini outline" onclick="agregarFilaPlato()" style="margin-top: 6px;"><i class="fa-solid fa-plus"></i> Agregar plato</button>
+        <button type="button" class="btn-agregar-plato" onclick="agregarFilaPlato()"><i class="fa-solid fa-circle-plus"></i> Agregar otro plato</button>
 
         <div style="display:flex; gap:8px; margin-top:20px;">
           <button class="btn-mini outline" onclick="limpiarFormularioChef()"><i class="fa-solid fa-eraser"></i> Limpiar</button>
@@ -266,33 +269,9 @@
       </div>
     </div>
 
-    <!-- ===== QR ===== -->
-    <div id="vistaQR" class="vista">
-      <div class="card">
-        <h2>Conteo por celular</h2>
-        <p class="sub">Escanea este codigo con el celular para abrir el inventario y contar caminando por el bar, sumando o restando cada producto.</p>
-        <div class="qr-wrap">
-          <div id="qrCanvas"></div>
-        </div>
-        <div class="qr-link-row">
-          <input type="text" id="linkMovil" readonly value="Cargando...">
-          <button class="btn-mini dark" onclick="copiarLinkMovil()"><i class="fa-solid fa-link"></i> Copiar</button>
-        </div>
-      </div>
-    </div>
 
-    <!-- ===== HISTORIAL ===== -->
+    <!-- ===== HISTORIAL (menus del chef) ===== -->
     <div id="vistaHistorial" class="vista">
-      <div class="card">
-        <h2>Mas consumido</h2>
-        <p class="sub">Estimado a partir de las bajas de stock entre cada conteo. Si llega mercaderia nueva entre medio, el numero real puede ser mayor.</p>
-        <div id="listaConsumo"></div>
-      </div>
-      <div class="card">
-        <h2>Conteos anteriores</h2>
-        <p class="sub">Se guarda una copia automatica cada vez que se usa "Borrar todo el stock".</p>
-        <div id="listaSnapshots"></div>
-      </div>
       <div class="card">
         <h2>Menus anteriores</h2>
         <p class="sub">Cada vez que se genera un PDF de Sugerencia del Chef queda una copia aca para volver a imprimirlo.</p>
@@ -361,6 +340,24 @@
     </div>
   </div>
 
+  <!-- MODAL: QR para celular -->
+  <div id="modalQR" class="modal-overlay">
+    <div class="modal-card">
+      <h3>Conteo por celular</h3>
+      <p style="font-size:13.5px; color:var(--text-sec); line-height:1.5; margin-bottom:6px;">
+        Escanea este codigo con el celular para abrir el inventario y contar caminando por el bar, sumando o restando cada producto.
+      </p>
+      <div class="qr-wrap">
+        <div id="qrCanvas"></div>
+      </div>
+      <div class="qr-link-row">
+        <input type="text" id="linkMovil" readonly value="Cargando...">
+        <button class="btn-mini dark" onclick="copiarLinkMovil()"><i class="fa-solid fa-link"></i> Copiar</button>
+      </div>
+      <button class="btn-mini outline" style="width:100%; justify-content:center; margin-top:18px;" onclick="cerrarModalQR()">Cerrar</button>
+    </div>
+  </div>
+
   <div id="toast" class="toast"></div>
 
   <script>
@@ -377,7 +374,6 @@
       document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.toggle('activo', b.getAttribute('data-tab') === nombre); });
       document.querySelectorAll('.vista').forEach(function (v) { v.classList.remove('activa'); });
       document.getElementById('vista' + nombre).classList.add('activa');
-      if (nombre === 'QR') cargarQR();
       if (nombre === 'Historial') cargarHistorial();
       if (nombre === 'Chef') inicializarChefTab();
     }
@@ -600,29 +596,81 @@
       limpiarFormularioChef();
     }
 
+    var TIEMPOS_PRESET = ['Aperitivo', 'Entrada', 'Fondo', 'Postre', 'Postre y Café'];
+
     function agregarFilaPlato(datosIniciales) {
       var cont = document.getElementById('listaPlatos');
       var div = document.createElement('div');
       div.className = 'plato-card';
       div.innerHTML =
-        '<span class="plato-num"></span>' +
-        '<button type="button" class="quitar-plato" title="Quitar" onclick="quitarFilaPlato(this)"><i class="fa-solid fa-xmark"></i></button>' +
-        '<div class="plato-grid">' +
-          '<div class="mfield" style="margin-bottom:0;">' +
-            '<label>Tiempo</label>' +
-            '<input type="text" class="plato-tiempo" list="listaTiempos" placeholder="Ej: Entrada">' +
+        '<div class="plato-head">' +
+          '<span class="plato-num"></span>' +
+          '<div class="plato-head-acciones">' +
+            '<button type="button" class="btn-mover" title="Subir" onclick="moverPlato(this, -1)"><i class="fa-solid fa-arrow-up"></i></button>' +
+            '<button type="button" class="btn-mover" title="Bajar" onclick="moverPlato(this, 1)"><i class="fa-solid fa-arrow-down"></i></button>' +
+            '<button type="button" class="btn-quitar-plato" title="Quitar plato" onclick="quitarFilaPlato(this)"><i class="fa-solid fa-trash"></i></button>' +
           '</div>' +
-          '<div class="mfield" style="margin-bottom:0;">' +
-            '<label>Nombre del plato</label>' +
-            '<input type="text" class="plato-nombre" placeholder="Ej: Ceviche de salmon austral">' +
-          '</div>' +
+        '</div>' +
+        '<div class="tiempo-chips">' +
+          TIEMPOS_PRESET.map(function (t) {
+            return '<button type="button" class="chip" data-valor="' + t + '" onclick="elegirTiempo(this)">' + t + '</button>';
+          }).join('') +
+          '<button type="button" class="chip chip-otro" onclick="elegirTiempoOtro(this)">Otro...</button>' +
+        '</div>' +
+        '<input type="text" class="plato-tiempo-custom" style="display:none;" placeholder="Escribe el tiempo" oninput="this.closest(\'.plato-card\').querySelector(\'.plato-tiempo\').value = this.value;">' +
+        '<input type="hidden" class="plato-tiempo" value="">' +
+        '<div class="mfield" style="margin:2px 0 0;">' +
+          '<label>Nombre del plato</label>' +
+          '<input type="text" class="plato-nombre" placeholder="Ej: Ceviche de salmon austral">' +
         '</div>' +
         '<textarea class="plato-descripcion" placeholder="Descripcion (opcional): ingredientes, tecnica, maridaje..."></textarea>';
       cont.appendChild(div);
+
+      var tiempo = (datosIniciales && datosIniciales.tiempo) || '';
+      if (tiempo) {
+        if (TIEMPOS_PRESET.indexOf(tiempo) !== -1) {
+          var chip = div.querySelector('.chip[data-valor="' + tiempo + '"]');
+          if (chip) elegirTiempo(chip);
+        } else {
+          elegirTiempoOtro(div.querySelector('.chip-otro'));
+          var custom = div.querySelector('.plato-tiempo-custom');
+          custom.value = tiempo;
+          div.querySelector('.plato-tiempo').value = tiempo;
+        }
+      }
       if (datosIniciales) {
-        div.querySelector('.plato-tiempo').value = datosIniciales.tiempo || '';
         div.querySelector('.plato-nombre').value = datosIniciales.nombre || '';
         div.querySelector('.plato-descripcion').value = datosIniciales.descripcion || '';
+      }
+      renumerarPlatos();
+    }
+
+    function elegirTiempo(btn) {
+      var card = btn.closest('.plato-card');
+      card.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('activo'); });
+      btn.classList.add('activo');
+      card.querySelector('.plato-tiempo').value = btn.dataset.valor;
+      var custom = card.querySelector('.plato-tiempo-custom');
+      custom.style.display = 'none';
+      custom.value = '';
+    }
+
+    function elegirTiempoOtro(btn) {
+      var card = btn.closest('.plato-card');
+      card.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('activo'); });
+      btn.classList.add('activo');
+      var custom = card.querySelector('.plato-tiempo-custom');
+      custom.style.display = 'block';
+      custom.focus();
+      card.querySelector('.plato-tiempo').value = custom.value;
+    }
+
+    function moverPlato(btn, dir) {
+      var card = btn.closest('.plato-card');
+      if (dir < 0 && card.previousElementSibling) {
+        card.parentNode.insertBefore(card, card.previousElementSibling);
+      } else if (dir > 0 && card.nextElementSibling) {
+        card.parentNode.insertBefore(card.nextElementSibling, card);
       }
       renumerarPlatos();
     }
@@ -685,7 +733,8 @@
         await construirPDFMenu(datos);
         historialCargado = false;
       } catch (e) {
-        mostrarToast('No se pudo guardar el menu', 'error');
+        console.error('Error al generar el menu', e);
+        mostrarToast('No se pudo guardar el menu: ' + (e && e.message ? e.message : 'error desconocido'), 'error');
       }
     }
 
@@ -699,6 +748,11 @@
     // QR
     // ───────────────────────────────────────────────────────────
     var qrPintado = false;
+    function abrirModalQR() {
+      document.getElementById('modalQR').classList.add('show');
+      cargarQR();
+    }
+    function cerrarModalQR() { document.getElementById('modalQR').classList.remove('show'); }
     function cargarQR() {
       google.script.run.withSuccessHandler(function (url) {
         document.getElementById('linkMovil').value = url || '(no se pudo detectar la URL; publica la app primero)';
@@ -735,46 +789,7 @@
     function cargarHistorial() {
       if (historialCargado) return;
       historialCargado = true;
-      google.script.run.withSuccessHandler(function (lista) { pintarConsumo(lista || []); }).obtenerConsumoEstimado();
-      google.script.run.withSuccessHandler(function (lista) { pintarSnapshots(lista || []); }).obtenerListaHistorial();
       google.script.run.withSuccessHandler(function (lista) { pintarMenus(lista || []); }).obtenerHistorialMenus();
-    }
-    function pintarConsumo(lista) {
-      var cont = document.getElementById('listaConsumo');
-      if (!lista.length) { cont.innerHTML = '<p class="empty">Aun no hay suficiente historial para estimar consumo.</p>'; return; }
-      cont.innerHTML = lista.slice(0, 20).map(function (it, i) {
-        return '<div class="consumo-row"><span><span class="rank">' + (i + 1) + '.</span>' + escaparHTML(it.producto) +
-          ' <span style="color:var(--text-sec); font-size:11px;">(' + escaparHTML(it.categoria) + ')</span></span>' +
-          '<b>' + it.total + ' ' + escaparHTML(it.unidad) + '</b></div>';
-      }).join('');
-    }
-    function pintarSnapshots(lista) {
-      var cont = document.getElementById('listaSnapshots');
-      if (!lista.length) { cont.innerHTML = '<p class="empty">Aun no se ha guardado ningun conteo.</p>'; return; }
-      cont.innerHTML = lista.map(function (s) {
-        return '<div>' +
-          '<div class="snap-row" onclick="toggleSnapshot(\'' + s.snapshotId + '\')">' +
-            '<span class="fecha"><i class="fa-regular fa-calendar"></i> ' + s.fecha + '</span>' +
-            '<span class="meta">' + s.items + ' items · ' + s.totalUnidades + ' unidades <i class="fa-solid fa-chevron-down"></i></span>' +
-          '</div>' +
-          '<div class="snap-detalle" id="snapDet_' + s.snapshotId + '"></div>' +
-        '</div>';
-      }).join('');
-    }
-    function toggleSnapshot(id) {
-      var el = document.getElementById('snapDet_' + id);
-      var mostrando = el.classList.contains('show');
-      if (mostrando) { el.classList.remove('show'); return; }
-      el.classList.add('show');
-      if (el.dataset.cargado) return;
-      el.innerHTML = '<div class="loader show" style="padding:14px;"><i class="fa-solid fa-circle-notch spin"></i> Cargando...</div>';
-      google.script.run.withSuccessHandler(function (items) {
-        el.dataset.cargado = '1';
-        el.innerHTML = '<div class="table-scroll" style="overflow-x:auto;"><table class="mini"><thead><tr><th>Categoria</th><th>Producto</th><th>Cantidad</th></tr></thead><tbody>' +
-          (items || []).map(function (it) {
-            return '<tr><td>' + escaparHTML(it.categoria) + '</td><td>' + escaparHTML(it.producto) + '</td><td>' + it.cantidad + ' ' + escaparHTML(it.unidad) + '</td></tr>';
-          }).join('') + '</tbody></table></div>';
-      }).obtenerDetalleSnapshot(id);
     }
 
     function pintarMenus(lista) {
