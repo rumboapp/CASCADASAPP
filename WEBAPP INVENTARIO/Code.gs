@@ -16,12 +16,11 @@
  * movil (la que se abre al escanear el QR), pensada para caminar por el bar
  * sumando/restando con el celular.
  *
- * Primer uso: ejecuta crearBaseDeDatos() UNA vez desde el editor de Apps
- * Script. Crea el Spreadsheet, guarda su ID en PropertiesService (igual
- * patron que las demas apps) y siembra el inventario con los 122 productos
- * de la ficha original, en cantidad 0. Si ya tenias la base de datos de
- * Inventario creada, volver a ejecutar esta funcion es seguro: solo agrega
- * la hoja de Sugerencia del Chef que falte, sin tocar el inventario.
+ * La planilla es siempre "Cascadas Hotel - Inventario Bar" (SPREADSHEET_ID_FIJO
+ * mas abajo, el ID esta fijo en el codigo, no hay que configurar nada).
+ * Ejecuta crearBaseDeDatos() UNA vez desde el editor de Apps Script para
+ * asegurar que esten todas las hojas (Inventario/Historial/MenuHistorial):
+ * es segura de re-correr, solo agrega lo que falte sin tocar datos existentes.
  * ============================================================================
  */
 
@@ -169,36 +168,15 @@ var CATEGORIAS_SEED = [
     ['Espumante', 'SBX brut']
 ];
 
+// Segura de re-correr: usa siempre la planilla fija (SPREADSHEET_ID_FIJO) y
+// solo agrega las hojas que falten, sin tocar los datos que ya existen.
 function crearBaseDeDatos() {
-  var props = PropertiesService.getScriptProperties();
-  var idExistente = props.getProperty('SPREADSHEET_ID');
-  if (idExistente) {
-    // Instalacion existente: solo agrega hojas nuevas que falten (por ejemplo
-    // al actualizar de una version que no tenia Sugerencia del Chef), sin
-    // tocar los datos que ya existen.
-    var ssExistente = SpreadsheetApp.openById(idExistente);
-    if (!ssExistente.getSheetByName('MenuHistorial')) {
-      _crearHojaMenuChef(ssExistente);
-      Logger.log('Se agrego la hoja MenuHistorial (Sugerencia del Chef) a la base de datos existente.');
-    }
-    Logger.log('Ya existe una base de datos con ID: ' + idExistente);
-    return idExistente;
-  }
-
-  var ss = SpreadsheetApp.create('Cascadas Hotel - Cocina y Restaurant');
-  var id = ss.getId();
-
-  _crearHojaInventario(ss);
-  _crearHojaHistorial(ss);
-  _crearHojaMenuChef(ss);
-  _eliminarHojaPorDefecto(ss);
-
-  props.setProperty('SPREADSHEET_ID', id);
-
-  Logger.log('Base de datos creada con exito.');
-  Logger.log('SPREADSHEET_ID: ' + id);
-  Logger.log('URL: ' + ss.getUrl());
-  return id;
+  var ss = _ss();
+  if (!ss.getSheetByName('Inventario')) _crearHojaInventario(ss);
+  if (!ss.getSheetByName('Historial')) _crearHojaHistorial(ss);
+  if (!ss.getSheetByName('MenuHistorial')) _crearHojaMenuChef(ss);
+  Logger.log('Listo. Planilla: ' + ss.getUrl());
+  return ss.getId();
 }
 
 function _crearHoja(ss, nombre, encabezados, filas) {
@@ -260,14 +238,12 @@ function _eliminarHojaPorDefecto(ss) {
 // ---------------------------------------------------------------------------
 // ACCESO AL SPREADSHEET
 // ---------------------------------------------------------------------------
-// Sin cache: cada llamada abre la planilla de nuevo. Un cache en variable de
-// script (var a nivel de archivo) puede quedar apuntando a un estado viejo
-// si Apps Script reutiliza el mismo contenedor entre ejecuciones distintas,
-// y eso puede hacer que una lectura no vea una escritura muy reciente.
+// ID fijo de la planilla real (Cascadas Hotel - Inventario Bar), para que no
+// haya ninguna duda de a cual planilla se lee/escribe. Si en algun momento
+// se necesita otra, se cambia aca.
+var SPREADSHEET_ID_FIJO = '1jJ4sxTASvUACS6b1nX7m3F8UCd0J286H-5DHEUnyQQ0';
 function _ss() {
-  var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
-  if (!id) throw new Error('No se encontro SPREADSHEET_ID. Ejecuta crearBaseDeDatos() primero.');
-  return SpreadsheetApp.openById(id);
+  return SpreadsheetApp.openById(SPREADSHEET_ID_FIJO);
 }
 function _hoja(nombre) {
   var h = _ss().getSheetByName(nombre);
@@ -514,12 +490,6 @@ function guardarMenuChef(datos) {
 /** Lista de menus guardados, mas reciente primero. */
 function obtenerHistorialMenus() {
   _asegurarHojaMenuChef();
-  SpreadsheetApp.flush(); // fuerza a ver cualquier escritura reciente antes de leer
-  // Lectura de "calentamiento": se descarta, pero en las pruebas la primera
-  // lectura de la hoja en una ejecucion nueva a veces trae una foto vieja y
-  // recien la segunda ve la fila que se acaba de guardar. Leer dos veces
-  // (barato, son pocas filas) evita depender de reintentos desde el cliente.
-  _leerHojaComoObjetos('MenuHistorial');
   var filas = _leerHojaComoObjetos('MenuHistorial');
   var porSnapshot = {};
   var orden = [];
@@ -543,7 +513,6 @@ function obtenerHistorialMenus() {
 /** Detalle completo (platos ordenados) de un menu guardado. */
 function obtenerDetalleMenu(snapshotId) {
   _asegurarHojaMenuChef();
-  _leerHojaComoObjetos('MenuHistorial'); // lectura de calentamiento, ver nota en obtenerHistorialMenus
   var filas = _leerHojaComoObjetos('MenuHistorial').filter(function (r) { return r.SnapshotID === snapshotId; });
   if (!filas.length) return null;
   filas.sort(function (a, b) { return numero_(a.PlatoOrden) - numero_(b.PlatoOrden); });
@@ -563,38 +532,22 @@ function obtenerDetalleMenu(snapshotId) {
  * esta desactualizado.
  */
 function diagnosticoMenus() {
-  var info = { ok: true, version: 'menus-4' };
+  var info = { ok: true, version: 'menus-5-id-fijo' };
   try {
-    var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
-    info.spreadsheetIdGuardado = id || null;
-    if (!id) { info.ok = false; info.error = 'No hay SPREADSHEET_ID guardado. Ejecuta crearBaseDeDatos() desde el editor.'; return info; }
-
-    var ss = SpreadsheetApp.openById(id);
+    var ss = _ss();
     info.spreadsheetId = ss.getId();
     info.spreadsheetUrl = ss.getUrl();
     info.spreadsheetNombre = ss.getName();
-
     var hoja = ss.getSheetByName('MenuHistorial');
     info.hojaExiste = !!hoja;
     if (hoja) {
       info.ultimaFila = hoja.getLastRow();
       info.registros = _leerHojaComoObjetos('MenuHistorial').length;
+      info.menusDistintos = obtenerHistorialMenus().length;
     }
-  } catch (e1) {
+  } catch (e) {
     info.ok = false;
-    info.error = 'Fallo leyendo la planilla directamente: ' + (e1 && e1.message ? e1.message : String(e1));
-    return info;
-  }
-
-  // Paso aparte: llama a la funcion real que usa la app, con su propio
-  // try/catch, para poder distinguir si el problema esta en leer la
-  // planilla (arriba) o en la funcion obtenerHistorialMenus en si.
-  try {
-    var lista = obtenerHistorialMenus();
-    info.menusDistintos = lista.length;
-  } catch (e2) {
-    info.ok = false;
-    info.error = 'obtenerHistorialMenus() fallo: ' + (e2 && e2.message ? e2.message : String(e2));
+    info.error = String(e && e.message ? e.message : e);
   }
   return info;
 }

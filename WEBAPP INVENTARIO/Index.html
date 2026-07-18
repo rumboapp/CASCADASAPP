@@ -801,18 +801,11 @@
     // ───────────────────────────────────────────────────────────
     // Se recarga siempre (al entrar a la pestaña, al generar un menu, o con
     // el boton Actualizar), sin cache, asi nunca queda desactualizado.
-    // Token de la solicitud mas reciente: si dos llamadas se cruzan (por
-    // ejemplo, se genera un menu justo cuando se estaba por cargar la lista),
-    // una respuesta vieja que llega tarde ya no puede pisar a una mas nueva.
+    // Token de la solicitud mas reciente: si dos llamadas se cruzan, una
+    // respuesta vieja que llega tarde no pisa a una mas nueva.
     var tokenCargaMenus = 0;
 
-    // Pausas antes de cada reintento cuando la lista viene vacia: Google
-    // Sheets a veces tarda un instante en propagar una escritura muy
-    // reciente antes de que una lectura la vea. 3 intentos en total.
-    var PAUSAS_REINTENTO_MENUS = [900, 1800, 3000];
-
-    function cargarMenus(intento) {
-      intento = intento || 0;
+    function cargarMenus() {
       var cont = document.getElementById('listaMenus');
       if (!cont) return;
       var miToken = ++tokenCargaMenus;
@@ -820,23 +813,12 @@
       google.script.run
         .withSuccessHandler(function (lista) {
           if (miToken !== tokenCargaMenus) return;
-          lista = lista || [];
-          if (lista.length) { pintarMenus(lista); return; }
-          if (intento < PAUSAS_REINTENTO_MENUS.length) {
-            var espera = PAUSAS_REINTENTO_MENUS[intento];
-            setTimeout(function () {
-              if (miToken === tokenCargaMenus) cargarMenus(intento + 1);
-            }, espera);
-            return;
-          }
-          pintarMenus(lista);
-          verDiagnosticoMenus(true);
+          pintarMenus(lista || []);
         })
         .withFailureHandler(function (err) {
           if (miToken !== tokenCargaMenus) return;
           console.error('obtenerHistorialMenus fallo', err);
           cont.innerHTML = '<p class="empty">No se pudo cargar el historial de menus.</p>' + botonDiagnosticoHTML();
-          verDiagnosticoMenus(true);
         })
         .obtenerHistorialMenus();
     }
