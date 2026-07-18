@@ -807,13 +807,56 @@
       cont.innerHTML = '<div class="loader show" style="padding:20px;"><i class="fa-solid fa-circle-notch spin"></i> Cargando...</div>';
       google.script.run
         .withSuccessHandler(function (lista) { pintarMenus(lista || []); })
-        .withFailureHandler(function () { cont.innerHTML = '<p class="empty">No se pudo cargar el historial de menus.</p>'; })
+        .withFailureHandler(function (err) {
+          console.error('obtenerHistorialMenus fallo', err);
+          cont.innerHTML = '<p class="empty">No se pudo cargar el historial de menus.</p>' + botonDiagnosticoHTML();
+        })
         .obtenerHistorialMenus();
+    }
+
+    function botonDiagnosticoHTML() {
+      return '<div style="text-align:center; margin-top:8px;">' +
+        '<button class="btn-mini outline" onclick="verDiagnosticoMenus()"><i class="fa-solid fa-stethoscope"></i> Revisar por que</button>' +
+        '</div><div id="diagMenus"></div>';
+    }
+
+    function verDiagnosticoMenus() {
+      var box = document.getElementById('diagMenus');
+      if (box) box.innerHTML = '<div class="loader show" style="padding:12px;"><i class="fa-solid fa-circle-notch spin"></i> Revisando...</div>';
+      google.script.run
+        .withSuccessHandler(function (info) { mostrarDiagnosticoMenus(info); })
+        .withFailureHandler(function () {
+          if (box) box.innerHTML = '<div style="background:var(--crit-tint); color:var(--crit); border-radius:12px; padding:14px; font-size:12.5px; margin-top:10px; line-height:1.5;">' +
+            '<b>El Code.gs desplegado esta desactualizado.</b><br>Falta la funcion de diagnostico. Reemplaza el Code.gs por el ultimo que te pase y republica una <b>version nueva</b> (Implementar → Gestionar implementaciones → editar → Version nueva).</div>';
+        })
+        .diagnosticoMenus();
+    }
+
+    function mostrarDiagnosticoMenus(info) {
+      var box = document.getElementById('diagMenus');
+      if (!box) return;
+      if (!info || !info.ok) {
+        box.innerHTML = '<div style="background:var(--crit-tint); color:var(--crit); border-radius:12px; padding:14px; font-size:12.5px; margin-top:10px;">Error al leer el historial: ' + escaparHTML(info && info.error || 'desconocido') + '</div>';
+        return;
+      }
+      var msg;
+      if (info.menusDistintos > 0) {
+        msg = '<b>' + info.menusDistintos + ' menu(s) guardado(s)</b> en la planilla, pero no se estan mostrando. Suele ser que el <b>Index.html</b> desplegado no es el ultimo: reemplazalo y republica una version nueva.';
+      } else if (!info.hojaExiste) {
+        msg = 'La hoja "MenuHistorial" todavia no existe. Genera un menu (se crea sola) y vuelve a revisar.';
+      } else {
+        msg = 'La hoja existe pero no hay menus guardados aun. Si generaste uno y no quedo, avisame con este dato.';
+      }
+      box.innerHTML = '<div style="background:var(--accent-light); border-radius:12px; padding:14px; font-size:12px; margin-top:10px; line-height:1.6;">' +
+        msg +
+        '<div style="margin-top:8px; color:var(--text-sec);">Planilla: <a href="' + escaparHTML(info.spreadsheetUrl || '#') + '" target="_blank">abrir</a> · ' +
+        'registros: ' + (info.registros != null ? info.registros : '-') + ' · menus: ' + (info.menusDistintos != null ? info.menusDistintos : '-') + '</div>' +
+        '</div>';
     }
 
     function pintarMenus(lista) {
       var cont = document.getElementById('listaMenus');
-      if (!lista.length) { cont.innerHTML = '<p class="empty">Aun no se ha generado ningun menu.</p>'; return; }
+      if (!lista.length) { cont.innerHTML = '<p class="empty">Aun no se ha generado ningun menu.</p>' + botonDiagnosticoHTML(); return; }
       cont.innerHTML = lista.map(function (m) {
         return '<div>' +
           '<div class="menu-row" onclick="toggleMenu(\'' + m.snapshotId + '\')">' +

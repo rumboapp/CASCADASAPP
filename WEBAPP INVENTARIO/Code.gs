@@ -240,10 +240,16 @@ function _crearHojaMenuChef(ss) {
 
 // La hoja de Sugerencia del Chef se agrego despues del lanzamiento inicial
 // de Inventario; esto la crea sola si alguien no volvio a correr
-// crearBaseDeDatos() tras actualizar el codigo, en vez de tirar error.
+// crearBaseDeDatos() tras actualizar el codigo, en vez de tirar error. Ademas
+// repone el encabezado si la hoja quedo sin el.
+var _MENU_ENCABEZADOS = ['SnapshotID', 'FechaGenerado', 'Titulo', 'FechaCena', 'PlatoOrden', 'Tiempo', 'Nombre', 'Descripcion'];
 function _asegurarHojaMenuChef() {
   var ss = _ss();
-  if (!ss.getSheetByName('MenuHistorial')) _crearHojaMenuChef(ss);
+  var hoja = ss.getSheetByName('MenuHistorial');
+  if (!hoja) { _crearHojaMenuChef(ss); return; }
+  if (hoja.getLastRow() === 0) {
+    hoja.getRange(1, 1, 1, _MENU_ENCABEZADOS.length).setValues([_MENU_ENCABEZADOS]);
+  }
 }
 
 function _eliminarHojaPorDefecto(ss) {
@@ -536,4 +542,34 @@ function obtenerDetalleMenu(snapshotId) {
     fecha: _fechaHoraTexto(filas[0].FechaGenerado),
     platos: filas.map(function (r) { return { tiempo: r.Tiempo || '', nombre: r.Nombre || '', descripcion: r.Descripcion || '' }; })
   };
+}
+
+/**
+ * Diagnostico del historial de menus: dice si la hoja existe, cuantas filas y
+ * cuantos menus distintos tiene, y a que planilla apunta la app. Sirve para
+ * detectar de un vistazo si el problema es que no se guarda, o que la app lee
+ * otra planilla. Si esta funcion no existe al llamarla desde la web, es señal
+ * de que el Code.gs desplegado esta desactualizado.
+ */
+function diagnosticoMenus() {
+  var info = { ok: true, version: 'menus-2' };
+  try {
+    var ss = _ss();
+    info.spreadsheetId = ss.getId();
+    info.spreadsheetUrl = ss.getUrl();
+    var hoja = ss.getSheetByName('MenuHistorial');
+    info.hojaExiste = !!hoja;
+    if (hoja) {
+      info.ultimaFila = hoja.getLastRow();
+      var datos = _leerHojaComoObjetos('MenuHistorial');
+      info.registros = datos.length;
+      var snaps = {};
+      datos.forEach(function (r) { if (r.SnapshotID) snaps[r.SnapshotID] = true; });
+      info.menusDistintos = Object.keys(snaps).length;
+    }
+  } catch (e) {
+    info.ok = false;
+    info.error = String(e && e.message ? e.message : e);
+  }
+  return info;
 }
