@@ -801,15 +801,31 @@
     // ───────────────────────────────────────────────────────────
     // Se recarga siempre (al entrar a la pestaña, al generar un menu, o con
     // el boton Actualizar), sin cache, asi nunca queda desactualizado.
+    // Token de la solicitud mas reciente: si dos llamadas se cruzan (por
+    // ejemplo, se genera un menu justo cuando se estaba por cargar la lista),
+    // una respuesta vieja que llega tarde ya no puede pisar a una mas nueva.
+    var tokenCargaMenus = 0;
+
     function cargarMenus() {
       var cont = document.getElementById('listaMenus');
       if (!cont) return;
+      var miToken = ++tokenCargaMenus;
       cont.innerHTML = '<div class="loader show" style="padding:20px;"><i class="fa-solid fa-circle-notch spin"></i> Cargando...</div>';
       google.script.run
-        .withSuccessHandler(function (lista) { pintarMenus(lista || []); })
+        .withSuccessHandler(function (lista) {
+          if (miToken !== tokenCargaMenus) return;
+          lista = lista || [];
+          if (lista.length) { pintarMenus(lista); return; }
+          // Vacio: antes de mostrar "no hay menus", confirma con el diagnostico
+          // si en realidad SI hay datos guardados (para no confundir).
+          pintarMenus(lista);
+          verDiagnosticoMenus(true);
+        })
         .withFailureHandler(function (err) {
+          if (miToken !== tokenCargaMenus) return;
           console.error('obtenerHistorialMenus fallo', err);
           cont.innerHTML = '<p class="empty">No se pudo cargar el historial de menus.</p>' + botonDiagnosticoHTML();
+          verDiagnosticoMenus(true);
         })
         .obtenerHistorialMenus();
     }
@@ -820,14 +836,18 @@
         '</div><div id="diagMenus"></div>';
     }
 
-    function verDiagnosticoMenus() {
+    // automatico=true: se llama solo (sin boton) para no hacer esperar al
+    // usuario un segundo click cuando la lista viene vacia.
+    function verDiagnosticoMenus(automatico) {
       var box = document.getElementById('diagMenus');
-      if (box) box.innerHTML = '<div class="loader show" style="padding:12px;"><i class="fa-solid fa-circle-notch spin"></i> Revisando...</div>';
+      if (!box) return; // la lista SI tenia datos, no hace falta diagnosticar
+      if (!automatico) box.innerHTML = '<div class="loader show" style="padding:12px;"><i class="fa-solid fa-circle-notch spin"></i> Revisando...</div>';
       google.script.run
         .withSuccessHandler(function (info) { mostrarDiagnosticoMenus(info); })
         .withFailureHandler(function () {
-          if (box) box.innerHTML = '<div style="background:var(--crit-tint); color:var(--crit); border-radius:12px; padding:14px; font-size:12.5px; margin-top:10px; line-height:1.5;">' +
-            '<b>El Code.gs desplegado esta desactualizado.</b><br>Falta la funcion de diagnostico. Reemplaza el Code.gs por el ultimo que te pase y republica una <b>version nueva</b> (Implementar → Gestionar implementaciones → editar → Version nueva).</div>';
+          var b = document.getElementById('diagMenus');
+          if (b) b.innerHTML = '<div style="background:var(--crit-tint); color:var(--crit); border-radius:12px; padding:14px; font-size:12.5px; margin-top:10px; line-height:1.5;">' +
+            '<b>El Code.gs desplegado esta desactualizado o incompleto.</b><br>Falta la funcion de diagnostico. Revisa que Code.gs tenga TODO el contenido pegado (sin cortes) y republica una <b>version nueva</b> (Implementar → Gestionar implementaciones → editar → Version nueva).</div>';
         })
         .diagnosticoMenus();
     }
@@ -841,7 +861,10 @@
       }
       var msg;
       if (info.menusDistintos > 0) {
-        msg = '<b>' + info.menusDistintos + ' menu(s) guardado(s)</b> en la planilla, pero no se estan mostrando. Suele ser que el <b>Index.html</b> desplegado no es el ultimo: reemplazalo y republica una version nueva.';
+        msg = '<b>Encontre ' + info.menusDistintos + ' menu(s) guardado(s)</b> en la planilla, pero la lista de arriba no los muestra. ' +
+          'Como ya ves este mensaje, tu <b>Index.html</b> SI esta actualizado (el diagnostico es una funcion nueva). ' +
+          'El problema esta en la funcion <code>obtenerHistorialMenus</code> dentro de tu <b>Code.gs</b>: probablemente quedo con el cuerpo vacio o cortado por un pegado parcial. ' +
+          'Abre el editor de Apps Script, entra a Code.gs, busca esa funcion y confirma que tenga todo su contenido (no solo <code>function obtenerHistorialMenus() { }</code> vacia). Si esta incompleta, borra todo el archivo y vuelve a pegar el Code.gs completo de una sola vez, guarda y republica una version nueva.';
       } else if (!info.hojaExiste) {
         msg = 'La hoja "MenuHistorial" todavia no existe. Genera un menu (se crea sola) y vuelve a revisar.';
       } else {
