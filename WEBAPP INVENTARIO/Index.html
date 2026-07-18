@@ -4,7 +4,7 @@
   <base target="_top">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Inventario Bar/Restaurant</title>
+  <title>Cocina y Restaurant</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -137,6 +137,29 @@
     .qr-link-row { display: flex; gap: 8px; max-width: 480px; margin: 20px auto 0; }
     .qr-link-row input { flex: 1; height: 44px; padding: 0 14px; border: none; border-radius: 12px; font-family: monospace; font-size: 12.5px; background: var(--input-bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); }
 
+    /* ===== sugerencia del chef ===== */
+    .plato-card { border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 10px; background: var(--surface); position: relative; }
+    .plato-card .plato-num { position: absolute; top: -9px; left: 14px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 9px; border-radius: 8px; text-transform: uppercase; letter-spacing: .04em; }
+    .plato-card .quitar-plato { position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; border: none; border-radius: 8px; background: var(--input-bg); color: var(--text-sec); cursor: pointer; font-size: 12px; }
+    .plato-card .quitar-plato:hover { background: var(--crit-tint); color: var(--crit); }
+    .plato-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-top: 6px; }
+    .plato-card textarea {
+      width: 100%; margin-top: 10px; padding: 10px 12px; border: none; border-radius: 10px; font-family: 'Oswald', sans-serif;
+      font-size: 13px; background: var(--input-bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); resize: vertical; min-height: 54px;
+    }
+    .plato-card textarea:focus, .plato-card input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+    .menu-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 4px; border-bottom: 1px solid #EFEDEA; cursor: pointer; }
+    .menu-row:last-child { border-bottom: none; }
+    .menu-row .titulo { font-weight: 500; }
+    .menu-row .meta { font-size: 11.5px; color: var(--text-sec); }
+    .menu-detalle { display: none; padding: 6px 4px 16px; }
+    .menu-detalle.show { display: block; }
+    .menu-detalle .plato-preview { padding: 8px 0; border-bottom: 1px solid #EFEDEA; }
+    .menu-detalle .plato-preview:last-child { border-bottom: none; }
+    .menu-detalle .plato-preview .tiempo { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-sec); }
+    .menu-detalle .plato-preview .nombre { font-size: 14px; font-weight: 500; margin-top: 2px; }
+    .menu-detalle .plato-preview .desc { font-size: 12px; color: var(--text-sec); margin-top: 2px; font-style: italic; }
+
     /* ===== historial ===== */
     .consumo-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 4px; border-bottom: 1px solid #EFEDEA; font-size: 13px; }
     .consumo-row:last-child { border-bottom: none; }
@@ -166,12 +189,13 @@
   <div class="topbar">
     <div class="topbar-inner">
       <div>
-        <h1><i class="fa-solid fa-martini-glass-citrus"></i> Inventario Bar/Restaurant</h1>
+        <h1><i class="fa-solid fa-kitchen-set"></i> Cocina y Restaurant</h1>
         <p>Cascadas Hotel</p>
       </div>
     </div>
     <div class="tabs">
       <button class="tab-btn activo" data-tab="Inventario" onclick="mostrarTab('Inventario')">Inventario</button>
+      <button class="tab-btn" data-tab="Chef" onclick="mostrarTab('Chef')">Sugerencia del Chef</button>
       <button class="tab-btn" data-tab="QR" onclick="mostrarTab('QR')">QR</button>
       <button class="tab-btn" data-tab="Historial" onclick="mostrarTab('Historial')">Historial</button>
     </div>
@@ -207,6 +231,41 @@
       </div>
     </div>
 
+    <!-- ===== SUGERENCIA DEL CHEF ===== -->
+    <div id="vistaChef" class="vista">
+      <div class="card">
+        <h2>Sugerencia del Chef</h2>
+        <p class="sub">Carga los platos de la cena especial y genera un PDF elegante, listo para imprimir. No hace falta que sean 3 tiempos: agrega los que necesites.</p>
+
+        <div class="mgrid" style="margin-bottom: 16px;">
+          <div class="mfield">
+            <label>Titulo de la cena (opcional)</label>
+            <input type="text" id="chef_titulo" placeholder="Ej: Cena de Aniversario">
+          </div>
+          <div class="mfield">
+            <label>Fecha de la cena</label>
+            <input type="date" id="chef_fecha">
+          </div>
+        </div>
+
+        <datalist id="listaTiempos">
+          <option value="Aperitivo">
+          <option value="Entrada">
+          <option value="Fondo">
+          <option value="Postre">
+          <option value="Postre y Café">
+        </datalist>
+        <div id="listaPlatos"></div>
+
+        <button class="btn-mini outline" onclick="agregarFilaPlato()" style="margin-top: 6px;"><i class="fa-solid fa-plus"></i> Agregar plato</button>
+
+        <div style="display:flex; gap:8px; margin-top:20px;">
+          <button class="btn-mini outline" onclick="limpiarFormularioChef()"><i class="fa-solid fa-eraser"></i> Limpiar</button>
+          <button class="btn-mini dark" onclick="generarMenuPDF()"><i class="fa-solid fa-file-pdf"></i> Generar PDF</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ===== QR ===== -->
     <div id="vistaQR" class="vista">
       <div class="card">
@@ -233,6 +292,11 @@
         <h2>Conteos anteriores</h2>
         <p class="sub">Se guarda una copia automatica cada vez que se usa "Borrar todo el stock".</p>
         <div id="listaSnapshots"></div>
+      </div>
+      <div class="card">
+        <h2>Menus anteriores</h2>
+        <p class="sub">Cada vez que se genera un PDF de Sugerencia del Chef queda una copia aca para volver a imprimirlo.</p>
+        <div id="listaMenus"></div>
       </div>
     </div>
 
@@ -315,6 +379,7 @@
       document.getElementById('vista' + nombre).classList.add('activa');
       if (nombre === 'QR') cargarQR();
       if (nombre === 'Historial') cargarHistorial();
+      if (nombre === 'Chef') inicializarChefTab();
     }
 
     // ───────────────────────────────────────────────────────────
@@ -526,6 +591,111 @@
     }
 
     // ───────────────────────────────────────────────────────────
+    // SUGERENCIA DEL CHEF
+    // ───────────────────────────────────────────────────────────
+    var chefInicializado = false;
+    function inicializarChefTab() {
+      if (chefInicializado) return;
+      chefInicializado = true;
+      limpiarFormularioChef();
+    }
+
+    function agregarFilaPlato(datosIniciales) {
+      var cont = document.getElementById('listaPlatos');
+      var div = document.createElement('div');
+      div.className = 'plato-card';
+      div.innerHTML =
+        '<span class="plato-num"></span>' +
+        '<button type="button" class="quitar-plato" title="Quitar" onclick="quitarFilaPlato(this)"><i class="fa-solid fa-xmark"></i></button>' +
+        '<div class="plato-grid">' +
+          '<div class="mfield" style="margin-bottom:0;">' +
+            '<label>Tiempo</label>' +
+            '<input type="text" class="plato-tiempo" list="listaTiempos" placeholder="Ej: Entrada">' +
+          '</div>' +
+          '<div class="mfield" style="margin-bottom:0;">' +
+            '<label>Nombre del plato</label>' +
+            '<input type="text" class="plato-nombre" placeholder="Ej: Ceviche de salmon austral">' +
+          '</div>' +
+        '</div>' +
+        '<textarea class="plato-descripcion" placeholder="Descripcion (opcional): ingredientes, tecnica, maridaje..."></textarea>';
+      cont.appendChild(div);
+      if (datosIniciales) {
+        div.querySelector('.plato-tiempo').value = datosIniciales.tiempo || '';
+        div.querySelector('.plato-nombre').value = datosIniciales.nombre || '';
+        div.querySelector('.plato-descripcion').value = datosIniciales.descripcion || '';
+      }
+      renumerarPlatos();
+    }
+
+    function quitarFilaPlato(btn) {
+      var card = btn.closest('.plato-card');
+      if (card) card.remove();
+      renumerarPlatos();
+    }
+
+    function renumerarPlatos() {
+      document.querySelectorAll('#listaPlatos .plato-card').forEach(function (card, i) {
+        card.querySelector('.plato-num').textContent = 'Plato ' + (i + 1);
+      });
+    }
+
+    function recolectarPlatos() {
+      var platos = [];
+      document.querySelectorAll('#listaPlatos .plato-card').forEach(function (card) {
+        var nombre = card.querySelector('.plato-nombre').value.trim();
+        if (!nombre) return;
+        platos.push({
+          tiempo: card.querySelector('.plato-tiempo').value.trim(),
+          nombre: nombre,
+          descripcion: card.querySelector('.plato-descripcion').value.trim()
+        });
+      });
+      return platos;
+    }
+
+    function limpiarFormularioChef() {
+      document.getElementById('chef_titulo').value = '';
+      document.getElementById('chef_fecha').valueAsDate = new Date();
+      document.getElementById('listaPlatos').innerHTML = '';
+      agregarFilaPlato({ tiempo: 'Entrada' });
+      agregarFilaPlato({ tiempo: 'Fondo' });
+      agregarFilaPlato({ tiempo: 'Postre' });
+    }
+
+    function llamarServidor(nombreFn) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      return new Promise(function (resolve, reject) {
+        var runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+        runner[nombreFn].apply(runner, args);
+      });
+    }
+
+    async function generarMenuPDF() {
+      var platos = recolectarPlatos();
+      if (!platos.length) { mostrarToast('Agrega al menos un plato con nombre'); return; }
+      var datos = {
+        titulo: document.getElementById('chef_titulo').value.trim(),
+        fechaCena: document.getElementById('chef_fecha').value,
+        platos: platos
+      };
+      try {
+        var res = await llamarServidor('guardarMenuChef', datos);
+        if (!res || !res.success) { mostrarToast((res && res.mensaje) || 'No se pudo guardar', 'error'); return; }
+        mostrarToast('Menu guardado, generando PDF...', 'exito');
+        await construirPDFMenu(datos);
+        historialCargado = false;
+      } catch (e) {
+        mostrarToast('No se pudo guardar el menu', 'error');
+      }
+    }
+
+    function formatearFechaCena(fechaISO) {
+      var partes = String(fechaISO || '').split('-');
+      if (partes.length !== 3) return fechaISO || '';
+      return partes[2] + '/' + partes[1] + '/' + partes[0];
+    }
+
+    // ───────────────────────────────────────────────────────────
     // QR
     // ───────────────────────────────────────────────────────────
     var qrPintado = false;
@@ -567,6 +737,7 @@
       historialCargado = true;
       google.script.run.withSuccessHandler(function (lista) { pintarConsumo(lista || []); }).obtenerConsumoEstimado();
       google.script.run.withSuccessHandler(function (lista) { pintarSnapshots(lista || []); }).obtenerListaHistorial();
+      google.script.run.withSuccessHandler(function (lista) { pintarMenus(lista || []); }).obtenerHistorialMenus();
     }
     function pintarConsumo(lista) {
       var cont = document.getElementById('listaConsumo');
@@ -604,6 +775,48 @@
             return '<tr><td>' + escaparHTML(it.categoria) + '</td><td>' + escaparHTML(it.producto) + '</td><td>' + it.cantidad + ' ' + escaparHTML(it.unidad) + '</td></tr>';
           }).join('') + '</tbody></table></div>';
       }).obtenerDetalleSnapshot(id);
+    }
+
+    function pintarMenus(lista) {
+      var cont = document.getElementById('listaMenus');
+      if (!lista.length) { cont.innerHTML = '<p class="empty">Aun no se ha generado ningun menu.</p>'; return; }
+      cont.innerHTML = lista.map(function (m) {
+        return '<div>' +
+          '<div class="menu-row" onclick="toggleMenu(\'' + m.snapshotId + '\')">' +
+            '<span class="titulo">' + escaparHTML(m.titulo || 'Sugerencia del Chef') + '</span>' +
+            '<span class="meta">' + (m.fechaCena ? formatearFechaCena(m.fechaCena) + ' · ' : '') + m.cantidadPlatos + ' platos · generado ' + m.fecha + ' <i class="fa-solid fa-chevron-down"></i></span>' +
+          '</div>' +
+          '<div class="menu-detalle" id="menuDet_' + m.snapshotId + '"></div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function toggleMenu(id) {
+      var el = document.getElementById('menuDet_' + id);
+      var mostrando = el.classList.contains('show');
+      if (mostrando) { el.classList.remove('show'); return; }
+      el.classList.add('show');
+      if (el.dataset.cargado) return;
+      el.innerHTML = '<div class="loader show" style="padding:14px;"><i class="fa-solid fa-circle-notch spin"></i> Cargando...</div>';
+      google.script.run.withSuccessHandler(function (detalle) {
+        el.dataset.cargado = '1';
+        if (!detalle) { el.innerHTML = '<p class="empty">No se encontro el detalle.</p>'; return; }
+        el.dataset.json = JSON.stringify(detalle);
+        el.innerHTML = detalle.platos.map(function (p) {
+          return '<div class="plato-preview">' +
+            (p.tiempo ? '<div class="tiempo">' + escaparHTML(p.tiempo) + '</div>' : '') +
+            '<div class="nombre">' + escaparHTML(p.nombre) + '</div>' +
+            (p.descripcion ? '<div class="desc">' + escaparHTML(p.descripcion) + '</div>' : '') +
+          '</div>';
+        }).join('') +
+          '<button class="btn-mini outline" style="margin-top:10px;" onclick="reimprimirMenu(\'' + id + '\')"><i class="fa-solid fa-print"></i> Descargar PDF de nuevo</button>';
+      }).obtenerDetalleMenu(id);
+    }
+
+    function reimprimirMenu(id) {
+      var el = document.getElementById('menuDet_' + id);
+      if (!el || !el.dataset.json) return;
+      construirPDFMenu(JSON.parse(el.dataset.json));
     }
 
     // ───────────────────────────────────────────────────────────
@@ -744,6 +957,110 @@
         nombreArchivo: 'Pedido_Reposicion_' + new Date().toISOString().slice(0, 10) + '.pdf',
         logoData: logoData
       });
+    }
+
+    // Menu elegante de Sugerencia del Chef: no es una tabla, es una tarjeta
+    // centrada con tipografia serif, marco decorativo y separadores finos
+    // entre platos, en vez del formato de planilla del resto de los PDFs.
+    function dibujarDivisorElegante(doc, y, pageWidth) {
+      var centro = pageWidth / 2;
+      doc.setDrawColor(180, 177, 172);
+      doc.setLineWidth(0.25);
+      doc.line(centro - 30, y, centro - 5, y);
+      doc.line(centro + 5, y, centro + 30, y);
+      doc.setFillColor(65, 65, 67);
+      doc.circle(centro, y, 0.8, 'F');
+    }
+
+    async function construirPDFMenu(datos) {
+      var logoData = await obtenerLogoBase64();
+      var doc = new jspdf.jsPDF('p', 'mm', 'a4');
+      var pageWidth = doc.internal.pageSize.getWidth();
+      var pageHeight = doc.internal.pageSize.getHeight();
+      var margen = 18;
+      var y = 0;
+
+      function dibujarFondoMenu() {
+        doc.setFillColor(248, 247, 245);
+        doc.rect(0, 0, pageWidth, pageHeight, 'F');
+        doc.setFillColor(65, 65, 67);
+        doc.rect(0, 0, pageWidth, 24, 'F');
+        if (logoData) { try { doc.addImage(logoData, 'PNG', margen, 4, 16, 16); } catch (e) {} }
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('times', 'bold'); doc.setFontSize(12);
+        doc.text('CASCADAS HOTEL', pageWidth / 2, 14, { align: 'center' });
+        doc.setDrawColor(65, 65, 67);
+        doc.setLineWidth(0.4);
+        doc.rect(8, 30, pageWidth - 16, pageHeight - 38);
+        doc.setLineWidth(0.15);
+        doc.rect(10.5, 32.5, pageWidth - 21, pageHeight - 43);
+      }
+
+      function nuevaPagina() {
+        doc.addPage();
+        dibujarFondoMenu();
+        y = 44;
+      }
+
+      dibujarFondoMenu();
+      y = 46;
+      doc.setTextColor(58, 58, 60);
+      doc.setFont('times', 'bolditalic'); doc.setFontSize(26);
+      doc.text('Sugerencia del Chef', pageWidth / 2, y, { align: 'center' });
+      y += 9;
+      if (datos.titulo) {
+        doc.setFont('times', 'italic'); doc.setFontSize(13);
+        doc.setTextColor(110, 108, 105);
+        doc.text(datos.titulo, pageWidth / 2, y, { align: 'center' });
+        y += 7;
+      }
+      if (datos.fechaCena) {
+        doc.setFont('times', 'normal'); doc.setFontSize(10);
+        doc.setTextColor(110, 108, 105);
+        doc.text(formatearFechaCena(datos.fechaCena), pageWidth / 2, y, { align: 'center' });
+        y += 6;
+      }
+      y += 4;
+      dibujarDivisorElegante(doc, y, pageWidth);
+      y += 12;
+
+      datos.platos.forEach(function (p, i) {
+        var anchoTexto = pageWidth - margen * 2 - 20;
+        var descLines = p.descripcion ? doc.splitTextToSize(p.descripcion, anchoTexto) : [];
+        var alturaBloque = (p.tiempo ? 7 : 0) + 6 + (descLines.length * 5) + 16;
+        if (y + alturaBloque > pageHeight - 26) nuevaPagina();
+
+        if (p.tiempo) {
+          doc.setFont('times', 'bold'); doc.setFontSize(10);
+          doc.setTextColor(65, 65, 67);
+          doc.text(p.tiempo.toUpperCase(), pageWidth / 2, y, { align: 'center' });
+          y += 7;
+        }
+        doc.setFont('times', 'bold'); doc.setFontSize(15);
+        doc.setTextColor(58, 58, 60);
+        doc.text(p.nombre, pageWidth / 2, y, { align: 'center' });
+        y += 6;
+        if (descLines.length) {
+          doc.setFont('times', 'italic'); doc.setFontSize(10.5);
+          doc.setTextColor(110, 108, 105);
+          descLines.forEach(function (line) {
+            doc.text(line, pageWidth / 2, y, { align: 'center' });
+            y += 5;
+          });
+        }
+        y += 6;
+        if (i < datos.platos.length - 1) { dibujarDivisorElegante(doc, y, pageWidth); y += 10; }
+      });
+
+      var totalPaginas = doc.internal.getNumberOfPages();
+      for (var pg = 1; pg <= totalPaginas; pg++) {
+        doc.setPage(pg);
+        doc.setFont('times', 'normal'); doc.setFontSize(8);
+        doc.setTextColor(140, 138, 135);
+        doc.text('Cascadas Hotel · www.cascadashotel.cl', pageWidth / 2, pageHeight - 14, { align: 'center' });
+      }
+
+      doc.save('Sugerencia_del_Chef_' + (datos.fechaCena || new Date().toISOString().slice(0, 10)) + '.pdf');
     }
 
     // ───────────────────────────────────────────────────────────

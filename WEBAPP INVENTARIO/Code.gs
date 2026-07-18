@@ -1,20 +1,27 @@
 /**
  * ============================================================================
- * CASCADAS HOTEL — INVENTARIO DE BAR/RESTAURANT
+ * CASCADAS HOTEL — APP DE COCINA/RESTAURANT
  * ============================================================================
- * Reemplaza la ficha de inventario en papel (Word de ~6 paginas) que
- * imprimian cada 2 dias. Sin login: cualquiera con el link entra y edita
- * (no hay datos sensibles de huespedes en esta app).
+ * Dos herramientas en una sola app (mismo link de siempre, no cambia el QR
+ * ya impreso):
+ *  - Inventario de bar: reemplaza la ficha en papel que imprimian cada 2
+ *    dias. Sin login: cualquiera con el link entra y edita.
+ *  - Sugerencia del Chef: reemplaza el proceso de escribir el menu especial
+ *    en un papel y pasarlo a recepcion para pasarlo a Word/Canva a mano.
+ *    El chef (o quien reciba el papelito) lo carga en el panel y se genera
+ *    un PDF elegante con los colores del hotel, listo para imprimir.
  *
- * Un solo link (sin ?movil) abre el panel completo (Inventario/QR/Historial).
- * El mismo link + ?movil=1 abre la vista de conteo movil (la que se abre al
- * escanear el QR), pensada para caminar por el bar sumando/restando con el
- * celular.
+ * Un solo link (sin ?movil) abre el panel completo (Inventario/Sugerencia
+ * del Chef/QR/Historial). El mismo link + ?movil=1 abre la vista de conteo
+ * movil (la que se abre al escanear el QR), pensada para caminar por el bar
+ * sumando/restando con el celular.
  *
  * Primer uso: ejecuta crearBaseDeDatos() UNA vez desde el editor de Apps
  * Script. Crea el Spreadsheet, guarda su ID en PropertiesService (igual
  * patron que las demas apps) y siembra el inventario con los 122 productos
- * de la ficha original, en cantidad 0.
+ * de la ficha original, en cantidad 0. Si ya tenias la base de datos de
+ * Inventario creada, volver a ejecutar esta funcion es seguro: solo agrega
+ * la hoja de Sugerencia del Chef que falte, sin tocar el inventario.
  * ============================================================================
  */
 
@@ -25,7 +32,7 @@ function doGet(e) {
   var esMovil = e && e.parameter && (e.parameter.movil === '1' || e.parameter.movil === 'true');
   var plantilla = HtmlService.createTemplateFromFile(esMovil ? 'Movil' : 'Index');
   return plantilla.evaluate()
-    .setTitle(esMovil ? 'Conteo de Inventario - Cascadas Hotel' : 'Inventario Bar/Restaurant - Cascadas Hotel')
+    .setTitle(esMovil ? 'Conteo de Inventario - Cascadas Hotel' : 'Cocina y Restaurant - Cascadas Hotel')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
@@ -163,21 +170,30 @@ var CATEGORIAS_SEED = [
 ];
 
 function crearBaseDeDatos() {
-  var idExistente = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+  var props = PropertiesService.getScriptProperties();
+  var idExistente = props.getProperty('SPREADSHEET_ID');
   if (idExistente) {
+    // Instalacion existente: solo agrega hojas nuevas que falten (por ejemplo
+    // al actualizar de una version que no tenia Sugerencia del Chef), sin
+    // tocar los datos que ya existen.
+    var ssExistente = SpreadsheetApp.openById(idExistente);
+    if (!ssExistente.getSheetByName('MenuHistorial')) {
+      _crearHojaMenuChef(ssExistente);
+      Logger.log('Se agrego la hoja MenuHistorial (Sugerencia del Chef) a la base de datos existente.');
+    }
     Logger.log('Ya existe una base de datos con ID: ' + idExistente);
-    Logger.log('Si deseas recrearla, borra la propiedad SPREADSHEET_ID primero.');
     return idExistente;
   }
 
-  var ss = SpreadsheetApp.create('Cascadas Hotel - Inventario Bar');
+  var ss = SpreadsheetApp.create('Cascadas Hotel - Cocina y Restaurant');
   var id = ss.getId();
 
   _crearHojaInventario(ss);
   _crearHojaHistorial(ss);
+  _crearHojaMenuChef(ss);
   _eliminarHojaPorDefecto(ss);
 
-  PropertiesService.getScriptProperties().setProperty('SPREADSHEET_ID', id);
+  props.setProperty('SPREADSHEET_ID', id);
 
   Logger.log('Base de datos creada con exito.');
   Logger.log('SPREADSHEET_ID: ' + id);
@@ -213,6 +229,12 @@ function _crearHojaInventario(ss) {
 function _crearHojaHistorial(ss) {
   _crearHoja(ss, 'Historial', [
     'SnapshotID', 'Fecha', 'ItemID', 'Categoria', 'Producto', 'Unidad', 'Cantidad', 'Minimo', 'Ideal'
+  ], []);
+}
+
+function _crearHojaMenuChef(ss) {
+  _crearHoja(ss, 'MenuHistorial', [
+    'SnapshotID', 'FechaGenerado', 'Titulo', 'FechaCena', 'PlatoOrden', 'Tiempo', 'Nombre', 'Descripcion'
   ], []);
 }
 
@@ -518,4 +540,76 @@ function obtenerUrlMovil() {
   var base = '';
   try { base = ScriptApp.getService().getUrl() || ''; } catch (err) {}
   return base ? (base + '?movil=1') : '';
+}
+
+// ---------------------------------------------------------------------------
+// SUGERENCIA DEL CHEF
+// ---------------------------------------------------------------------------
+
+/**
+ * Guarda una copia del menu en el historial. Se llama cada vez que se genera
+ * el PDF, para que recepcion pueda volver a imprimir una cena pasada.
+ * @param {Object} datos {titulo, fechaCena, platos: [{tiempo, nombre, descripcion}]}
+ */
+function guardarMenuChef(datos) {
+  datos = datos || {};
+  var platos = (datos.platos || []).filter(function (p) { return p && String(p.nombre || '').trim(); });
+  if (!platos.length) return { success: false, mensaje: 'Agrega al menos un plato con nombre.' };
+
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    var hoja = _hoja('MenuHistorial');
+    var snapshotId = generarID();
+    var fechaGenerado = new Date();
+    var titulo = String(datos.titulo || '').trim();
+    var fechaCena = String(datos.fechaCena || '').trim();
+
+    var filas = platos.map(function (p, i) {
+      return [
+        snapshotId, fechaGenerado, titulo, fechaCena, i + 1,
+        String(p.tiempo || '').trim(), String(p.nombre || '').trim(), String(p.descripcion || '').trim()
+      ];
+    });
+    hoja.getRange(hoja.getLastRow() + 1, 1, filas.length, filas[0].length).setValues(filas);
+
+    return {
+      success: true, snapshotId: snapshotId, mensaje: 'Menu guardado en el historial.',
+      fecha: _fechaHoraTexto(fechaGenerado)
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Lista de menus guardados, mas reciente primero. */
+function obtenerHistorialMenus() {
+  var filas = _leerHojaComoObjetos('MenuHistorial');
+  var porSnapshot = {};
+  var orden = [];
+  filas.forEach(function (r) {
+    if (!porSnapshot[r.SnapshotID]) {
+      porSnapshot[r.SnapshotID] = {
+        snapshotId: r.SnapshotID, fecha: _fechaHoraTexto(r.FechaGenerado),
+        fechaOrden: r.FechaGenerado instanceof Date ? r.FechaGenerado.getTime() : 0,
+        titulo: r.Titulo || '', fechaCena: r.FechaCena || '', cantidadPlatos: 0
+      };
+      orden.push(r.SnapshotID);
+    }
+    porSnapshot[r.SnapshotID].cantidadPlatos++;
+  });
+  return orden.map(function (id) { return porSnapshot[id]; })
+    .sort(function (a, b) { return b.fechaOrden - a.fechaOrden; });
+}
+
+/** Detalle completo (platos ordenados) de un menu guardado. */
+function obtenerDetalleMenu(snapshotId) {
+  var filas = _leerHojaComoObjetos('MenuHistorial').filter(function (r) { return r.SnapshotID === snapshotId; });
+  if (!filas.length) return null;
+  filas.sort(function (a, b) { return numero_(a.PlatoOrden) - numero_(b.PlatoOrden); });
+  return {
+    titulo: filas[0].Titulo || '', fechaCena: filas[0].FechaCena || '',
+    fecha: _fechaHoraTexto(filas[0].FechaGenerado),
+    platos: filas.map(function (r) { return { tiempo: r.Tiempo || '', nombre: r.Nombre || '', descripcion: r.Descripcion || '' }; })
+  };
 }
