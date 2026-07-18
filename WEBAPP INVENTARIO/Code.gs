@@ -266,10 +266,24 @@ function numero_(v) {
 // ---------------------------------------------------------------------------
 
 /** Devuelve todo el inventario ordenado por categoria/orden. */
+// Orden de categorias tal como aparecian en la ficha original (para que los
+// vinos queden agrupados al final: Tinto, Espumante, Blanco). Las categorias
+// que no esten en esta lista (agregadas a mano) se ordenan alfabeticamente
+// al final de todas.
+var ORDEN_CATEGORIAS = ['Bebida', 'Agua', 'Cerveza', 'Destilados', 'Tinto', 'Espumante', 'Blanco'];
+function _indiceOrdenCategoria(categoria) {
+  var i = ORDEN_CATEGORIAS.indexOf(categoria);
+  return i === -1 ? ORDEN_CATEGORIAS.length : i;
+}
+
 function obtenerInventario() {
   var filas = _leerHojaComoObjetos('Inventario');
   filas.sort(function (a, b) {
-    if (a.Categoria !== b.Categoria) return a.Categoria < b.Categoria ? -1 : 1;
+    if (a.Categoria !== b.Categoria) {
+      var ia = _indiceOrdenCategoria(a.Categoria), ib = _indiceOrdenCategoria(b.Categoria);
+      if (ia !== ib) return ia - ib;
+      return a.Categoria < b.Categoria ? -1 : 1;
+    }
     return numero_(a.Orden) - numero_(b.Orden);
   });
   return filas.map(function (r) {
