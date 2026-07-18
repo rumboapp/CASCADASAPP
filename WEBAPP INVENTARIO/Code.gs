@@ -515,6 +515,11 @@ function guardarMenuChef(datos) {
 function obtenerHistorialMenus() {
   _asegurarHojaMenuChef();
   SpreadsheetApp.flush(); // fuerza a ver cualquier escritura reciente antes de leer
+  // Lectura de "calentamiento": se descarta, pero en las pruebas la primera
+  // lectura de la hoja en una ejecucion nueva a veces trae una foto vieja y
+  // recien la segunda ve la fila que se acaba de guardar. Leer dos veces
+  // (barato, son pocas filas) evita depender de reintentos desde el cliente.
+  _leerHojaComoObjetos('MenuHistorial');
   var filas = _leerHojaComoObjetos('MenuHistorial');
   var porSnapshot = {};
   var orden = [];
@@ -538,6 +543,7 @@ function obtenerHistorialMenus() {
 /** Detalle completo (platos ordenados) de un menu guardado. */
 function obtenerDetalleMenu(snapshotId) {
   _asegurarHojaMenuChef();
+  _leerHojaComoObjetos('MenuHistorial'); // lectura de calentamiento, ver nota en obtenerHistorialMenus
   var filas = _leerHojaComoObjetos('MenuHistorial').filter(function (r) { return r.SnapshotID === snapshotId; });
   if (!filas.length) return null;
   filas.sort(function (a, b) { return numero_(a.PlatoOrden) - numero_(b.PlatoOrden); });
