@@ -1451,8 +1451,10 @@ function renderReservar() {
     return;
   }
 
-  // Tarjetas-boton por servicio.
-  var tarjetas = APP.servicios.map(function (s) {
+  // Tarjetas-boton por servicio. Solo los Visibles (los que tienen
+  // Visible=FALSE son promos/uso interno que recepcion reserva desde el
+  // Centro de Operaciones, pero el huesped no las ve en esta lista).
+  var tarjetas = APP.servicios.filter(function (s) { return s.Visible !== false; }).map(function (s) {
     // Badge sin posicion absoluta: va debajo del texto para no tapar el icono.
     var badge = s.RequiereAprobacion
       ? '<span class="pill estado-Pendiente mt-2 inline-block">' + t('requiere_aprobacion') + '</span>' : '';
@@ -3672,7 +3674,7 @@ function pintarConfig() {
     return '<div class="card p-4 mb-3 flex items-center justify-between gap-3">' +
       '<div class="flex items-center gap-3 min-w-0">' +
         '<div class="icono-servicio !mb-0 !w-10 !h-10 text-base shrink-0"><i class="fa-solid ' + iconoServicio(s) + '"></i></div>' +
-        '<div class="min-w-0"><p class="font-semibold truncate">' + escaparHTML(s.Nombre) + (s.Activo ? '' : ' <span class="pill estado-Cancelada">Inactivo</span>') + '</p>' +
+        '<div class="min-w-0"><p class="font-semibold truncate">' + escaparHTML(s.Nombre) + (s.Activo ? '' : ' <span class="pill estado-Cancelada">Inactivo</span>') + (s.Visible === false ? ' <span class="pill estado-Pendiente"><i class="fa-solid fa-eye-slash"></i> Oculto al huesped</span>' : '') + '</p>' +
         '<p class="text-xs opacity-60 truncate">' + variantesTxt + ' · ' + s.HorarioInicio + '-' + s.HorarioFin + '</p></div>' +
       '</div>' +
       '<button class="btn btn-outline !py-1 !px-3 text-xs shrink-0" onclick="abrirFormServicio(\'' + s.ID + '\')"><i class="fa-solid fa-pen"></i> Editar</button>' +
@@ -3797,7 +3799,7 @@ function abrirFormServicio(servicioID) {
   var s = servicioID ? (APP.serviciosConfig || []).filter(function (x) { return x.ID === servicioID; })[0] : null;
   s = s || { ID: '', Nombre: '', Categoria: 'Bienestar', Descripcion: '', Icono: 'fa-bell-concierge',
     CostoBase: 0, Capacidad: 1, DuracionMinutos: 60, HorarioInicio: '10:00', HorarioFin: '20:00',
-    RequiereAprobacion: false, PermitePrepedido: false, UsoExclusivo: false, Activo: true, Variantes: [] };
+    RequiereAprobacion: false, PermitePrepedido: false, UsoExclusivo: false, Activo: true, Visible: true, Variantes: [] };
 
   APP.formServicioID = servicioID || '';
   APP.formIcono = s.Icono || 'fa-bell-concierge';
@@ -3842,10 +3844,12 @@ function abrirFormServicio(servicioID) {
     // Interruptores
     '<div class="grid grid-cols-2 gap-2 mt-3">' +
       switchLinea('Activo', 'fsActivo', s.Activo) +
+      switchLinea('Visible para el huesped', 'fsVisible', s.Visible !== false) +
       switchLinea('Requiere aprobacion', 'fsAprob', s.RequiereAprobacion) +
       switchLinea('Permite pedido (restaurant)', 'fsPedido', s.PermitePrepedido) +
       switchLinea('Uso exclusivo (1 a la vez)', 'fsExcl', s.UsoExclusivo) +
     '</div>' +
+    '<p class="text-xs opacity-55 -mt-1 mb-1">Si apagas "Visible para el huesped" el servicio no aparece en la lista que ve el huesped, pero sigue disponible para que recepcion reserve manualmente desde el Centro de Operaciones. Sirve para promos exclusivas (ej: Instagram).</p>' +
 
     // Variantes
     '<div class="mt-4"><div class="flex items-center justify-between mb-1"><label class="lbl !mb-0">Opciones / variantes (precio distinto)</label>' +
@@ -3934,6 +3938,7 @@ function guardarFormServicio() {
     permitePrepedido: document.getElementById('fsPedido').checked,
     usoExclusivo: document.getElementById('fsExcl').checked,
     activo: document.getElementById('fsActivo').checked,
+    visible: document.getElementById('fsVisible').checked,
     color: APP.formColor,
     variantes: variantes
   };

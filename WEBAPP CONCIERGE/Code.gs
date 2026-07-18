@@ -426,6 +426,18 @@ function _asegurarColumnaNotasInternas() {
 }
 
 /**
+ * Auto-reparacion: asegura que la hoja Servicios tenga la columna Visible
+ * (si el servicio se muestra en la lista que ve el huesped). TRUE por
+ * defecto para no ocultar de golpe servicios ya existentes; un servicio con
+ * Activo=TRUE y Visible=FALSE sigue disponible para que recepcion reserve
+ * desde el Centro de Operaciones, pero no aparece en la app del huesped
+ * (ej: promos exclusivas de Instagram).
+ */
+function _asegurarColumnaVisibleServicios() {
+  _asegurarColumna(_hoja(HOJAS.SERVICIOS), 'Visible', 'TRUE');
+}
+
+/**
  * Escribe un valor en una columna por nombre, solo si la columna existe.
  * Evita romper hojas que aun no tengan la columna bilingue.
  */
@@ -794,6 +806,7 @@ function _recargoHabitacion() {
  * @return {Array<Object>}
  */
 function obtenerServiciosActivos() {
+  _asegurarColumnaVisibleServicios();
   return _leerHojaComoObjetos(HOJAS.SERVICIOS).filter(function (s) {
     return _aBooleano(s.Activo);
   }).map(_normalizarServicio);
@@ -817,6 +830,10 @@ function _normalizarServicio(s) {
     PermitePrepedido: _aBooleano(s.PermitePrepedido),
     DescripcionEN: s.DescripcionEN ? String(s.DescripcionEN) : '',
     EsIncluible: _aBooleano(s.EsIncluible),
+    // Visible para el huesped en la lista de servicios. Columna nueva: si
+    // esta vacia (instalaciones viejas antes de la auto-reparacion) se
+    // asume TRUE para no ocultar nada de golpe.
+    Visible: s.Visible === '' || s.Visible === undefined ? true : _aBooleano(s.Visible),
     Icono: s.Icono ? String(s.Icono) : '',
     Variantes: _parsearVariantes(s.Variantes),
     UsoExclusivo: _aBooleano(s.UsoExclusivo),
@@ -851,6 +868,7 @@ function _serializarVariantes(variantes) {
 
 /** Devuelve un servicio normalizado por ID (o null). */
 function _obtenerServicio(servicioID) {
+  _asegurarColumnaVisibleServicios();
   var filas = _leerHojaComoObjetos(HOJAS.SERVICIOS);
   for (var i = 0; i < filas.length; i++) {
     if (filas[i].ID === servicioID) return _normalizarServicio(filas[i]);
@@ -2768,6 +2786,7 @@ function actualizarConfiguracion(clave, valor, email) {
  * @return {Array<Object>}
  */
 function obtenerServiciosGestion() {
+  _asegurarColumnaVisibleServicios();
   return _leerHojaComoObjetos(HOJAS.SERVICIOS).map(_normalizarServicio);
 }
 
@@ -2775,7 +2794,7 @@ function obtenerServiciosGestion() {
  * Edita un servicio existente (todos los campos). Rol RECEPCION, ADMIN, COCINA o RESTAURANT.
  * @param {Object} datos {id, nombre, categoria, descripcion, icono, costoBase,
  *   capacidad, duracionMinutos, horarioInicio, horarioFin, requiereAprobacion,
- *   permitePrepedido, usoExclusivo, activo, variantes:[{nombre,precio}]}
+ *   permitePrepedido, usoExclusivo, activo, visible, variantes:[{nombre,precio}]}
  * @param {string} email
  * @return {Object} {success, mensaje}
  */
@@ -2783,6 +2802,7 @@ function guardarServicioConfig(datos, email) {
   if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
     return { success: false, mensaje: 'No tienes permisos para editar servicios.' };
   }
+  _asegurarColumnaVisibleServicios();
   var hoja = _hoja(HOJAS.SERVICIOS);
   var filas = _leerHojaComoObjetos(HOJAS.SERVICIOS);
   for (var i = 0; i < filas.length; i++) {
@@ -2809,6 +2829,7 @@ function guardarServicioNuevo(datos, email) {
   }
   if (!datos.nombre) return { success: false, mensaje: 'El nombre es obligatorio.' };
 
+  _asegurarColumnaVisibleServicios();
   var hoja = _hoja(HOJAS.SERVICIOS);
   // Genera el proximo ID S00X.
   var max = 0;
@@ -2859,6 +2880,7 @@ function _escribirCamposServicio(hoja, fila, datos) {
   if (datos.permitePrepedido !== undefined) set('PermitePrepedido', datos.permitePrepedido ? 'TRUE' : 'FALSE');
   if (datos.usoExclusivo !== undefined) set('UsoExclusivo', datos.usoExclusivo ? 'TRUE' : 'FALSE');
   if (datos.activo !== undefined) set('Activo', datos.activo ? 'TRUE' : 'FALSE');
+  if (datos.visible !== undefined) set('Visible', datos.visible ? 'TRUE' : 'FALSE');
   if (datos.variantes !== undefined) setHora('Variantes', _serializarVariantes(datos.variantes));
   if (datos.color !== undefined) set('Color', datos.color || '');
 }

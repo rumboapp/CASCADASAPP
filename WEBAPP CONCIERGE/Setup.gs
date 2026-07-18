@@ -162,15 +162,15 @@ function _crearHojaHabitaciones(ss) {
 function _crearHojaServicios(ss) {
   var encabezados = ['ID', 'Nombre', 'Categoria', 'DuracionMinutos', 'Capacidad', 'CostoBase',
     'RequiereAprobacion', 'Activo', 'HorarioInicio', 'HorarioFin', 'Descripcion',
-    'PermitePrepedido', 'EsIncluible', 'Icono', 'Variantes', 'UsoExclusivo', 'Color'];
+    'PermitePrepedido', 'EsIncluible', 'Icono', 'Variantes', 'UsoExclusivo', 'Color', 'Visible'];
   var filas = [
-    ['S001', 'Desayuno Buffet', 'Gastronomia', 30, 28, 0, 'FALSE', 'TRUE', '08:30', '10:30', 'Buffet de la casa', 'FALSE', 'FALSE', 'fa-bowl-food', '', 'FALSE', '#6E7F3E'],
-    ['S002', 'Desayuno Habitacion', 'Gastronomia', 30, 20, 15000, 'TRUE', 'TRUE', '08:30', '10:30', 'Desayuno continental servido en habitacion. No es a pedido.', 'FALSE', 'TRUE', 'fa-mug-saucer', '', 'FALSE', '#A6524B'],
-    ['S003', 'Almuerzo / Cena', 'Gastronomia', 90, 28, 0, 'FALSE', 'TRUE', '13:00', '22:00', 'Restaurant: almuerzo y cena', 'TRUE', 'FALSE', 'fa-utensils', '', 'FALSE', '#9C4A63'],
-    ['S004', 'Cena', 'Gastronomia', 90, 28, 0, 'FALSE', 'FALSE', '19:00', '22:00', 'Fusionado en Almuerzo / Cena (S003)', 'TRUE', 'FALSE', 'fa-wine-glass', '', 'FALSE', '#556070'],
-    ['S005', 'Tinaja', 'Bienestar', 120, 2, 50000, 'TRUE', 'TRUE', '10:00', '22:00', 'Tinaja exterior', 'FALSE', 'TRUE', 'fa-hot-tub-person', '', 'TRUE', '#2E8A86'],
-    ['S006', 'Bicicletas', 'Actividad', 120, 4, 0, 'TRUE', 'TRUE', '10:00', '18:00', 'Aro 27.5', 'FALSE', 'FALSE', 'fa-bicycle', '', 'FALSE', '#3E6FA3'],
-    ['S007', 'Masajes', 'Bienestar', 50, 1, 60000, 'TRUE', 'TRUE', '10:00', '20:00', 'Sesion de masaje', 'FALSE', 'FALSE', 'fa-spa', 'Relajacion:60000|Descontracturante:65000', 'TRUE', '#7E4EA3']
+    ['S001', 'Desayuno Buffet', 'Gastronomia', 30, 28, 0, 'FALSE', 'TRUE', '08:30', '10:30', 'Buffet de la casa', 'FALSE', 'FALSE', 'fa-bowl-food', '', 'FALSE', '#6E7F3E', 'TRUE'],
+    ['S002', 'Desayuno Habitacion', 'Gastronomia', 30, 20, 15000, 'TRUE', 'TRUE', '08:30', '10:30', 'Desayuno continental servido en habitacion. No es a pedido.', 'FALSE', 'TRUE', 'fa-mug-saucer', '', 'FALSE', '#A6524B', 'TRUE'],
+    ['S003', 'Almuerzo / Cena', 'Gastronomia', 90, 28, 0, 'FALSE', 'TRUE', '13:00', '22:00', 'Restaurant: almuerzo y cena', 'TRUE', 'FALSE', 'fa-utensils', '', 'FALSE', '#9C4A63', 'TRUE'],
+    ['S004', 'Cena', 'Gastronomia', 90, 28, 0, 'FALSE', 'FALSE', '19:00', '22:00', 'Fusionado en Almuerzo / Cena (S003)', 'TRUE', 'FALSE', 'fa-wine-glass', '', 'FALSE', '#556070', 'TRUE'],
+    ['S005', 'Tinaja', 'Bienestar', 120, 2, 50000, 'TRUE', 'TRUE', '10:00', '22:00', 'Tinaja exterior', 'FALSE', 'TRUE', 'fa-hot-tub-person', '', 'TRUE', '#2E8A86', 'TRUE'],
+    ['S006', 'Bicicletas', 'Actividad', 120, 4, 0, 'TRUE', 'TRUE', '10:00', '18:00', 'Aro 27.5', 'FALSE', 'FALSE', 'fa-bicycle', '', 'FALSE', '#3E6FA3', 'TRUE'],
+    ['S007', 'Masajes', 'Bienestar', 50, 1, 60000, 'TRUE', 'TRUE', '10:00', '20:00', 'Sesion de masaje', 'FALSE', 'FALSE', 'fa-spa', 'Relajacion:60000|Descontracturante:65000', 'TRUE', '#7E4EA3', 'TRUE']
   ];
   _crearHoja(ss, 'Servicios', encabezados, filas);
 }
