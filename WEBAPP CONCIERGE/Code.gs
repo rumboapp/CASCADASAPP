@@ -842,27 +842,39 @@ function _normalizarServicio(s) {
 }
 
 /**
- * Convierte el texto de variantes "Nombre:precio|Nombre:precio" en un array
- * [{nombre, precio}]. Devuelve [] si no hay variantes.
+ * Convierte el texto de variantes en un array [{nombre, precio,
+ * duracionMinutos, visible}]. Formato "Nombre:precio:duracion:visible",
+ * con duracion y visible opcionales (compatible con el formato viejo
+ * "Nombre:precio" que ya existe en servicios como Masajes):
+ *  - duracion vacia o 0 = usa la duracion normal del servicio.
+ *  - visible vacio = TRUE (no oculta nada de golpe en datos viejos).
+ * Devuelve [] si no hay variantes.
  * @param {string} texto
  * @return {Array<Object>}
  */
 function _parsearVariantes(texto) {
   if (!texto) return [];
   return String(texto).split('|').map(function (par) {
-    var i = par.lastIndexOf(':');
-    if (i === -1) return null;
-    var nombre = par.substring(0, i).trim();
-    var precio = Number(par.substring(i + 1)) || 0;
-    return nombre ? { nombre: nombre, precio: precio } : null;
+    var partes = par.split(':');
+    if (partes.length < 2) return null;
+    var nombre = partes[0].trim();
+    if (!nombre) return null;
+    var precio = Number(partes[1]) || 0;
+    var duracionMinutos = partes[2] !== undefined && partes[2] !== '' ? (Number(partes[2]) || 0) : 0;
+    var visible = partes[3] !== undefined && partes[3] !== '' ? String(partes[3]).toUpperCase() !== 'FALSE' : true;
+    return { nombre: nombre, precio: precio, duracionMinutos: duracionMinutos, visible: visible };
   }).filter(function (v) { return v; });
 }
 
-/** Convierte un array de variantes de vuelta a texto "Nombre:precio|...". */
+/** Convierte un array de variantes de vuelta a texto "Nombre:precio:duracion:visible|...". */
 function _serializarVariantes(variantes) {
   if (!variantes || !variantes.length) return '';
   return variantes.map(function (v) {
-    return String(v.nombre).replace(/[|:]/g, ' ').trim() + ':' + (Number(v.precio) || 0);
+    var nombre = String(v.nombre).replace(/[|:]/g, ' ').trim();
+    var precio = Number(v.precio) || 0;
+    var duracion = Number(v.duracionMinutos) || 0;
+    var visible = v.visible === false ? 'FALSE' : 'TRUE';
+    return nombre + ':' + precio + ':' + duracion + ':' + visible;
   }).join('|');
 }
 
@@ -1118,13 +1130,18 @@ function _esFechaFuturaOHoy(fechaISO) {
 
 /**
  * Consulta bloques horarios disponibles para un servicio/fecha/personas.
- * Considera capacidad, reservas existentes, bloqueos y duracion.
+ * Considera capacidad, reservas existentes, bloqueos y duracion. Si el
+ * servicio tiene variantes con duracion propia (ej. Tinaja "1 hora"), pasa
+ * el nombre de la variante para que los bloques usen esa duracion en vez
+ * de la del servicio; el chequeo de conflictos sigue siendo contra TODAS
+ * las reservas del servicio (misma tina/recurso), sin importar la variante.
  * @param {string} servicioID
  * @param {string} fecha "YYYY-MM-DD"
  * @param {number} personas
+ * @param {string} [variante]
  * @return {Object} {success, bloques:[{hora, disponibles, capacidad}], mensaje}
  */
-function consultarDisponibilidad(servicioID, fecha, personas) {
+function consultarDisponibilidad(servicioID, fecha, personas, variante) {
   try {
     var servicio = _obtenerServicio(servicioID);
     if (!servicio || !servicio.Activo) {
@@ -1135,7 +1152,7 @@ function consultarDisponibilidad(servicioID, fecha, personas) {
 
     var inicio = _horaAMinutos(servicio.HorarioInicio);
     var fin = _horaAMinutos(servicio.HorarioFin);
-    var duracion = servicio.DuracionMinutos || 30;
+    var duracion = _duracionServicio(servicio, variante) || 30;
 
     // Reservas activas del dia para este servicio.
     var reservas = _reservasActivasDelDia(servicioID, fecha);
@@ -1319,7 +1336,7 @@ function crearReserva(datos) {
 
     var personas = Number(datos.personas) || 1;
     var iniMin = _horaAMinutos(datos.horaInicio);
-    var finMin = iniMin + servicio.DuracionMinutos;
+    var finMin = iniMin + _duracionServicio(servicio, variante);
 
     // Horario dentro del rango del servicio.
     if (iniMin < _horaAMinutos(servicio.HorarioInicio) ||
@@ -1403,6 +1420,22 @@ function _buscarVariante(variantes, nombre) {
 }
 
 /**
+ * Duracion efectiva en minutos para una reserva: la de la variante elegida
+ * si tiene una propia (ej. Tinaja "1 hora - Promo" = 60), o si no la
+ * duracion normal del servicio (ej. Tinaja normal = 120). Esto es lo que
+ * hace que, aunque compartan el mismo servicio (mismo pool de reservas,
+ * sin riesgo de doble reserva), la version corta libere el horario antes.
+ * @param {Object} servicio Normalizado (de _obtenerServicio).
+ * @param {string} nombreVariante
+ * @return {number}
+ */
+function _duracionServicio(servicio, nombreVariante) {
+  var variante = _buscarVariante(servicio.Variantes || [], nombreVariante);
+  if (variante && variante.duracionMinutos > 0) return variante.duracionMinutos;
+  return servicio.DuracionMinutos;
+}
+
+/**
  * Determina el estado inicial de una reserva.
  * Servicios que requieren aprobacion (Tinaja, Bicicletas, Masajes) nacen
  * "Pendiente aprobacion". El resto nace "Solicitada".
@@ -1442,7 +1475,7 @@ function modificarReserva(id, datos) {
     }
 
     var iniMin = _horaAMinutos(horaInicio);
-    var finMin = iniMin + servicio.DuracionMinutos;
+    var finMin = iniMin + _duracionServicio(servicio, reserva.Variante);
     if (iniMin < _horaAMinutos(servicio.HorarioInicio) ||
         finMin > _horaAMinutos(servicio.HorarioFin)) {
       return { success: false, mensaje: 'El horario esta fuera del rango permitido.' };

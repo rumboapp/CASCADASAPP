@@ -1535,10 +1535,11 @@ function seleccionarServicioHuesped(servicioID) {
 
   // Selector de variantes (ej. masaje relajacion/descontracturante).
   var cajaVariantes = '';
-  if (s.Variantes && s.Variantes.length) {
+  var variantesHuesped = (s.Variantes || []).filter(function (v) { return v.visible !== false; });
+  if (variantesHuesped.length) {
     cajaVariantes = '<label class="lbl">' + t('elige_opcion') + '</label>' +
       '<div class="grid grid-cols-1 gap-2 mb-3">' +
-        s.Variantes.map(function (v, i) {
+        variantesHuesped.map(function (v, i) {
           return '<button type="button" class="btn btn-outline justify-between !py-3 var-opcion" data-var="' + escaparHTML(v.nombre) + '" onclick="seleccionarVarianteHuesped(this, \'' + escaparHTML(v.nombre).replace(/'/g, "\\'") + '\')">' +
             '<span>' + escaparHTML(v.nombre) + '</span><span class="font-semibold">' + fmtMoneda(v.precio) + '</span></button>';
         }).join('') +
@@ -1630,7 +1631,7 @@ function buscarHorarios() {
   APP.horaSeleccionada = null;
   document.getElementById('btnConfirmarReserva').disabled = true;
 
-  llamarAPI('consultarDisponibilidad', [s.ID, fecha, personas], { loader: false }).then(function (res) {
+  llamarAPI('consultarDisponibilidad', [s.ID, fecha, personas, APP.varianteHuesped || ''], { loader: false }).then(function (res) {
     if (!res.success || !res.bloques.length) {
       var esHoy = fecha === hoyISO();
       cont.innerHTML = '<p class="col-span-3 text-sm opacity-60 text-center py-3">' +
@@ -2483,7 +2484,8 @@ function cargarOpsContenido() {
           b.items.map(function (it) {
             APP.reservasCache[it.reservaID] = {
               servicioID: it.servicioID, fecha: fecha, horaInicio: it.horaInicio,
-              personas: it.personas, notas: it.notas, notasInternas: it.notasInternas
+              personas: it.personas, notas: it.notas, notasInternas: it.notasInternas,
+              variante: it.variante || ''
             };
             var esComida = servicioPermitePedido(it.servicioID);
             var pedido = pedidoPorReserva[it.reservaID];
@@ -2832,6 +2834,7 @@ function abrirEditarReserva(reservaID, origen) {
   APP.edicionReservaID = reservaID;
   APP.edicionServicioID = r.servicioID;
   APP.edicionHoraActual = r.horaInicio;
+  APP.edicionVariante = r.variante || '';
 
   mostrarModal({
     titulo: 'Editar reserva',
@@ -2865,7 +2868,7 @@ function buscarHorariosEdicion(silencioso) {
   var personas = document.getElementById('edPersonas').value;
   var select = document.getElementById('edHora');
   var horaActual = APP.edicionHoraActual || select.value;
-  llamarAPI('consultarDisponibilidad', [APP.edicionServicioID, fecha, personas], { loader: false, silencioso: true })
+  llamarAPI('consultarDisponibilidad', [APP.edicionServicioID, fecha, personas, APP.edicionVariante || ''], { loader: false, silencioso: true })
     .then(function (res) {
       var opciones = '<option value="' + horaActual + '">' + horaActual + ' (actual)</option>';
       (res.bloques || []).forEach(function (b) {
@@ -2916,7 +2919,7 @@ function abrirNuevaReservaStaff() {
           '<div><label class="lbl">Fecha</label><input id="nrFecha" class="input"></div>' +
           '<div><label class="lbl">Personas</label><input id="nrPersonas" type="number" min="1" value="2" class="input"></div>' +
         '</div>' +
-        '<div id="nrVarianteBox" class="mb-3 oculto"><label class="lbl">Opcion</label><select id="nrVariante" class="input"></select></div>' +
+        '<div id="nrVarianteBox" class="mb-3 oculto"><label class="lbl">Opcion</label><select id="nrVariante" class="input" onchange="buscarHorariosNuevaReserva()"></select></div>' +
         '<button class="btn btn-outline w-full mb-2" onclick="buscarHorariosNuevaReserva()"><i class="fa-solid fa-clock"></i> Ver horarios disponibles</button>' +
         '<div id="nrHorarios" class="grid grid-cols-3 gap-2 mb-3"></div>' +
         '<label class="lbl">Notas <span class="opacity-50 normal-case">(las ve el huesped)</span></label>' +
@@ -3000,7 +3003,10 @@ function buscarHorariosNuevaReserva() {
   if (!fecha) { cont.innerHTML = '<p class="col-span-3 text-xs opacity-50 text-center py-2">Elige una fecha.</p>'; return; }
   APP.horaNR = '';
   cont.innerHTML = '<div class="col-span-3 flex justify-center py-2"><div class="spinner"></div></div>';
-  llamarAPI('consultarDisponibilidad', [servicioID, fecha, personas], { loader: false, silencioso: true })
+  var varianteBox = document.getElementById('nrVarianteBox');
+  var varianteSel = document.getElementById('nrVariante');
+  var variante = (varianteBox && !varianteBox.classList.contains('oculto') && varianteSel) ? varianteSel.value : '';
+  llamarAPI('consultarDisponibilidad', [servicioID, fecha, personas, variante], { loader: false, silencioso: true })
     .then(function (res) {
       if (!res.success || !res.bloques.length) {
         cont.innerHTML = '<p class="col-span-3 text-xs opacity-60 text-center py-2">Sin horarios disponibles.</p>';
@@ -3096,7 +3102,8 @@ function filaReservaStaff(r) {
   APP.reservasCache = APP.reservasCache || {};
   APP.reservasCache[r.ID] = {
     servicioID: r.ServicioID, fecha: r.Fecha, horaInicio: r.HoraInicio,
-    personas: r.Personas, notas: r.Notas, notasInternas: r.NotasInternas
+    personas: r.Personas, notas: r.Notas, notasInternas: r.NotasInternas,
+    variante: r.Variante || ''
   };
   var acciones = '';
   if (['Solicitada', 'Pendiente aprobacion'].indexOf(r.Estado) !== -1) {
@@ -3804,7 +3811,9 @@ function abrirFormServicio(servicioID) {
   APP.formServicioID = servicioID || '';
   APP.formIcono = s.Icono || 'fa-bell-concierge';
   APP.formColor = s.Color || PALETA_SERVICIOS[0];
-  APP.formVariantes = (s.Variantes || []).map(function (v) { return { nombre: v.nombre, precio: v.precio }; });
+  APP.formVariantes = (s.Variantes || []).map(function (v) {
+    return { nombre: v.nombre, precio: v.precio, duracionMinutos: v.duracionMinutos || 0, visible: v.visible !== false };
+  });
 
   var catActual = s.Categoria || 'Bienestar';
   var cats = ['Gastronomia', 'Bienestar', 'Actividad'];
@@ -3887,7 +3896,7 @@ function seleccionarColorServicio(cl) {
   });
 }
 function agregarVarianteForm() {
-  APP.formVariantes.push({ nombre: '', precio: 0 });
+  APP.formVariantes.push({ nombre: '', precio: 0, duracionMinutos: 0, visible: true });
   pintarVariantesForm();
 }
 function quitarVarianteForm(i) {
@@ -3900,10 +3909,18 @@ function pintarVariantesForm() {
   var cont = document.getElementById('fsVariantes');
   if (!cont) return;
   cont.innerHTML = APP.formVariantes.map(function (v, i) {
-    return '<div class="flex gap-2 mb-2">' +
-      '<input class="input flex-1 fs-var-nombre" placeholder="Nombre" value="' + escaparHTML(v.nombre) + '">' +
-      '<input class="input !w-28 fs-var-precio" type="number" placeholder="Precio" value="' + (v.precio || 0) + '">' +
-      '<button type="button" class="btn btn-peligro !px-3" onclick="quitarVarianteForm(' + i + ')"><i class="fa-solid fa-trash"></i></button>' +
+    return '<div class="border rounded-lg p-2 mb-2" style="border-color: var(--borde)">' +
+      '<div class="flex gap-2 mb-2">' +
+        '<input class="input flex-1 fs-var-nombre" placeholder="Nombre" value="' + escaparHTML(v.nombre) + '">' +
+        '<input class="input !w-28 fs-var-precio" type="number" placeholder="Precio" value="' + (v.precio || 0) + '">' +
+        '<button type="button" class="btn btn-peligro !px-3" onclick="quitarVarianteForm(' + i + ')"><i class="fa-solid fa-trash"></i></button>' +
+      '</div>' +
+      '<div class="flex items-center gap-3">' +
+        '<label class="flex items-center gap-1 text-xs opacity-70">Duracion (min)' +
+          '<input class="input !w-20 !py-1 fs-var-duracion" type="number" min="0" placeholder="Normal" value="' + (v.duracionMinutos || '') + '"></label>' +
+        '<label class="flex items-center gap-1 text-xs opacity-70"><input type="checkbox" class="fs-var-visible" ' + (v.visible !== false ? 'checked' : '') + '> Visible al huesped</label>' +
+      '</div>' +
+      '<p class="text-xs opacity-45 mt-1">Vacio = usa la duracion normal del servicio. Desmarca "Visible" para una opcion que solo recepcion puede reservar (ej: promos exclusivas).</p>' +
     '</div>';
   }).join('');
 }
@@ -3912,10 +3929,14 @@ function leerVariantesForm() {
   if (!cont) return;
   var nombres = cont.querySelectorAll('.fs-var-nombre');
   var precios = cont.querySelectorAll('.fs-var-precio');
+  var duraciones = cont.querySelectorAll('.fs-var-duracion');
+  var visibles = cont.querySelectorAll('.fs-var-visible');
   for (var i = 0; i < nombres.length; i++) {
     if (APP.formVariantes[i]) {
       APP.formVariantes[i].nombre = nombres[i].value;
       APP.formVariantes[i].precio = Number(precios[i].value) || 0;
+      APP.formVariantes[i].duracionMinutos = Number(duraciones[i].value) || 0;
+      APP.formVariantes[i].visible = visibles[i].checked;
     }
   }
 }
