@@ -806,7 +806,13 @@
     // una respuesta vieja que llega tarde ya no puede pisar a una mas nueva.
     var tokenCargaMenus = 0;
 
-    function cargarMenus(reintento) {
+    // Pausas antes de cada reintento cuando la lista viene vacia: Google
+    // Sheets a veces tarda un instante en propagar una escritura muy
+    // reciente antes de que una lectura la vea. 3 intentos en total.
+    var PAUSAS_REINTENTO_MENUS = [900, 1800, 3000];
+
+    function cargarMenus(intento) {
+      intento = intento || 0;
       var cont = document.getElementById('listaMenus');
       if (!cont) return;
       var miToken = ++tokenCargaMenus;
@@ -816,13 +822,11 @@
           if (miToken !== tokenCargaMenus) return;
           lista = lista || [];
           if (lista.length) { pintarMenus(lista); return; }
-          // Vacio: puede ser que la planilla todavia no tenga nada, o que la
-          // escritura recien hecha no se haya propagado a tiempo para esta
-          // lectura. Reintenta una vez despues de una pausa antes de avisar.
-          if (!reintento) {
+          if (intento < PAUSAS_REINTENTO_MENUS.length) {
+            var espera = PAUSAS_REINTENTO_MENUS[intento];
             setTimeout(function () {
-              if (miToken === tokenCargaMenus) cargarMenus(true);
-            }, 1200);
+              if (miToken === tokenCargaMenus) cargarMenus(intento + 1);
+            }, espera);
             return;
           }
           pintarMenus(lista);
