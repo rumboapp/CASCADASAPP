@@ -806,7 +806,7 @@
     // una respuesta vieja que llega tarde ya no puede pisar a una mas nueva.
     var tokenCargaMenus = 0;
 
-    function cargarMenus() {
+    function cargarMenus(reintento) {
       var cont = document.getElementById('listaMenus');
       if (!cont) return;
       var miToken = ++tokenCargaMenus;
@@ -816,8 +816,15 @@
           if (miToken !== tokenCargaMenus) return;
           lista = lista || [];
           if (lista.length) { pintarMenus(lista); return; }
-          // Vacio: antes de mostrar "no hay menus", confirma con el diagnostico
-          // si en realidad SI hay datos guardados (para no confundir).
+          // Vacio: puede ser que la planilla todavia no tenga nada, o que la
+          // escritura recien hecha no se haya propagado a tiempo para esta
+          // lectura. Reintenta una vez despues de una pausa antes de avisar.
+          if (!reintento) {
+            setTimeout(function () {
+              if (miToken === tokenCargaMenus) cargarMenus(true);
+            }, 1200);
+            return;
+          }
           pintarMenus(lista);
           verDiagnosticoMenus(true);
         })
@@ -861,10 +868,13 @@
       }
       var msg;
       if (info.menusDistintos > 0) {
-        msg = '<b>Encontre ' + info.menusDistintos + ' menu(s) guardado(s)</b> en la planilla, pero la lista de arriba no los muestra. ' +
-          'Como ya ves este mensaje, tu <b>Index.html</b> SI esta actualizado (el diagnostico es una funcion nueva). ' +
-          'El problema esta en la funcion <code>obtenerHistorialMenus</code> dentro de tu <b>Code.gs</b>: probablemente quedo con el cuerpo vacio o cortado por un pegado parcial. ' +
-          'Abre el editor de Apps Script, entra a Code.gs, busca esa funcion y confirma que tenga todo su contenido (no solo <code>function obtenerHistorialMenus() { }</code> vacia). Si esta incompleta, borra todo el archivo y vuelve a pegar el Code.gs completo de una sola vez, guarda y republica una version nueva.';
+        // El diagnostico ahora llama a la MISMA funcion que usa la app (no
+        // una copia paralela), asi que si esto aparece es casi seguro un
+        // desfase de un instante entre guardar y leer en Sheets. La app ya
+        // reintenta sola una vez; toca "Actualizar" si persiste.
+        msg = '<b>La funcion real encontro ' + info.menusDistintos + ' menu(s)</b> al volver a intentar. ' +
+          'Puede haber sido un desfase de un instante entre guardar y leer en Google Sheets. ' +
+          'Toca <b>"Actualizar"</b> arriba de esta lista para volver a cargar.';
       } else if (!info.hojaExiste) {
         msg = 'La hoja "MenuHistorial" todavia no existe. Genera un menu (se crea sola) y vuelve a revisar.';
       } else {

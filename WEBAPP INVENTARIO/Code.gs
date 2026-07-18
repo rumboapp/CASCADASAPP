@@ -260,13 +260,14 @@ function _eliminarHojaPorDefecto(ss) {
 // ---------------------------------------------------------------------------
 // ACCESO AL SPREADSHEET
 // ---------------------------------------------------------------------------
-var _ssCache = null;
+// Sin cache: cada llamada abre la planilla de nuevo. Un cache en variable de
+// script (var a nivel de archivo) puede quedar apuntando a un estado viejo
+// si Apps Script reutiliza el mismo contenedor entre ejecuciones distintas,
+// y eso puede hacer que una lectura no vea una escritura muy reciente.
 function _ss() {
-  if (_ssCache) return _ssCache;
   var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
   if (!id) throw new Error('No se encontro SPREADSHEET_ID. Ejecuta crearBaseDeDatos() primero.');
-  _ssCache = SpreadsheetApp.openById(id);
-  return _ssCache;
+  return SpreadsheetApp.openById(id);
 }
 function _hoja(nombre) {
   var h = _ss().getSheetByName(nombre);
@@ -513,19 +514,22 @@ function guardarMenuChef(datos) {
 /** Lista de menus guardados, mas reciente primero. */
 function obtenerHistorialMenus() {
   _asegurarHojaMenuChef();
+  SpreadsheetApp.flush(); // fuerza a ver cualquier escritura reciente antes de leer
   var filas = _leerHojaComoObjetos('MenuHistorial');
   var porSnapshot = {};
   var orden = [];
   filas.forEach(function (r) {
-    if (!porSnapshot[r.SnapshotID]) {
-      porSnapshot[r.SnapshotID] = {
-        snapshotId: r.SnapshotID, fecha: _fechaHoraTexto(r.FechaGenerado),
+    var id = String(r.SnapshotID || '').trim();
+    if (!id) return; // fila sin id (vacia/corrupta): se ignora, no rompe el resto
+    if (!porSnapshot[id]) {
+      porSnapshot[id] = {
+        snapshotId: id, fecha: _fechaHoraTexto(r.FechaGenerado),
         fechaOrden: r.FechaGenerado instanceof Date ? r.FechaGenerado.getTime() : 0,
         titulo: r.Titulo || '', fechaCena: r.FechaCena || '', cantidadPlatos: 0
       };
-      orden.push(r.SnapshotID);
+      orden.push(id);
     }
-    porSnapshot[r.SnapshotID].cantidadPlatos++;
+    porSnapshot[id].cantidadPlatos++;
   });
   return orden.map(function (id) { return porSnapshot[id]; })
     .sort(function (a, b) { return b.fechaOrden - a.fechaOrden; });
@@ -545,14 +549,15 @@ function obtenerDetalleMenu(snapshotId) {
 }
 
 /**
- * Diagnostico del historial de menus: dice si la hoja existe, cuantas filas y
- * cuantos menus distintos tiene, y a que planilla apunta la app. Sirve para
- * detectar de un vistazo si el problema es que no se guarda, o que la app lee
- * otra planilla. Si esta funcion no existe al llamarla desde la web, es señal
- * de que el Code.gs desplegado esta desactualizado.
+ * Diagnostico del historial de menus: dice si la hoja existe, cuantas filas
+ * tiene, y que devuelve exactamente obtenerHistorialMenus() (la MISMA
+ * funcion que usa la app, llamada aca mismo) para que sea imposible que el
+ * diagnostico y la lista real digan cosas distintas. Si esta funcion no
+ * existe al llamarla desde la web, es señal de que el Code.gs desplegado
+ * esta desactualizado.
  */
 function diagnosticoMenus() {
-  var info = { ok: true, version: 'menus-2' };
+  var info = { ok: true, version: 'menus-3' };
   try {
     var ss = _ss();
     info.spreadsheetId = ss.getId();
@@ -561,11 +566,10 @@ function diagnosticoMenus() {
     info.hojaExiste = !!hoja;
     if (hoja) {
       info.ultimaFila = hoja.getLastRow();
-      var datos = _leerHojaComoObjetos('MenuHistorial');
-      info.registros = datos.length;
-      var snaps = {};
-      datos.forEach(function (r) { if (r.SnapshotID) snaps[r.SnapshotID] = true; });
-      info.menusDistintos = Object.keys(snaps).length;
+      info.registros = _leerHojaComoObjetos('MenuHistorial').length;
+      var lista = obtenerHistorialMenus(); // la funcion real, no una copia paralela
+      info.menusDistintos = lista.length;
+      info.listaReal = lista;
     }
   } catch (e) {
     info.ok = false;
