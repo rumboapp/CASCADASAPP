@@ -177,6 +177,7 @@ function crearBaseDeDatos() {
   var ss = _ss();
   if (!ss.getSheetByName('Inventario')) _crearHojaInventario(ss);
   if (!ss.getSheetByName('Historial')) _crearHojaHistorial(ss);
+  if (!ss.getSheetByName('MenusChef')) _asegurarHojaMenusChef();
   Logger.log('Listo. Planilla: ' + ss.getUrl());
   return ss.getId();
 }
@@ -416,6 +417,96 @@ function _fechaHoraTexto(fecha) {
   var d = fecha instanceof Date ? fecha : new Date(fecha);
   if (isNaN(d.getTime())) return '';
   return Utilities.formatDate(d, Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm');
+}
+
+// ---------------------------------------------------------------------------
+// MENUS GUARDADOS (Sugerencia del Chef)
+// ---------------------------------------------------------------------------
+// Los platos se guardan como JSON en una sola celda. IMPORTANTE: todo lo que
+// se devuelve al cliente son strings/numeros planos; si se devuelve un objeto
+// Date, google.script.run falla EN SILENCIO (no llama al success ni al
+// failure handler) y el historial aparece vacio sin ningun error.
+
+/** Crea la hoja MenusChef si no existe (auto-reparacion, sin migracion manual). */
+function _asegurarHojaMenusChef() {
+  var ss = _ss();
+  var hoja = ss.getSheetByName('MenusChef');
+  if (!hoja) {
+    hoja = _crearHoja(ss, 'MenusChef', ['ID', 'Guardado', 'FechaCena', 'Titulo', 'PlatosJSON'], []);
+  }
+  return hoja;
+}
+
+/** Fecha de la cena como texto "yyyy-MM-dd" (Sheets puede convertirla a Date). */
+function _textoFechaCena(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  return v ? String(v) : '';
+}
+
+/**
+ * Guarda (o actualiza, si viene id) un menu del chef.
+ * datos = { id?, titulo, fechaCena, platos: [{tiempo, nombre, descripcion}] }
+ */
+function guardarMenuChef(datos) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(15000);
+    var hoja = _asegurarHojaMenusChef();
+    var platosJSON = JSON.stringify((datos && datos.platos) || []);
+    var titulo = String((datos && datos.titulo) || '');
+    var fechaCena = String((datos && datos.fechaCena) || '');
+    if (datos && datos.id) {
+      var fila = _leerHojaComoObjetos('MenusChef').filter(function (r) {
+        return String(r.ID) === String(datos.id);
+      })[0];
+      if (fila) {
+        hoja.getRange(fila._fila, 1, 1, 5).setValues([[String(datos.id), new Date(), fechaCena, titulo, platosJSON]]);
+        return { success: true, id: String(datos.id) };
+      }
+    }
+    var id = generarID();
+    hoja.appendRow([id, new Date(), fechaCena, titulo, platosJSON]);
+    return { success: true, id: id };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Lista los menus guardados, del mas reciente al mas antiguo. */
+function obtenerMenusChef() {
+  _asegurarHojaMenusChef();
+  var filas = _leerHojaComoObjetos('MenusChef');
+  filas.sort(function (a, b) {
+    var da = a.Guardado instanceof Date ? a.Guardado.getTime() : 0;
+    var db = b.Guardado instanceof Date ? b.Guardado.getTime() : 0;
+    return db - da;
+  });
+  return filas.map(function (r) {
+    return {
+      id: String(r.ID),
+      guardado: _fechaHoraTexto(r.Guardado),
+      fechaCena: _textoFechaCena(r.FechaCena),
+      titulo: r.Titulo ? String(r.Titulo) : '',
+      platosJSON: r.PlatosJSON ? String(r.PlatosJSON) : '[]'
+    };
+  });
+}
+
+/** Elimina un menu guardado. */
+function eliminarMenuChef(id) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(15000);
+    var hoja = _asegurarHojaMenusChef();
+    var fila = _leerHojaComoObjetos('MenusChef').filter(function (r) {
+      return String(r.ID) === String(id);
+    })[0];
+    if (!fila) return { success: false, mensaje: 'Menu no encontrado.' };
+    hoja.deleteRow(fila._fila);
+    return { success: true, mensaje: 'Menu eliminado.' };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // ---------------------------------------------------------------------------

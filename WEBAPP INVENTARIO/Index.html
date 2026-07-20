@@ -139,6 +139,13 @@
 
     /* ===== sugerencia del chef ===== */
     .plato-card { border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 12px; background: var(--surface); }
+    .menu-guardado { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; background: var(--surface); }
+    .menu-guardado .mg-info { min-width: 0; flex: 1 1 260px; }
+    .menu-guardado .mg-titulo { font-weight: 700; font-size: 14px; }
+    .menu-guardado .mg-fecha { font-weight: 400; font-size: 12px; color: var(--text-sec); margin-left: 4px; }
+    .menu-guardado .mg-platos { font-size: 12px; color: var(--text-sec); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .menu-guardado .mg-acciones { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn-mini.peligro { color: #A6524B; border-color: #A6524B; }
     .plato-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
     .plato-head .plato-num { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-sec); }
     .plato-head-acciones { display: flex; gap: 5px; }
@@ -249,11 +256,23 @@
 
         <button type="button" class="btn-agregar-plato" onclick="agregarFilaPlato()"><i class="fa-solid fa-circle-plus"></i> Agregar otro plato</button>
 
+        <div id="chefEditandoBar" style="display:none; margin-top:16px; padding:10px 12px; border:1px solid #C9A45C; border-radius:10px; background:#FBF6EC; font-size:13px;">
+          <i class="fa-solid fa-pen"></i> Estas editando <b id="chefEditandoNombre"></b>. Al guardar o generar el PDF se actualizara ese menu.
+          <a href="#" onclick="desvincularMenuChef(); return false;" style="margin-left:6px; font-weight:600;">Guardar como menu nuevo</a>
+        </div>
+
         <div style="display:flex; gap:8px; margin-top:20px; flex-wrap:wrap;">
           <button class="btn-mini outline" onclick="limpiarFormularioChef()"><i class="fa-solid fa-eraser"></i> Limpiar</button>
+          <button class="btn-mini outline" onclick="guardarMenuActual(true)"><i class="fa-solid fa-floppy-disk"></i> Guardar sin PDF</button>
           <button class="btn-mini dark" onclick="generarMenuPDF('single')"><i class="fa-solid fa-file-pdf"></i> Generar PDF</button>
           <button class="btn-mini dark" onclick="generarMenuPDF('cuadruple')"><i class="fa-solid fa-table-cells-large"></i> PDF 4 en 1 (para cortar)</button>
         </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <h2>Menus guardados</h2>
+        <p class="sub">Cada vez que generas un PDF, el menu queda guardado aqui automaticamente. Usalos de base para una cena nueva o editalos.</p>
+        <div id="listaMenusGuardados"><p class="sub">Cargando menus guardados...</p></div>
       </div>
     </div>
 
@@ -568,9 +587,142 @@
     // ───────────────────────────────────────────────────────────
     var chefInicializado = false;
     function inicializarChefTab() {
-      if (chefInicializado) return;
+      if (chefInicializado) { cargarMenusGuardados(); return; }
       chefInicializado = true;
       limpiarFormularioChef();
+      cargarMenusGuardados();
+    }
+
+    // ── Menus guardados (historial de Sugerencia del Chef) ──
+    // chefMenuID vacio = el proximo guardado crea un menu nuevo; con valor =
+    // se esta editando ese menu guardado y el guardado lo actualiza.
+    var chefMenuID = '';
+    var menusGuardadosCache = [];
+
+    function cargarMenusGuardados() {
+      google.script.run
+        .withSuccessHandler(function (menus) {
+          menusGuardadosCache = menus || [];
+          pintarMenusGuardados();
+        })
+        .withFailureHandler(function (e) {
+          document.getElementById('listaMenusGuardados').innerHTML =
+            '<p class="sub">No pudimos cargar los menus guardados. <a href="#" onclick="cargarMenusGuardados(); return false;">Reintentar</a></p>';
+        })
+        .obtenerMenusChef();
+    }
+
+    function pintarMenusGuardados() {
+      var cont = document.getElementById('listaMenusGuardados');
+      if (!menusGuardadosCache.length) {
+        cont.innerHTML = '<p class="sub">Todavia no hay menus guardados. Se guardan solos al generar un PDF.</p>';
+        return;
+      }
+      cont.innerHTML = menusGuardadosCache.map(function (m) {
+        var platos = [];
+        try { platos = JSON.parse(m.platosJSON) || []; } catch (e) {}
+        var nombres = platos.map(function (p) { return p.nombre; }).filter(Boolean);
+        var fechaTxt = m.fechaCena ? formatearFechaCena(m.fechaCena) : '(sin fecha)';
+        return '<div class="menu-guardado" data-id="' + escaparHTML(m.id) + '">' +
+          '<div class="mg-info">' +
+            '<div class="mg-titulo">' + escaparHTML(m.titulo || 'Sugerencia del Chef') + ' <span class="mg-fecha">' + escaparHTML(fechaTxt) + '</span></div>' +
+            '<div class="mg-platos">' + platos.length + (platos.length === 1 ? ' plato: ' : ' platos: ') + escaparHTML(nombres.join(' · ')) + '</div>' +
+          '</div>' +
+          '<div class="mg-acciones">' +
+            '<button class="btn-mini outline" title="Cargar como base para un menu nuevo" onclick="usarMenuGuardado(\'' + escaparHTML(m.id) + '\', false)"><i class="fa-solid fa-copy"></i> Usar de base</button>' +
+            '<button class="btn-mini outline" title="Editar este menu guardado" onclick="usarMenuGuardado(\'' + escaparHTML(m.id) + '\', true)"><i class="fa-solid fa-pen"></i> Editar</button>' +
+            '<button class="btn-mini outline peligro" title="Eliminar" onclick="eliminarMenuGuardado(\'' + escaparHTML(m.id) + '\')"><i class="fa-solid fa-trash"></i></button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    // "2026-07-20" -> "20/07/2026" sin pasar por Date (evita el corrimiento
+    // de un dia por zona horaria al parsear fechas sin hora).
+    function formatearFechaCena(iso) {
+      var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso));
+      return m ? (m[3] + '/' + m[2] + '/' + m[1]) : String(iso);
+    }
+
+    function usarMenuGuardado(id, editar) {
+      var m = menusGuardadosCache.filter(function (x) { return x.id === id; })[0];
+      if (!m) return;
+      var platos = [];
+      try { platos = JSON.parse(m.platosJSON) || []; } catch (e) {}
+      document.getElementById('chef_titulo').value = m.titulo || '';
+      var fecha = document.getElementById('chef_fecha');
+      if (editar && m.fechaCena) fecha.value = m.fechaCena;
+      else fecha.valueAsDate = new Date(); // base para una cena nueva: hoy
+      document.getElementById('listaPlatos').innerHTML = '';
+      if (platos.length) platos.forEach(function (p) { agregarFilaPlato(p); });
+      else agregarFilaPlato({ tiempo: 'Entrada' });
+      chefMenuID = editar ? id : '';
+      actualizarBarraEdicion(editar ? m : null);
+      mostrarToast(editar ? 'Menu cargado para editar' : 'Menu cargado como base (se guardara como nuevo)', 'exito');
+      document.getElementById('vistaChef').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function actualizarBarraEdicion(menu) {
+      var bar = document.getElementById('chefEditandoBar');
+      if (menu) {
+        document.getElementById('chefEditandoNombre').textContent =
+          (menu.titulo || 'Sugerencia del Chef') + (menu.fechaCena ? ' (' + formatearFechaCena(menu.fechaCena) + ')' : '');
+        bar.style.display = 'block';
+      } else {
+        bar.style.display = 'none';
+      }
+    }
+
+    function desvincularMenuChef() {
+      chefMenuID = '';
+      actualizarBarraEdicion(null);
+      mostrarToast('Al guardar se creara un menu nuevo', 'exito');
+    }
+
+    /**
+     * Guarda el menu actual en la hoja MenusChef. Si conPDF es true se llama
+     * desde el boton "Guardar sin PDF" (avisa y refresca); al generar un PDF
+     * se llama igual pero en silencio.
+     */
+    function guardarMenuActual(avisar) {
+      var platos = recolectarPlatos();
+      if (!platos.length) { if (avisar) mostrarToast('Agrega al menos un plato con nombre'); return; }
+      var datos = {
+        id: chefMenuID,
+        titulo: document.getElementById('chef_titulo').value.trim(),
+        fechaCena: document.getElementById('chef_fecha').value,
+        platos: platos
+      };
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (res && res.success) {
+            chefMenuID = res.id;
+            if (avisar) mostrarToast('Menu guardado', 'exito');
+            cargarMenusGuardados();
+            // Refresca la barra con los datos recien guardados.
+            actualizarBarraEdicion({ titulo: datos.titulo, fechaCena: datos.fechaCena });
+          } else if (avisar) {
+            mostrarToast('No se pudo guardar el menu', 'error');
+          }
+        })
+        .withFailureHandler(function () {
+          if (avisar) mostrarToast('No se pudo guardar el menu', 'error');
+        })
+        .guardarMenuChef(datos);
+    }
+
+    function eliminarMenuGuardado(id) {
+      var m = menusGuardadosCache.filter(function (x) { return x.id === id; })[0];
+      var nombre = m ? (m.titulo || 'Sugerencia del Chef') : 'este menu';
+      if (!confirm('¿Eliminar "' + nombre + '" de los menus guardados?')) return;
+      google.script.run
+        .withSuccessHandler(function (res) {
+          mostrarToast(res && res.success ? 'Menu eliminado' : 'No se pudo eliminar', res && res.success ? 'exito' : 'error');
+          if (chefMenuID === id) { chefMenuID = ''; actualizarBarraEdicion(null); }
+          cargarMenusGuardados();
+        })
+        .withFailureHandler(function () { mostrarToast('No se pudo eliminar', 'error'); })
+        .eliminarMenuChef(id);
     }
 
     var TIEMPOS_PRESET = ['Aperitivo', 'Entrada', 'Fondo', 'Postre', 'Postre y Café'];
@@ -685,6 +837,8 @@
       agregarFilaPlato({ tiempo: 'Entrada' });
       agregarFilaPlato({ tiempo: 'Fondo' });
       agregarFilaPlato({ tiempo: 'Postre' });
+      chefMenuID = '';
+      actualizarBarraEdicion(null);
     }
 
     async function generarMenuPDF(modo) {
@@ -699,6 +853,9 @@
         mostrarToast('Generando PDF...', 'exito');
         if (modo === 'cuadruple') await construirPDFMenu4Up(datos);
         else await construirPDFMenu(datos);
+        // El menu queda guardado en el historial (crea o actualiza segun
+        // si se esta editando un menu guardado).
+        guardarMenuActual(false);
       } catch (e) {
         console.error('Error al generar el PDF', e);
         mostrarToast('No se pudo generar el PDF: ' + (e && e.message ? e.message : 'error desconocido'), 'error');
