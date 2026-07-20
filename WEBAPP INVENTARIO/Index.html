@@ -199,7 +199,7 @@
       </div>
     </div>
     <div class="tabs">
-      <button class="tab-btn activo" data-tab="Inventario" onclick="mostrarTab('Inventario')">Inventario</button>
+      <button class="tab-btn activo" data-tab="Inventario" onclick="mostrarTab('Inventario')">Inventario Bar</button>
       <button class="tab-btn" data-tab="Chef" onclick="mostrarTab('Chef')">Sugerencia del Chef</button>
     </div>
   </div>
@@ -209,7 +209,7 @@
     <!-- ===== INVENTARIO ===== -->
     <div id="vistaInventario" class="vista activa">
       <div class="card">
-        <h2>Inventario</h2>
+        <h2>Inventario Bar</h2>
         <p class="sub">Cantidades actuales del bar. Los colores muestran el estado segun el minimo e ideal de cada producto.</p>
 
         <div class="toolbar">
@@ -1068,105 +1068,194 @@
     }
     function fuenteMenu() { return FUENTE_MENU_OK ? 'PlayfairDisplay' : 'times'; }
 
-    // ── Estilo Art Déco grafito y plata (con curvas) ──
+    // ── Follaje serigrafiado grafito y plata ──
+    // Siluetas botanicas rellenas (helecho, eucalipto, hoja ancha aserrada)
+    // en tres tintas de gris, con las nervaduras "caladas" en color papel.
+    // Todo son poligonos y lineas: jsPDF los dibuja igual que el mockup.
     var DECO_PAPEL = [247, 246, 243];
     var DECO_BANNER = [58, 58, 60];
-    var DECO_LINEA = [110, 110, 113];
-    var DECO_SUAVE = [169, 169, 172];
+    var TINTA_OSCURA = [92, 92, 96];
+    var TINTA_MEDIA = [142, 142, 146];
+    var TINTA_CLARA = [198, 197, 200];
 
-    // Arco de circunferencia aproximado con segmentos cortos (jsPDF no trae arcos).
-    function dibujarArco(doc, cx, cy, r, angIni, angFin) {
-      var pasos = Math.max(14, Math.round(r * 1.6));
+    /* Poligono relleno sin contorno (doc.lines con deltas y cierre). */
+    function _poligonoRelleno(doc, pts, rgb) {
+      if (pts.length < 3) return;
+      doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+      var deltas = [];
+      for (var i = 1; i < pts.length; i++) {
+        deltas.push([pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]]);
+      }
+      doc.lines(deltas, pts[0][0], pts[0][1], [1, 1], 'F', true);
+    }
+
+    function _trazo(doc, x1, y1, x2, y2, rgb, grosor) {
+      doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
+      doc.setLineWidth(Math.max(0.1, grosor));
+      doc.line(x1, y1, x2, y2);
+    }
+
+    /* Hoja ancha realista: silueta rellena con borde aserrado suave, eje
+       curvado y nervaduras caladas en color papel. */
+    function _hojaAncha(doc, x, y, ang, largo, ancho, rgb, serrada) {
+      var curva = 0.22 * largo;
+      var N = 26;
+      function eje(t) {
+        return [
+          x + Math.cos(ang) * largo * t + Math.cos(ang + Math.PI / 2) * curva * Math.sin(Math.PI * t) * 0.4,
+          y + Math.sin(ang) * largo * t + Math.sin(ang + Math.PI / 2) * curva * Math.sin(Math.PI * t) * 0.4
+        ];
+      }
+      function anchoEn(t) {
+        var w = ancho * Math.pow(Math.sin(Math.PI * Math.pow(t, 0.75)), 0.9);
+        if (serrada) w += ancho * 0.06 * Math.sin(t * Math.PI * 14);
+        return Math.max(0, w);
+      }
+      var lado1 = [], lado2 = [];
+      for (var i = 0; i <= N; i++) {
+        var t = i / N;
+        var p = eje(t), pd = eje(Math.min(1, t + 0.02));
+        var dx = pd[0] - p[0], dy = pd[1] - p[1];
+        var L = Math.sqrt(dx * dx + dy * dy) || 1;
+        var nx = -dy / L, ny = dx / L;
+        var w = anchoEn(t);
+        lado1.push([p[0] + nx * w, p[1] + ny * w]);
+        lado2.push([p[0] - nx * w * 0.85, p[1] - ny * w * 0.85]);
+      }
+      _poligonoRelleno(doc, lado1.concat(lado2.reverse()), rgb);
+      var base = eje(0);
+      _trazo(doc, base[0] - Math.cos(ang) * largo * 0.08, base[1] - Math.sin(ang) * largo * 0.08, base[0], base[1], rgb, largo * 0.035);
+      // Nervadura central calada
       var prev = null;
-      for (var i = 0; i <= pasos; i++) {
-        var a = angIni + (angFin - angIni) * (i / pasos);
-        var x = cx + r * Math.cos(a), y = cy + r * Math.sin(a);
-        if (prev) doc.line(prev[0], prev[1], x, y);
-        prev = [x, y];
+      for (var j = 0; j <= N; j++) {
+        var pj = eje((j / N) * 0.94);
+        if (prev) _trazo(doc, prev[0], prev[1], pj[0], pj[1], DECO_PAPEL, largo * 0.018);
+        prev = pj;
+      }
+      // Nervaduras laterales caladas
+      for (var k = 1; k <= 6; k++) {
+        var tk = 0.12 + (k / 7) * 0.72;
+        var pk = eje(tk), pkd = eje(Math.min(1, tk + 0.02));
+        var ddx = pkd[0] - pk[0], ddy = pkd[1] - pk[1];
+        var LL = Math.sqrt(ddx * ddx + ddy * ddy) || 1;
+        var nnx = -ddy / LL, nny = ddx / LL;
+        var wk = anchoEn(tk), hp = 0.35;
+        _trazo(doc, pk[0], pk[1], pk[0] + (nnx + ddx / LL * hp) * wk * 0.8, pk[1] + (nny + ddy / LL * hp) * wk * 0.8, DECO_PAPEL, largo * 0.011);
+        _trazo(doc, pk[0], pk[1], pk[0] - (nnx - ddx / LL * hp) * wk * 0.68, pk[1] - (nny - ddy / LL * hp) * wk * 0.68, DECO_PAPEL, largo * 0.011);
       }
     }
 
-    // Curva Bezier cuadratica aproximada con segmentos cortos.
-    function dibujarCurvaQ(doc, x0, y0, cx, cy, x1, y1) {
-      var pasos = 16, prev = null;
-      for (var i = 0; i <= pasos; i++) {
-        var t = i / pasos, u = 1 - t;
-        var x = u * u * x0 + 2 * u * t * cx + t * t * x1;
-        var y = u * u * y0 + 2 * u * t * cy + t * t * y1;
-        if (prev) doc.line(prev[0], prev[1], x, y);
-        prev = [x, y];
+    /* Fronda de helecho: tallo arqueado con foliolos rellenos. */
+    function _helecho(doc, x, y, ang, largo, rgb) {
+      var curva = largo * 0.35;
+      function tallo(t) {
+        return [
+          x + Math.cos(ang) * largo * t + Math.cos(ang + Math.PI / 2) * curva * t * t,
+          y + Math.sin(ang) * largo * t + Math.sin(ang + Math.PI / 2) * curva * t * t
+        ];
+      }
+      var prev = null;
+      for (var i = 0; i <= 24; i++) {
+        var p = tallo(i / 24);
+        if (prev) _trazo(doc, prev[0], prev[1], p[0], p[1], rgb, largo * 0.012);
+        prev = p;
+      }
+      var nPares = 14;
+      for (var j = 1; j <= nPares; j++) {
+        var t = j / (nPares + 1);
+        var p0 = tallo(t), p1 = tallo(Math.min(1, t + 0.02));
+        var angT = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]);
+        var lf = largo * 0.16 * Math.pow(Math.sin(Math.PI * (0.15 + 0.85 * (1 - t))), 1.2);
+        [1, -1].forEach(function (lado) {
+          var angF = angT + lado * (1.15 - t * 0.25);
+          var pts = [], M = 8, m;
+          for (m = 0; m <= M; m++) {
+            var tm = m / M;
+            var w = lf * 0.22 * Math.sin(Math.PI * Math.pow(tm, 0.8));
+            var ex = p0[0] + Math.cos(angF) * lf * tm, ey = p0[1] + Math.sin(angF) * lf * tm;
+            pts.push([ex + Math.cos(angF + Math.PI / 2) * w, ey + Math.sin(angF + Math.PI / 2) * w]);
+          }
+          for (m = M; m >= 0; m--) {
+            var tm2 = m / M;
+            var w2 = lf * 0.22 * Math.sin(Math.PI * Math.pow(tm2, 0.8));
+            var ex2 = p0[0] + Math.cos(angF) * lf * tm2, ey2 = p0[1] + Math.sin(angF) * lf * tm2;
+            pts.push([ex2 - Math.cos(angF + Math.PI / 2) * w2, ey2 - Math.sin(angF + Math.PI / 2) * w2]);
+          }
+          _poligonoRelleno(doc, pts, rgb);
+        });
       }
     }
 
-    // Rombo (cuadrado girado 45 grados) con borde.
-    function dibujarRombo(doc, cx, cy, d) {
-      doc.line(cx - d, cy, cx, cy - d);
-      doc.line(cx, cy - d, cx + d, cy);
-      doc.line(cx + d, cy, cx, cy + d);
-      doc.line(cx, cy + d, cx - d, cy);
-    }
-
-    // Medallon radial bajo el banner: rayos en abanico cruzados por arcos
-    // concentricos, con un boton central. "e" escala todo (1 = hoja A4).
-    function dibujarMedallonDeco(doc, cx, yBase, e) {
-      doc.setDrawColor(DECO_SUAVE[0], DECO_SUAVE[1], DECO_SUAVE[2]);
-      doc.setLineWidth(0.25 * e);
-      for (var a = -80; a <= 80; a += 20) {
-        var rad = a * Math.PI / 180;
-        doc.line(cx, yBase, cx + 26 * e * Math.sin(rad), yBase + 26 * e * Math.cos(rad));
+    /* Rama de eucalipto: tallo fino con hojas en gota, nervadura calada. */
+    function _eucalipto(doc, x, y, ang, largo, rgb) {
+      var curva = largo * 0.2;
+      function tallo(t) {
+        return [
+          x + Math.cos(ang) * largo * t + Math.cos(ang + Math.PI / 2) * curva * Math.sin(t * Math.PI) * 0.5,
+          y + Math.sin(ang) * largo * t + Math.sin(ang + Math.PI / 2) * curva * Math.sin(t * Math.PI) * 0.5
+        ];
       }
-      dibujarArco(doc, cx, yBase, 11 * e, 0, Math.PI);
-      dibujarArco(doc, cx, yBase, 18 * e, 0, Math.PI);
-      doc.setDrawColor(DECO_LINEA[0], DECO_LINEA[1], DECO_LINEA[2]);
-      doc.setLineWidth(0.35 * e);
-      dibujarArco(doc, cx, yBase, 26 * e, 0, Math.PI);
-      doc.setFillColor(DECO_BANNER[0], DECO_BANNER[1], DECO_BANNER[2]);
-      doc.circle(cx, yBase, 5 * e, 'FD');
+      var prev = null;
+      for (var i = 0; i <= 20; i++) {
+        var p = tallo(i / 20);
+        if (prev) _trazo(doc, prev[0], prev[1], p[0], p[1], rgb, largo * 0.014);
+        prev = p;
+      }
+      var n = 7;
+      for (var j = 1; j <= n; j++) {
+        var t = j / (n + 0.3);
+        var p0 = tallo(t);
+        var lado = (j % 2 === 0) ? 1 : -1;
+        var r = largo * 0.09 * (1 - t * 0.35);
+        var angHoja = ang + lado * 1.15;
+        var cx = p0[0] + Math.cos(angHoja) * r * 1.6;
+        var cy = p0[1] + Math.sin(angHoja) * r * 1.6;
+        var pts = [];
+        for (var m = 0; m < 16; m++) {
+          var a = (m / 16) * Math.PI * 2;
+          var ejeR = r * (1.45 + 0.35 * Math.cos(a));
+          var anchoR = r * 0.85;
+          var ex = Math.cos(a) * ejeR, ey = Math.sin(a) * anchoR;
+          pts.push([
+            cx + ex * Math.cos(angHoja) - ey * Math.sin(angHoja),
+            cy + ex * Math.sin(angHoja) + ey * Math.cos(angHoja)
+          ]);
+        }
+        _poligonoRelleno(doc, pts, rgb);
+        _trazo(doc, p0[0], p0[1], cx, cy, rgb, largo * 0.01);
+        if (r > 2.4) {
+          _trazo(doc, cx - Math.cos(angHoja) * r * 0.9, cy - Math.sin(angHoja) * r * 0.9,
+            cx + Math.cos(angHoja) * r * 1.3, cy + Math.sin(angHoja) * r * 1.3, DECO_PAPEL, r * 0.13);
+        }
+      }
     }
 
-    // Doble marco con esquinas escalonadas y arcos que abrazan cada esquina.
-    function dibujarMarcoDeco(doc, x0, y0, x1, y1, e) {
-      doc.setDrawColor(DECO_LINEA[0], DECO_LINEA[1], DECO_LINEA[2]);
-      doc.setLineWidth(0.7 * e);
-      doc.rect(x0, y0, x1 - x0, y1 - y0);
-      doc.setLineWidth(0.2 * e);
-      doc.rect(x0 + 4 * e, y0 + 4 * e, (x1 - x0) - 8 * e, (y1 - y0) - 8 * e);
-      [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]].forEach(function (c) {
-        var dx = c[2], dy = c[3];
-        doc.setLineWidth(1 * e);
-        doc.line(c[0] + 10 * e * dx, c[1], c[0] + 10 * e * dx, c[1] + 6 * e * dy);
-        doc.line(c[0] + 10 * e * dx, c[1] + 6 * e * dy, c[0] + 16 * e * dx, c[1] + 6 * e * dy);
-        doc.setDrawColor(DECO_SUAVE[0], DECO_SUAVE[1], DECO_SUAVE[2]);
-        doc.setLineWidth(0.35 * e);
-        dibujarCurvaQ(doc, c[0] + 20 * e * dx, c[1] + 4 * e * dy, c[0] + 4 * e * dx, c[1] + 4 * e * dy, c[0] + 4 * e * dx, c[1] + 20 * e * dy);
-        doc.setLineWidth(0.2 * e);
-        dibujarCurvaQ(doc, c[0] + 27 * e * dx, c[1] + 4 * e * dy, c[0] + 4 * e * dx, c[1] + 4 * e * dy, c[0] + 4 * e * dx, c[1] + 27 * e * dy);
-        doc.setDrawColor(DECO_LINEA[0], DECO_LINEA[1], DECO_LINEA[2]);
-      });
-    }
-
-    // Guirnalda curva de cierre al pie de la hoja.
-    function dibujarGuirnaldaDeco(doc, cx, y, semi, e) {
-      doc.setDrawColor(DECO_SUAVE[0], DECO_SUAVE[1], DECO_SUAVE[2]);
-      doc.setLineWidth(0.35 * e);
-      dibujarCurvaQ(doc, cx - semi, y, cx - semi / 2, y + 5 * e, cx - 1 * e, y);
-      dibujarCurvaQ(doc, cx + 1 * e, y, cx + semi / 2, y + 5 * e, cx + semi, y);
-      doc.setFillColor(DECO_LINEA[0], DECO_LINEA[1], DECO_LINEA[2]);
-      doc.circle(cx, y, 1.1 * e, 'F');
-      doc.setFillColor(DECO_SUAVE[0], DECO_SUAVE[1], DECO_SUAVE[2]);
-      doc.circle(cx - semi, y, 0.7 * e, 'F');
-      doc.circle(cx + semi, y, 0.7 * e, 'F');
-    }
-
-    // Divisor entre platos: cintas curvas hacia un rombo central.
-    function dibujarDivisorElegante(doc, y, pageWidth) {
-      var cx = pageWidth / 2;
-      doc.setDrawColor(DECO_LINEA[0], DECO_LINEA[1], DECO_LINEA[2]);
-      doc.setLineWidth(0.3);
-      dibujarCurvaQ(doc, cx - 45, y, cx - 26, y - 2.5, cx - 7, y);
-      dibujarCurvaQ(doc, cx + 7, y, cx + 26, y - 2.5, cx + 45, y);
-      doc.setLineWidth(0.4);
-      dibujarRombo(doc, cx, y, 3.9);
+    /* Composicion completa del follaje: solo en los bordes, el centro queda
+       limpio. Disenada en un lienzo de 210x297 y escalable a cualquier caja
+       (la version 4 en 1 la reusa a mitad de tamano). */
+    function dibujarFollajeMenu(doc, ox, oy, w, h) {
+      var sx = w / 210, sy = h / 297, s = Math.min(sx, sy);
+      function X(x) { return ox + x * sx; }
+      function Y(y) { return oy + y * sy; }
+      // Ramo superior izquierdo
+      _eucalipto(doc, X(-6), Y(62), -0.5, 58 * s, TINTA_CLARA);
+      _eucalipto(doc, X(-4), Y(38), 0.35, 52 * s, TINTA_MEDIA);
+      _hojaAncha(doc, X(0), Y(44), 0.55, 26 * s, 8 * s, TINTA_OSCURA, true);
+      _helecho(doc, X(-8), Y(56), 0.15, 46 * s, TINTA_CLARA);
+      // Sprig a media altura izquierda
+      _eucalipto(doc, X(-4), Y(158), 0.1, 38 * s, TINTA_MEDIA);
+      _hojaAncha(doc, X(-1), Y(170), 0.55, 15 * s, 4.6 * s, TINTA_CLARA, false);
+      // Ramo grande inferior derecho (protagonista)
+      _eucalipto(doc, X(214), Y(246), Math.PI + 0.5, 62 * s, TINTA_CLARA);
+      _eucalipto(doc, X(212), Y(270), Math.PI - 0.35, 56 * s, TINTA_MEDIA);
+      _helecho(doc, X(216), Y(258), Math.PI - 0.15, 52 * s, TINTA_CLARA);
+      _hojaAncha(doc, X(208), Y(268), Math.PI - 0.6, 30 * s, 9 * s, TINTA_OSCURA, true);
+      _eucalipto(doc, X(206), Y(290), Math.PI - 0.9, 44 * s, TINTA_MEDIA);
+      // Sprig inferior izquierdo hacia adentro
+      _eucalipto(doc, X(60), Y(302), -1.25, 40 * s, TINTA_MEDIA);
+      _eucalipto(doc, X(46), Y(300), -0.95, 32 * s, TINTA_CLARA);
+      // Sprig chico arriba a la derecha
+      _eucalipto(doc, X(213), Y(52), Math.PI - 0.35, 40 * s, TINTA_CLARA);
     }
 
     async function construirPDFMenu(datos) {
@@ -1178,9 +1267,9 @@
       var margenLogo = 12;
       var margenTexto = 26;
       var anchoTexto = pageWidth - margenTexto * 2;
-      // Limites del CONTENIDO: bajo el medallon y sobre la guirnalda del pie.
-      // El marco decorativo se dibuja con sus propias coordenadas mas abajo.
-      var topFrame = 56, bottomFrame = pageHeight - 26;
+      // Limites del CONTENIDO. El follaje vive en los bordes, asi que el
+      // interior queda limpio (sin marco, medallon ni divisores).
+      var topFrame = 48, bottomFrame = pageHeight - 26;
 
       function dibujarFondoMenu() {
         doc.setFillColor(DECO_PAPEL[0], DECO_PAPEL[1], DECO_PAPEL[2]);
@@ -1191,9 +1280,7 @@
         doc.setTextColor(255, 255, 255);
         doc.setFont(fuenteMenu(), 'bold'); doc.setFontSize(12);
         doc.text('C A S C A D A S   H O T E L', pageWidth / 2, 14, { align: 'center' });
-        dibujarMarcoDeco(doc, 10, 34, pageWidth - 10, pageHeight - 10, 1);
-        dibujarMedallonDeco(doc, pageWidth / 2, 24, 1);
-        dibujarGuirnaldaDeco(doc, pageWidth / 2, pageHeight - 20, 45, 1);
+        dibujarFollajeMenu(doc, 0, 0, pageWidth, pageHeight);
       }
 
       // Recorre el contenido y, segun "dibujar", lo mide (sin tocar el PDF
@@ -1213,8 +1300,6 @@
 
         centrar('Sugerencia del Chef', 27, 'bold', [58, 58, 60], 9);
         if (datos.titulo) centrar(datos.titulo, 13, 'italic', [110, 108, 105], 7);
-        y += 4;
-        if (dibujar) dibujarDivisorElegante(doc, y, pageWidth);
         y += 12;
 
         datos.platos.forEach(function (p, i) {
@@ -1225,11 +1310,7 @@
           centrar(p.nombre, 15.5, 'bold', [58, 58, 60], 6);
           descLines.forEach(function (line) { centrar(line, 10.5, 'italic', [110, 108, 105], 5); });
 
-          y += 6;
-          if (i < datos.platos.length - 1) {
-            if (dibujar) dibujarDivisorElegante(doc, y, pageWidth);
-            y += 10;
-          }
+          if (i < datos.platos.length - 1) y += 9;
         });
 
         return y;
@@ -1263,7 +1344,7 @@
               doc.setFont(fuenteMenu(), 'italic'); doc.setFontSize(13); doc.setTextColor(110, 108, 105);
               doc.text(datos.titulo, pageWidth / 2, y, { align: 'center' }); y += 7;
             }
-            y += 4; dibujarDivisorElegante(doc, y, pageWidth); y += 12;
+            y += 12;
           }
           if (p.tiempo) {
             doc.setFont(fuenteMenu(), 'bold'); doc.setFontSize(10); doc.setTextColor(65, 65, 67);
@@ -1275,22 +1356,11 @@
             doc.setFont(fuenteMenu(), 'italic'); doc.setFontSize(10.5); doc.setTextColor(110, 108, 105);
             descLines.forEach(function (line) { doc.text(line, pageWidth / 2, y, { align: 'center' }); y += 5; });
           }
-          y += 6;
-          if (i < datos.platos.length - 1) { dibujarDivisorElegante(doc, y, pageWidth); y += 10; }
+          if (i < datos.platos.length - 1) y += 9;
         });
       }
 
       doc.save('Sugerencia_del_Chef_' + (datos.fechaCena || new Date().toISOString().slice(0, 10)) + '.pdf');
-    }
-
-    // Divisor deco centrado en un punto arbitrario (para la version 4 en 1).
-    function dibujarDivisorEn(doc, cx, y, semiancho) {
-      doc.setDrawColor(DECO_LINEA[0], DECO_LINEA[1], DECO_LINEA[2]);
-      doc.setLineWidth(0.2);
-      dibujarCurvaQ(doc, cx - semiancho, y, cx - semiancho / 2, y - 1.2, cx - 3, y);
-      dibujarCurvaQ(doc, cx + 3, y, cx + semiancho / 2, y - 1.2, cx + semiancho, y);
-      doc.setLineWidth(0.25);
-      dibujarRombo(doc, cx, y, 1.7);
     }
 
     // Dibuja una version compacta del menu dentro de un rectangulo (ox,oy,w,h).
@@ -1298,8 +1368,8 @@
     function dibujarTarjetaMenu(doc, datos, ox, oy, w, h, logoData) {
       var cx = ox + w / 2;
       var bannerH = 12;
-      // Limites del contenido: bajo el medallon mini y sobre el borde inferior.
-      var topFrame = oy + bannerH + 13;
+      // El follaje vive en los bordes: el contenido parte apenas bajo el banner.
+      var topFrame = oy + bannerH + 8;
       var bottomFrame = oy + h - 7;
       var margenTexto = 15;
       var anchoTexto = w - margenTexto * 2;
@@ -1313,8 +1383,7 @@
       doc.setFont(fuenteMenu(), 'bold'); doc.setFontSize(7);
       doc.text('C A S C A D A S   H O T E L', cx, oy + 7.5, { align: 'center' });
 
-      dibujarMarcoDeco(doc, ox + 5, oy + bannerH + 5, ox + w - 5, oy + h - 5, 0.5);
-      dibujarMedallonDeco(doc, cx, oy + bannerH, 0.45);
+      dibujarFollajeMenu(doc, ox, oy, w, h);
 
       function recorrer(y0, dibujar) {
         var y = y0;
@@ -1325,8 +1394,6 @@
         }
         centrar('Sugerencia del Chef', 13, 'bold', [58, 58, 60], 5);
         if (datos.titulo) centrar(datos.titulo, 7.5, 'italic', [110, 108, 105], 4);
-        y += 2;
-        if (dibujar) dibujarDivisorEn(doc, cx, y, 11);
         y += 6;
         datos.platos.forEach(function (p, i) {
           doc.setFont(fuenteMenu(), 'italic'); doc.setFontSize(6.5);
@@ -1334,8 +1401,7 @@
           if (p.tiempo) centrar(p.tiempo.toUpperCase(), 6, 'bold', [65, 65, 67], 3.6);
           centrar(p.nombre, 9, 'bold', [58, 58, 60], 3.8);
           descLines.forEach(function (line) { centrar(line, 6.5, 'italic', [110, 108, 105], 3); });
-          y += 2.5;
-          if (i < datos.platos.length - 1) { if (dibujar) dibujarDivisorEn(doc, cx, y, 11); y += 5; }
+          if (i < datos.platos.length - 1) y += 4.5;
         });
         return y;
       }
