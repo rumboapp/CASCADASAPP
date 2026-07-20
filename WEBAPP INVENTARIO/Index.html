@@ -355,6 +355,19 @@
     </div>
   </div>
 
+  <!-- MODAL: ver un menu guardado (solo lectura) -->
+  <div id="modalVerMenu" class="modal-overlay">
+    <div class="modal-card">
+      <h3 id="vm_titulo">Sugerencia del Chef</h3>
+      <p id="vm_fecha" style="font-size:12.5px; color:var(--text-sec); margin-top:-10px; margin-bottom:16px;"></p>
+      <div id="vm_platos"></div>
+      <div style="display:flex; gap:8px; margin-top:20px; flex-wrap:wrap;">
+        <button class="btn-mini outline" style="flex:1; justify-content:center;" onclick="cerrarModalVerMenu()">Cerrar</button>
+        <button class="btn-mini dark" style="flex:1; justify-content:center;" id="vm_btnDescargar"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast"></div>
 
   <script>
@@ -629,6 +642,8 @@
             '<div class="mg-platos">' + platos.length + (platos.length === 1 ? ' plato: ' : ' platos: ') + escaparHTML(nombres.join(' · ')) + '</div>' +
           '</div>' +
           '<div class="mg-acciones">' +
+            '<button class="btn-mini outline" title="Ver este menu" onclick="verMenuGuardado(\'' + escaparHTML(m.id) + '\')"><i class="fa-solid fa-eye"></i> Ver</button>' +
+            '<button class="btn-mini outline" title="Descargar el PDF de este menu" onclick="descargarMenuGuardado(\'' + escaparHTML(m.id) + '\')"><i class="fa-solid fa-file-pdf"></i> Descargar</button>' +
             '<button class="btn-mini outline" title="Cargar como base para un menu nuevo" onclick="usarMenuGuardado(\'' + escaparHTML(m.id) + '\', false)"><i class="fa-solid fa-copy"></i> Usar de base</button>' +
             '<button class="btn-mini outline" title="Editar este menu guardado" onclick="usarMenuGuardado(\'' + escaparHTML(m.id) + '\', true)"><i class="fa-solid fa-pen"></i> Editar</button>' +
             '<button class="btn-mini outline peligro" title="Eliminar" onclick="eliminarMenuGuardado(\'' + escaparHTML(m.id) + '\')"><i class="fa-solid fa-trash"></i></button>' +
@@ -723,6 +738,50 @@
         })
         .withFailureHandler(function () { mostrarToast('No se pudo eliminar', 'error'); })
         .eliminarMenuChef(id);
+    }
+
+    /* Arma el objeto {titulo, fechaCena, platos} que espera construirPDFMenu,
+       a partir de un registro guardado (sin tocar el formulario de edicion). */
+    function _datosDesdeMenuGuardado(m) {
+      var platos = [];
+      try { platos = JSON.parse(m.platosJSON) || []; } catch (e) {}
+      return { titulo: m.titulo || '', fechaCena: m.fechaCena || '', platos: platos };
+    }
+
+    /* Vista previa de solo lectura de un menu guardado, sin cargarlo en el
+       formulario (para eso ya existe "Usar de base" / "Editar"). */
+    function verMenuGuardado(id) {
+      var m = menusGuardadosCache.filter(function (x) { return x.id === id; })[0];
+      if (!m) return;
+      var datos = _datosDesdeMenuGuardado(m);
+      document.getElementById('vm_titulo').textContent = datos.titulo || 'Sugerencia del Chef';
+      document.getElementById('vm_fecha').textContent = datos.fechaCena ? formatearFechaCena(datos.fechaCena) : 'Sin fecha de cena';
+      document.getElementById('vm_platos').innerHTML = datos.platos.map(function (p) {
+        return '<div style="padding:10px 0; border-top:1px solid var(--border);">' +
+          (p.tiempo ? '<div style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--text-sec);">' + escaparHTML(p.tiempo) + '</div>' : '') +
+          '<div style="font-weight:600; margin-top:2px;">' + escaparHTML(p.nombre) + '</div>' +
+          (p.descripcion ? '<div style="font-size:12.5px; color:var(--text-sec); margin-top:2px;">' + escaparHTML(p.descripcion) + '</div>' : '') +
+        '</div>';
+      }).join('') || '<p class="sub">Este menu no tiene platos cargados.</p>';
+      document.getElementById('vm_btnDescargar').onclick = function () { descargarMenuGuardado(id); };
+      document.getElementById('modalVerMenu').classList.add('show');
+    }
+    function cerrarModalVerMenu() { document.getElementById('modalVerMenu').classList.remove('show'); }
+
+    /* Genera el PDF de un menu guardado directamente, sin pasar por el
+       formulario ni cambiar cual menu se esta editando. */
+    async function descargarMenuGuardado(id) {
+      var m = menusGuardadosCache.filter(function (x) { return x.id === id; })[0];
+      if (!m) return;
+      var datos = _datosDesdeMenuGuardado(m);
+      if (!datos.platos.length) { mostrarToast('Este menu no tiene platos cargados', 'error'); return; }
+      try {
+        mostrarToast('Generando PDF...', 'exito');
+        await construirPDFMenu(datos);
+      } catch (e) {
+        console.error('Error al generar el PDF', e);
+        mostrarToast('No se pudo generar el PDF: ' + (e && e.message ? e.message : 'error desconocido'), 'error');
+      }
     }
 
     var TIEMPOS_PRESET = ['Aperitivo', 'Entrada', 'Fondo', 'Postre', 'Postre y Café'];
