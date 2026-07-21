@@ -8,6 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- jsPDF + autotable: para generar el PDF del pedido de reposicion -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     :root {
@@ -87,6 +90,25 @@
 
     .loader-full { display: none; text-align: center; padding: 60px 20px; color: var(--text-sec); font-size: 13px; }
     .loader-full.show { display: block; }
+
+    /* Barra inferior fija con el boton para generar el PDF del pedido. */
+    .barra-pedido {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+      padding: 9px 12px calc(9px + env(safe-area-inset-bottom));
+      background: linear-gradient(180deg, rgba(244,244,245,.92), #EAEAEC);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -3px 12px rgba(0,0,0,.10);
+    }
+    .barra-pedido button {
+      width: 100%; height: 50px; border: none; border-radius: 14px; cursor: pointer;
+      background: linear-gradient(180deg, #4C4C4F, #414143 60%, #38383A); color: #E9E7E5;
+      font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 15px; letter-spacing: .3px;
+      display: flex; align-items: center; justify-content: center; gap: 9px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 2px 6px rgba(0,0,0,.22);
+    }
+    .barra-pedido button:active { transform: translateY(1px); filter: brightness(.96); }
+    .barra-pedido button:disabled { opacity: .6; cursor: default; }
+    .barra-pedido svg { width: 19px; height: 19px; fill: none; stroke: #E9E7E5; stroke-width: 2; }
   </style>
 </head>
 <body>
@@ -106,6 +128,14 @@
   </div>
 
   <div id="toast" class="toast"></div>
+
+  <!-- Barra inferior: generar el PDF de reposicion desde el celular -->
+  <div class="barra-pedido">
+    <button id="btnPedido" onclick="exportarPedidoPDF()">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+      <span id="btnPedidoTxt">Generar pedido (PDF)</span>
+    </button>
+  </div>
 
   <script>
     var APP = { inventario: [] };
@@ -189,7 +219,8 @@
 
       PEND[id] = (PEND[id] || 0) + delta;
       if (PEND_TIMERS[id]) clearTimeout(PEND_TIMERS[id]);
-      PEND_TIMERS[id] = setTimeout(function () { enviarPendiente(id); }, 500);
+      // Envio rapido (350ms) para que el PC vea el cambio casi al instante.
+      PEND_TIMERS[id] = setTimeout(function () { enviarPendiente(id); }, 350);
     }
 
     function enviarPendiente(id) {
@@ -241,6 +272,105 @@
       t.textContent = msg;
       t.className = 'toast show' + (tipo === 'error' ? ' error' : '');
       setTimeout(function () { t.className = 'toast'; }, 2600);
+    }
+
+    // ---------- PDF de pedido de reposicion (mismo diseno que el escritorio) ----------
+    var LOGO_URL = 'https://lh3.googleusercontent.com/d/1l-GRXICSU6fHGe9uGsnGdZ6M0FKgKevJ';
+    var logoBase64Promise = null;
+
+    function fechaHoy() {
+      var d = new Date();
+      return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+    }
+
+    function obtenerLogoBase64() {
+      if (logoBase64Promise) return logoBase64Promise;
+      logoBase64Promise = new Promise(function (resolve) {
+        try {
+          var img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = function () {
+            try {
+              var canvas = document.createElement('canvas');
+              canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+              canvas.getContext('2d').drawImage(img, 0, 0);
+              resolve(canvas.toDataURL('image/png'));
+            } catch (e) { resolve(null); }
+          };
+          img.onerror = function () { resolve(null); };
+          img.src = LOGO_URL;
+        } catch (e) { resolve(null); }
+      });
+      return logoBase64Promise;
+    }
+
+    function dibujarBannerPDF(doc, pageWidth, linea1, linea2, logoData) {
+      doc.setFillColor(65, 65, 67);
+      doc.rect(0, 0, pageWidth, 25, 'F');
+      if (logoData) { try { doc.addImage(logoData, 'PNG', 10, 4.5, 16, 16); } catch (e) {} }
+      doc.setTextColor(255, 255, 255);
+      doc.setFont(undefined, 'bold'); doc.setFontSize(13);
+      doc.text(linea1, pageWidth / 2, 12, { align: 'center' });
+      doc.setFont(undefined, 'normal'); doc.setFontSize(9);
+      doc.text(linea2, pageWidth / 2, 19, { align: 'center' });
+    }
+
+    function construirPDF(opciones) {
+      var doc = new jspdf.jsPDF('p', 'mm', 'a4');
+      var pageWidth = doc.internal.pageSize.getWidth();
+      var pageHeight = doc.internal.pageSize.getHeight();
+      doc.autoTable({
+        startY: 31,
+        margin: { top: 31, right: 12, bottom: 16, left: 12 },
+        head: [opciones.columnas],
+        body: opciones.filas,
+        theme: 'grid',
+        headStyles: { fillColor: [65, 65, 67], textColor: 255, fontSize: 9 },
+        styles: { fontSize: 8.5, cellPadding: 2.2, overflow: 'linebreak', valign: 'middle' },
+        columnStyles: opciones.columnStyles,
+        didDrawPage: function () {
+          dibujarBannerPDF(doc, pageWidth, opciones.linea1, opciones.linea2, opciones.logoData);
+        }
+      });
+      var totalPaginas = doc.internal.getNumberOfPages();
+      for (var p = 1; p <= totalPaginas; p++) {
+        doc.setPage(p);
+        doc.setFontSize(7.5); doc.setTextColor(150, 150, 150); doc.setFont(undefined, 'normal');
+        doc.text('Cascadas Hotel · Inventario Bar/Restaurant', 12, pageHeight - 8);
+        doc.text('Pagina ' + p + ' de ' + totalPaginas, pageWidth - 12, pageHeight - 8, { align: 'right' });
+      }
+      doc.save(opciones.nombreArchivo);
+    }
+
+    async function exportarPedidoPDF() {
+      if (typeof jspdf === 'undefined') { mostrarToast('No se pudo cargar el generador de PDF', 'error'); return; }
+      if (!APP.inventario.length) { mostrarToast('Primero carga el inventario'); return; }
+      var pendientes = APP.inventario.filter(function (it) { return Math.max(0, (it.ideal || 0) - it.cantidad) > 0; });
+      if (!pendientes.length) { mostrarToast('No hay items por debajo del ideal'); return; }
+
+      var btn = document.getElementById('btnPedido');
+      var txt = document.getElementById('btnPedidoTxt');
+      var etiquetaPrev = txt.textContent;
+      btn.disabled = true; txt.textContent = 'Generando...';
+      try {
+        var logoData = await obtenerLogoBase64();
+        construirPDF({
+          linea1: 'PEDIDO DE REPOSICION',
+          linea2: 'Fecha: ' + fechaHoy(),
+          columnas: ['Tipo', 'Producto', 'Unidad', 'Cantidad actual', 'A pedir'],
+          filas: pendientes.map(function (it) {
+            var aPedir = Math.max(0, (it.ideal || 0) - it.cantidad);
+            return [it.categoria, it.producto, it.unidad || 'un.', it.cantidad, aPedir];
+          }),
+          columnStyles: { 0: { cellWidth: 26 }, 1: { cellWidth: 74 }, 2: { cellWidth: 22 }, 3: { cellWidth: 28 }, 4: { cellWidth: 24 } },
+          nombreArchivo: 'Pedido_Reposicion_' + new Date().toISOString().slice(0, 10) + '.pdf',
+          logoData: logoData
+        });
+      } catch (e) {
+        mostrarToast('No se pudo generar el PDF', 'error');
+      } finally {
+        btn.disabled = false; txt.textContent = etiquetaPrev;
+      }
     }
   </script>
 </body>

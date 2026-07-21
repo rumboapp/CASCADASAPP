@@ -518,17 +518,47 @@
     }
 
     // ---- auto-refresh: refleja cambios hechos desde el celular sin recargar ----
+    // Sondea seguido pero con un candado (refrescando) para no encimar
+    // llamadas, y actualiza EN EL SITIO solo lo que cambio (ver
+    // aplicarInventarioRemoto): asi los cambios del celular aparecen casi al
+    // instante, sin parpadeos ni cerrar las categorias abiertas.
+    var refrescando = false;
     function refrescarSiCorresponde() {
+      if (refrescando) return;
       if (!document.getElementById('vistaInventario').classList.contains('activa')) return;
       if (document.getElementById('modalItem').classList.contains('show')) return;
       if (document.getElementById('modalConfirmar').classList.contains('show')) return;
       if (hayPendientes()) return;
+      refrescando = true;
       google.script.run.withSuccessHandler(function (lista) {
-        APP.inventario = lista || [];
-        pintarInventario();
-      }).obtenerInventario();
+        refrescando = false;
+        aplicarInventarioRemoto(lista || []);
+      }).withFailureHandler(function () { refrescando = false; }).obtenerInventario();
     }
-    setInterval(refrescarSiCorresponde, 5000);
+    setInterval(refrescarSiCorresponde, 2000);
+
+    /* Aplica el inventario que llega del servidor. Si la estructura es la misma
+       (mismos items, mismo nombre/categoria), solo actualiza en el sitio las
+       cantidades/estados que cambiaron: es instantaneo y no repinta ni colapsa
+       las categorias. Si cambio la estructura (se agrego/elimino/renombro), si
+       repinta todo. */
+    function aplicarInventarioRemoto(lista) {
+      var estructuraIgual = lista.length === APP.inventario.length &&
+        lista.every(function (nuevo) {
+          var viejo = APP.inventario.filter(function (x) { return x.id === nuevo.id; })[0];
+          return viejo && viejo.producto === nuevo.producto && viejo.categoria === nuevo.categoria;
+        });
+      if (!estructuraIgual) { APP.inventario = lista; pintarInventario(); return; }
+      lista.forEach(function (nuevo) {
+        var viejo = APP.inventario.filter(function (x) { return x.id === nuevo.id; })[0];
+        if (!viejo) return;
+        var cambio = viejo.cantidad !== nuevo.cantidad || viejo.minimo !== nuevo.minimo ||
+          viejo.ideal !== nuevo.ideal || viejo.unidad !== nuevo.unidad || viejo.detalle !== nuevo.detalle;
+        viejo.cantidad = nuevo.cantidad; viejo.minimo = nuevo.minimo; viejo.ideal = nuevo.ideal;
+        viejo.unidad = nuevo.unidad; viejo.detalle = nuevo.detalle;
+        if (cambio) actualizarBadgeItem(nuevo.id);
+      });
+    }
     // Al volver a la pestana/ventana, refresca de inmediato en vez de esperar el intervalo.
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) refrescarSiCorresponde();
