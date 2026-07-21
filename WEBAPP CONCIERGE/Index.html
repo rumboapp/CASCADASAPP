@@ -1479,9 +1479,16 @@ function navHuesped(seccion) {
   window.scrollTo(0, 0);
 }
 
-/* Desde la Carta, "Realizar pedido" lleva a Reservar (mesa o habitacion). */
+/* Desde la Carta, "Realizar pedido" lleva a Reservar y abre directo el panel
+   del restaurant (el servicio de gastronomia que acepta pedido), para que el
+   huesped no tenga que buscarlo en la lista. */
 function irAReservarDesdeCarta() {
   navHuesped('Reservar');
+  var candidatos = (APP.servicios || []).filter(function (s) {
+    return s.PermitePrepedido && s.Visible !== false;
+  });
+  var restaurant = candidatos.filter(function (s) { return s.Categoria === 'Gastronomia'; })[0] || candidatos[0];
+  if (restaurant) seleccionarServicioHuesped(restaurant.ID);
 }
 
 /* ---------- Reservar ---------- */
