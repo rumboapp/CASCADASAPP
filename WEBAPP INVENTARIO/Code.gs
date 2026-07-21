@@ -515,5 +515,13 @@ function eliminarMenuChef(id) {
 function obtenerUrlMovil() {
   var base = '';
   try { base = ScriptApp.getService().getUrl() || ''; } catch (err) {}
-  return base ? (base + '?movil=1') : '';
+  if (!base) return '';
+  // getUrl() puede devolver la URL con un fragmento (#...) o un query previo.
+  // Si se pega "?movil=1" tal cual y ya habia un "#", el parametro queda
+  // DENTRO del fragmento y el servidor nunca lo recibe: doGet no detecta
+  // movil y termina abriendo el panel de escritorio. Por eso limpiamos
+  // cualquier ?/# y normalizamos a /exec (a veces getUrl da la /dev de editor)
+  // antes de agregar el parametro, para que el QR abra siempre el conteo movil.
+  base = base.split('#')[0].split('?')[0].replace(/\/dev$/, '/exec');
+  return base + '?movil=1';
 }
