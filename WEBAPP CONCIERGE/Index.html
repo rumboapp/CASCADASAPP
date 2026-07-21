@@ -489,6 +489,55 @@
       border-radius: 8px; border: 2px solid transparent; background-clip: content-box;
     }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+    /* -------------------- CARTA / MENU ELEGANTE -------------------- */
+    /* Presenta la carta como una hoja de menu de restaurant: titulos de
+       categoria centrados, filas nombre ... precio con guia de puntos, y
+       descripciones en cursiva. Nada de "burbujas" por plato. */
+    .menu-sheet { padding: 1.6rem 1.25rem 2rem; }
+    @media (min-width: 640px) { .menu-sheet { padding: 2.2rem 2.75rem 2.5rem; } }
+    .menu-hero { text-align: center; margin-bottom: 1.25rem; }
+    .menu-hero h3 { font-size: 2.7rem; line-height: 1; color: var(--texto); margin: 0; }
+    .menu-hero p { font-size: .74rem; letter-spacing: .2em; text-transform: uppercase; opacity: .5; margin-top: .45rem; }
+    .menu-cat { margin-top: 2.1rem; }
+    .menu-cat:first-of-type { margin-top: .6rem; }
+    .menu-cat-head { display: flex; align-items: center; justify-content: center; gap: .55rem; }
+    .menu-cat-head i { font-size: .95rem; }
+    .menu-cat-head h4 {
+      font-family: 'Bebas Neue', 'Oswald', sans-serif; font-weight: 400;
+      font-size: 1.7rem; letter-spacing: .07em; color: var(--texto); margin: 0;
+      text-shadow: 0 1px 0 rgba(255,255,255,.7);
+    }
+    .dark-mode .menu-cat-head h4 { text-shadow: 0 -1px 0 rgba(0,0,0,.6); }
+    .menu-cat-rule { display: flex; align-items: center; justify-content: center; gap: .5rem; margin: .35rem 0 1.05rem; }
+    .menu-cat-rule::before, .menu-cat-rule::after { content: ''; height: 1px; width: 42px; background: var(--borde); }
+    .menu-cat-rule span { width: 5px; height: 5px; transform: rotate(45deg); background: var(--dorado); opacity: .8; }
+    .menu-item { padding: .5rem 0; }
+    .menu-item-row { display: flex; align-items: baseline; gap: .4rem; }
+    .menu-item-name { font-weight: 500; }
+    .menu-item-lead { flex: 1; border-bottom: 1px dotted #B9B9BB; transform: translateY(-4px); min-width: 12px; }
+    .dark-mode .menu-item-lead { border-bottom-color: #5A5A5D; }
+    .menu-item-price { font-weight: 600; color: var(--dorado); white-space: nowrap; }
+    .dark-mode .menu-item-price { color: #B9B9BC; }
+    .menu-item-desc { font-size: .8rem; opacity: .62; margin-top: .12rem; font-style: italic; line-height: 1.35; }
+    .menu-item-tags { margin-top: .3rem; display: flex; flex-wrap: wrap; gap: .3rem; }
+
+    /* Burbuja flotante "Realizar pedido" (solo en la Carta). */
+    .carta-cta {
+      position: fixed; left: 50%; transform: translateX(-50%);
+      bottom: calc(74px + env(safe-area-inset-bottom));
+      z-index: 55; display: flex; align-items: center; gap: .7rem;
+      padding: .65rem 1.35rem; border-radius: 999px;
+      background: linear-gradient(180deg, #525255, #414143 55%, #353537);
+      color: var(--hueso); border: 1px solid #2A2A2C; cursor: pointer;
+      box-shadow: 0 10px 24px -6px rgba(46,46,48,.6), inset 0 1px 0 rgba(255,255,255,.12);
+      animation: pop .4s cubic-bezier(.22, 1, .36, 1); text-align: left;
+    }
+    .carta-cta:hover { filter: brightness(1.08); }
+    .carta-cta:active { transform: translateX(-50%) translateY(2px); }
+    .carta-cta .cc-ic { font-size: 1.15rem; color: #fff; }
+    .carta-cta .cc-main { font-family: 'Oswald', sans-serif; font-weight: 600; letter-spacing: .03em; line-height: 1.1; font-size: .95rem; }
+    .carta-cta .cc-sub { font-size: .62rem; opacity: .72; letter-spacing: .04em; text-transform: uppercase; }
   </style>
 </head>
 
@@ -614,10 +663,23 @@
     </section>
   </main>
 
+  <!-- Burbuja flotante "Realizar pedido": solo visible en la pestana Carta.
+       Lleva a la pestana Reservar (donde se reserva mesa o habitacion). -->
+  <button id="cartaCta" class="carta-cta oculto" onclick="irAReservarDesdeCarta()">
+    <i class="fa-solid fa-bell-concierge cc-ic"></i>
+    <span>
+      <span class="cc-main block" data-i18n="realizar_pedido">Realizar pedido</span>
+      <span class="cc-sub block" data-i18n="carta_cta_sub">Reserva tu mesa o habitacion</span>
+    </span>
+  </button>
+
   <!-- Bottom nav movil / navegacion huesped -->
   <nav class="bottom-nav">
     <div class="nav-btn activo" data-huesped-nav="Reservar" onclick="navHuesped('Reservar')">
       <i class="fa-solid fa-calendar-plus text-lg"></i><span data-i18n="nav_reservar">Reservar</span>
+    </div>
+    <div class="nav-btn" data-huesped-nav="Carta" onclick="navHuesped('Carta')">
+      <i class="fa-solid fa-book-open text-lg"></i><span data-i18n="nav_carta">Carta</span>
     </div>
     <div class="nav-btn" data-huesped-nav="MisReservas" onclick="navHuesped('MisReservas')">
       <i class="fa-solid fa-clipboard-list text-lg"></i><span data-i18n="nav_misreservas">Mis Reservas</span>
@@ -921,6 +983,8 @@ var I18N = {
     // Carta
     carta: 'Carta', no_cargar_carta: 'No pudimos cargar la carta.',
     sin_productos: 'Sin productos disponibles.',
+    nav_carta: 'Carta', carta_intro: 'Nuestra seleccion de platos y bebidas',
+    realizar_pedido: 'Realizar pedido', carta_cta_sub: 'Reserva tu mesa o habitacion',
     // Prepedido
     pedido: 'Pedido', donde: '¿Donde?', en_restaurant: 'En el restaurant',
     a_habitacion: 'A la habitacion',
@@ -985,6 +1049,8 @@ var I18N = {
     volver: 'Back', confirmar_cancelacion: 'Confirm cancellation',
     carta: 'Menu', no_cargar_carta: "We couldn't load the menu.",
     sin_productos: 'No products available.',
+    nav_carta: 'Menu', carta_intro: 'Our selection of dishes and drinks',
+    realizar_pedido: 'Place an order', carta_cta_sub: 'Book your table or room',
     pedido: 'Order', donde: 'Where?', en_restaurant: 'At the restaurant',
     a_habitacion: 'To the room',
     hab_no_disponible: 'Room delivery is not available today.',
@@ -1399,10 +1465,23 @@ function navHuesped(seccion) {
   });
   document.getElementById('seccionReservar').classList.toggle('oculto', seccion !== 'Reservar');
   document.getElementById('seccionMisReservas').classList.toggle('oculto', seccion !== 'MisReservas');
+  document.getElementById('seccionCarta').classList.toggle('oculto', seccion !== 'Carta');
+  // La bienvenida y el contacto solo acompanan a la pestana Reservar.
   document.getElementById('huespedBienvenida').classList.toggle('oculto', seccion !== 'Reservar');
   document.getElementById('huespedContacto').classList.toggle('oculto', seccion !== 'Reservar');
+  // La burbuja "Realizar pedido" solo aparece mientras se ve la Carta.
+  document.getElementById('cartaCta').classList.toggle('oculto', seccion !== 'Carta');
 
   if (seccion === 'MisReservas') renderMisReservas();
+  else if (seccion === 'Carta') renderCarta();
+
+  // Al cambiar de pestana, vuelve arriba del todo.
+  window.scrollTo(0, 0);
+}
+
+/* Desde la Carta, "Realizar pedido" lleva a Reservar (mesa o habitacion). */
+function irAReservarDesdeCarta() {
+  navHuesped('Reservar');
 }
 
 /* ---------- Reservar ---------- */
@@ -1826,24 +1905,57 @@ function renderCarta() {
   }
 }
 
-/* Pinta el acordeon completo desde memoria: abrir categorias es instantaneo. */
+/* Pinta la carta como una hoja de menu elegante: una sola "hoja" (card) con
+   el titulo, y cada categoria como una seccion con encabezado centrado,
+   divisor ornamental y filas nombre ... precio. Se salta las categorias
+   vacias para no dejar secciones huecas. */
 function pintarCarta() {
   var cont = document.getElementById('seccionCarta');
-  cont.innerHTML = '<h3 class="text-2xl mb-4" style="color: var(--verde-bosque)">' + t('carta') + '</h3>' +
-    APP.carta.categorias.map(function (c) {
-      var productos = APP.carta.productosPorCategoria[c.ID] || [];
-      var cuerpo = productos.length
-        ? '<div class="p-4 pt-0 space-y-3">' + productos.map(tarjetaProductoCarta).join('') + '</div>'
-        : '<div class="p-4 pt-0 text-sm opacity-50">' + t('sin_productos') + '</div>';
-      return '<div class="card mb-2 overflow-hidden">' +
-        '<div class="acordeon-header flex items-center justify-between p-4" onclick="toggleAcordeon(this,\'' + c.ID + '\')">' +
-          '<span class="font-semibold"><i class="fa-solid ' + c.IconoFontAwesome + ' mr-2" style="color:' + c.Color + '"></i>' + escaparHTML(nombreDe(c)) +
-          ' <span class="text-xs opacity-40 font-normal">(' + productos.length + ')</span></span>' +
-          '<i class="fa-solid fa-chevron-down transition-transform"></i>' +
-        '</div>' +
-        '<div class="acordeon-body" id="cat-' + c.ID + '">' + cuerpo + '</div>' +
-      '</div>';
-    }).join('');
+  var secciones = APP.carta.categorias.map(function (c) {
+    var productos = APP.carta.productosPorCategoria[c.ID] || [];
+    if (!productos.length) return '';
+    return '<div class="menu-cat">' +
+      '<div class="menu-cat-head">' +
+        '<i class="fa-solid ' + c.IconoFontAwesome + '" style="color:' + c.Color + '"></i>' +
+        '<h4>' + escaparHTML(nombreDe(c)) + '</h4>' +
+      '</div>' +
+      '<div class="menu-cat-rule"><span></span></div>' +
+      productos.map(filaMenuItem).join('') +
+    '</div>';
+  }).join('');
+
+  if (!secciones.trim()) {
+    cont.innerHTML = '<div class="card p-8 text-center fade-in">' +
+      '<i class="fa-solid fa-utensils text-3xl mb-3" style="color: var(--dorado)"></i>' +
+      '<p class="text-sm opacity-60">' + t('sin_productos') + '</p></div>';
+    return;
+  }
+
+  cont.innerHTML =
+    '<div class="card menu-sheet fade-in">' +
+      '<div class="menu-hero">' +
+        '<h3>' + t('carta') + '</h3>' +
+        '<p>' + t('carta_intro') + '</p>' +
+      '</div>' +
+      secciones +
+    '</div>';
+}
+
+/* Una fila de la carta: nombre a la izquierda, precio a la derecha unidos por
+   una guia de puntos; descripcion en cursiva y etiquetas debajo. */
+function filaMenuItem(p) {
+  var desc = descDe(p);
+  var etiquetas = (p.Etiquetas || '').split(',').map(function (e) { return e.trim(); }).filter(Boolean)
+    .map(function (e) { return '<span class="pill pill-etiqueta">' + escaparHTML(etiquetaLabel(e)) + '</span>'; }).join('');
+  return '<div class="menu-item">' +
+    '<div class="menu-item-row">' +
+      '<span class="menu-item-name">' + escaparHTML(nombreDe(p)) + '</span>' +
+      '<span class="menu-item-lead"></span>' +
+      '<span class="menu-item-price">' + fmtMoneda(p.Precio) + '</span>' +
+    '</div>' +
+    (desc ? '<p class="menu-item-desc">' + escaparHTML(desc) + '</p>' : '') +
+    (etiquetas ? '<div class="menu-item-tags">' + etiquetas + '</div>' : '') +
+  '</div>';
 }
 
 function toggleAcordeon(header, categoriaID) {
