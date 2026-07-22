@@ -243,6 +243,13 @@
       }
     }
 
+    // Meses del año, para la burbuja de "meses validos" de la Gift Card
+    // (ej. restringirla a temporada baja).
+    var MESES = {
+      es: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
+      en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+    };
+
     // ---------------------------------------------------------------------
     //  DEFINICION DE OCASIONES
     //  Cada una: color de acento, icono UI, campos del formulario, dibujo de
@@ -322,12 +329,31 @@
           en: '{destinatario}:\n\nSomeone very special thought of you. {remitente} wanted to gift you this stay at Cascadas Hotel, so you can take some time just for yourself to relax and unwind.\n\nOn our end, we will put all our care into making this experience unforgettable. Enjoy it, it is all yours.\n\nWarmly,\nthe Cascadas Hotel team'
         }
       },
+      eventoespecial: {
+        acc: [92, 102, 140], icon: 'fa-star', cupon: false, tituloCampo: true,
+        nombre: { es: 'Evento especial', en: 'Special event' },
+        // Plantilla en blanco para armar la tarjeta de cualquier evento
+        // (corporativo, grupo, celebracion puntual): el titulo tambien es
+        // un campo libre, no uno fijo por ocasion.
+        campos: [
+          { key: 'titulo', label: { es: 'Título de la tarjeta', en: 'Card title' }, ph: 'Bienvenida Corporativa' },
+          { key: 'nombre', label: { es: 'Nombre / Habitación (opcional)', en: 'Name / Room (optional)' }, ph: 'Habitación 204' }
+        ],
+        sub: function (d) { return d.nombre || ''; },
+        motivo: function (p, cx, cy, a) { chispas(p, cx, cy, a); },
+        mensaje: {
+          es: '{saludo}Sea muy bienvenido a Cascadas Hotel. Esperamos que disfrute cada momento de esta experiencia.\n\nCon cariño,\nel equipo de Cascadas Hotel',
+          en: '{saludo}Welcome to Cascadas Hotel. We hope you enjoy every moment of this experience.\n\nWarmly,\nthe Cascadas Hotel team'
+        }
+      },
       giftcard: {
         acc: [193, 148, 92], icon: 'fa-ticket', cupon: false, full: true,
         nombre: { es: 'Gift Card · noches', en: 'Gift Card · nights' },
         campos: [
           { key: 'noches', label: { es: 'N.º de noches', en: 'Number of nights' }, ph: '3', type: 'number', chips: ['1', '2', '3', '5', '7'] },
           { key: 'vigencia', label: { es: 'Vigencia (meses)', en: 'Validity (months)' }, ph: '12', type: 'number', chips: ['3', '6', '12', '24'] },
+          { key: 'mesesValidos', label: { es: 'Meses válidos (opcional, p.ej. temporada baja)', en: 'Valid months (optional, e.g. low season)' }, ph: '', chipsMulti: true,
+            chips: { es: MESES.es, en: MESES.en } },
           { key: 'inclusiones', label: { es: 'Incluye (opcional)', en: 'Includes (optional)' }, ph: 'Tinaja y cena', chipsMulti: true,
             chips: { es: ['Tinaja', 'Cena', 'Desayuno', 'Masaje', 'Traslado'], en: ['Hot tub', 'Dinner', 'Breakfast', 'Massage', 'Transfer'] } },
           { key: 'destinatario', label: { es: 'Para (opcional)', en: 'To (optional)' }, ph: '' },
@@ -348,8 +374,8 @@
         // Letra chica fija (NO editable): siempre se imprime, con las
         // condiciones reales de la cortesia.
         letraChica: {
-          es: 'Válida por {noches} noche(s) de estadía en Cascadas Hotel{inclSuf}. Vigencia de {vigencia} mes(es) desde la fecha de emisión. Esta Gift Card está sujeta a disponibilidad y no garantiza disponibilidad en la fecha específica solicitada. Debe presentarse (impresa o digital) al momento de realizar el check-in.',
-          en: 'Valid for {noches} night(s) at Cascadas Hotel{inclSuf}. Valid for {vigencia} month(s) from the date of issue. This Gift Card is subject to availability and does not guarantee availability on the specific date requested. It must be presented (printed or digital) at check-in.'
+          es: 'Válida por {noches} noche(s) de estadía en Cascadas Hotel{inclSuf}. Vigencia de {vigencia} mes(es) desde la fecha de emisión.{mesesSuf} Esta Gift Card está sujeta a disponibilidad y no garantiza disponibilidad en la fecha específica solicitada. Debe presentarse (impresa o digital) al momento de realizar el check-in.',
+          en: 'Valid for {noches} night(s) at Cascadas Hotel{inclSuf}. Valid for {vigencia} month(s) from the date of issue.{mesesSuf} This Gift Card is subject to availability and does not guarantee availability on the specific date requested. It must be presented (printed or digital) at check-in.'
         }
       },
       welcomedrink: {
@@ -370,7 +396,7 @@
         }
       }
     };
-    var ORDEN = ['aniversario', 'cumpleanos', 'lunademiel', 'bienvenida', 'estadiaregalo', 'giftcard', 'welcomedrink'];
+    var ORDEN = ['aniversario', 'cumpleanos', 'lunademiel', 'bienvenida', 'estadiaregalo', 'eventoespecial', 'giftcard', 'welcomedrink'];
 
     // ---------------------------------------------------------------------
     //  I18N de interfaz
@@ -552,11 +578,13 @@
       }
       var saludo = d.nombre ? (d.nombre + ':\n\n') : '';
       var trago = d.trago ? d.trago : (APP.idioma === 'en' ? 'water, juice or a glass of sparkling wine' : 'agua, jugo o copa de espumante');
+      var meses = (d.mesesValidos || '').trim();
+      var mesesSuf = meses ? (APP.idioma === 'en' ? ' Valid only during: ' + meses + '.' : ' Válida únicamente durante: ' + meses + '.') : '';
       return s
         .replace(/\{n1\}/g, d.n1 || '').replace(/\{n2\}/g, d.n2 || '')
         .replace(/\{nombre\}/g, d.nombre || '').replace(/\{remitente\}/g, d.remitente || (APP.idioma === 'en' ? 'someone special' : 'alguien especial'))
         .replace(/\{destinatario\}/g, d.destinatario || '').replace(/\{noches\}/g, d.noches || '—')
-        .replace(/\{vigencia\}/g, d.vigencia || '12')
+        .replace(/\{vigencia\}/g, d.vigencia || '12').replace(/\{mesesSuf\}/g, mesesSuf).replace(/\{mesesValidos\}/g, meses)
         .replace(/\{inclusiones\}/g, incl).replace(/\{inclSuf\}/g, inclSuf).replace(/\{paraDe\}/g, paraDe)
         .replace(/\{saludo\}/g, saludo).replace(/\{trago\}/g, trago)
         .replace(/\n{3,}/g, '\n\n').replace(/^\s+|\s+$/g, '');
@@ -727,7 +755,9 @@
 
       if (o.kicker) p.text(o.kicker[APP.idioma], CARD_W / 2, 82, 4.6, INK_SOFT, { font: 'helvetica', charSpace: 1.6 });
 
-      var tit = o.titulo[APP.idioma] || [];
+      // "Evento especial" tiene el titulo libre (lo escribe quien arma la
+      // tarjeta), en vez de un titulo fijo por idioma.
+      var tit = o.tituloCampo ? wrapTexto(d.titulo || (APP.idioma === 'en' ? 'Special Event' : 'Evento Especial'), 15) : (o.titulo[APP.idioma] || []);
       var ty = (o.kicker ? 96 : 90) - (tit.length > 1 ? 4 : 0);
       tit.forEach(function (l, i) { p.text(l, CARD_W / 2, ty + i * 12.5, 18, acc, { font: 'times', style: 'italic' }); });
       var sub = o.sub ? o.sub(d) : '';
@@ -820,7 +850,7 @@
       p.line(xDivA, 10, xDivA, H - 10, acc, .3);
       p.line(xDivB, 10, xDivB, H - 10, acc, .3);
 
-      dibujarMarca(p, xLogo, H / 2, 15, CREMA, mezclar(acc, CREMA, .5), 48);
+      dibujarMarca(p, xLogo, H / 2, 21, CREMA, mezclar(acc, CREMA, .5), 54);
 
       if (o.kicker) p.text(o.kicker[APP.idioma], xDetalles, 20, 4.4, mezclar(acc, CREMA, .4), { font: 'helvetica', charSpace: 1.4 });
       p.text(o.valor(d), xDetalles, H / 2 + 4, (o.valorSize || 16), acc, { font: 'times', style: 'bold' });
@@ -898,15 +928,18 @@
         y += (l === '' ? lh * 0.45 : lh);
       });
 
-      // Letra chica FIJA con las condiciones reales (vigencia, disponibilidad):
-      // posicion fija (no depende de cuan largo sea el mensaje editable de
-      // arriba), para que nunca choque con el resto del diseno.
+      // Letra chica FIJA con las condiciones reales (vigencia, disponibilidad,
+      // meses validos si se eligieron). Arranca justo debajo del mensaje (no
+      // en una posicion fija) y se calculan cuantas lineas entran antes del
+      // ribete inferior, para que crezca si hay mas condiciones sin cortarse.
       var chica = construirLetraChica(o, d);
       if (chica) {
-        var lineasChica = wrapTexto(chica, 118);
-        var yChica = 170, lhChica = 4.6;
-        lineasChica.slice(0, 3).forEach(function (l) {
-          p.text(l, W / 2, yChica, 6, mezclar(acc, CREMA, .18), { font: 'helvetica', style: 'italic' });
+        var lhChica = 4.3;
+        var yChicaTope = H - 27 - 4;
+        var yChica = Math.max(y + 6, 150);
+        var maxLineasChica = Math.max(1, Math.floor((yChicaTope - yChica) / lhChica) + 1);
+        wrapTexto(chica, 128).slice(0, maxLineasChica).forEach(function (l) {
+          p.text(l, W / 2, yChica, 5.8, mezclar(acc, CREMA, .18), { font: 'helvetica', style: 'italic' });
           yChica += lhChica;
         });
       }
@@ -951,7 +984,7 @@
         .withFailureHandler(function () { /* silencioso: no bloquear la descarga del PDF por esto */ })
         .withSuccessHandler(function () { if (APP.ocasion === 'giftcard') cargarGiftCardsEmitidas(); })
         .guardarGiftCard({
-          codigo: codigoGiftCard(), noches: d.noches, vigencia: d.vigencia,
+          codigo: codigoGiftCard(), noches: d.noches, vigencia: d.vigencia, mesesValidos: d.mesesValidos,
           inclusiones: d.inclusiones, destinatario: d.destinatario, remitente: d.remitente,
           idioma: APP.idioma, mensaje: mensaje
         });
@@ -979,13 +1012,14 @@
       if (!cont) return;
       if (!filas.length) { cont.innerHTML = '<p class="hint">' + (APP.idioma === 'en' ? 'No Gift Cards issued yet.' : 'Todavía no se ha emitido ninguna Gift Card.') + '</p>'; return; }
       var cab = APP.idioma === 'en'
-        ? ['Code', 'Issued', 'Nights', 'Validity', 'To', 'From']
-        : ['Código', 'Emitida', 'Noches', 'Vigencia', 'Para', 'De'];
+        ? ['Code', 'Issued', 'Nights', 'Validity', 'Valid months', 'To', 'From']
+        : ['Código', 'Emitida', 'Noches', 'Vigencia', 'Meses válidos', 'Para', 'De'];
       var html = '<div style="overflow-x:auto"><table class="tabla-gc"><thead><tr>' +
         cab.map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr></thead><tbody>' +
         filas.map(function (f) {
           return '<tr><td>' + (f.Codigo || '') + '</td><td>' + (f.FechaEmision || '') + '</td><td>' + (f.Noches || '') +
             '</td><td>' + (f.VigenciaMeses || '') + (f.VigenciaMeses ? (APP.idioma === 'en' ? ' mo.' : ' m.') : '') +
+            '</td><td>' + (f.MesesValidos || '—') +
             '</td><td>' + (f.Para || '') + '</td><td>' + (f.De || '') + '</td></tr>';
         }).join('') + '</tbody></table></div>';
       cont.innerHTML = html;

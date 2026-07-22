@@ -31,7 +31,7 @@ function include(filename) {
 // ---------------------------------------------------------------------------
 var GIFTCARDS_HOJA = 'GiftCards';
 var GIFTCARDS_ENCABEZADOS = [
-  'Codigo', 'FechaEmision', 'Noches', 'VigenciaMeses', 'Inclusiones',
+  'Codigo', 'FechaEmision', 'Noches', 'VigenciaMeses', 'MesesValidos', 'Inclusiones',
   'Para', 'De', 'Idioma', 'Mensaje'
 ];
 
@@ -65,12 +65,12 @@ function _hojaGiftCards() {
 /**
  * Guarda una Gift Card recien emitida. Se llama desde el navegador justo
  * despues de generar el PDF. `datos` = {codigo, noches, vigencia,
- * inclusiones, destinatario, remitente, idioma, mensaje}.
+ * mesesValidos, inclusiones, destinatario, remitente, idioma, mensaje}.
  */
 function guardarGiftCard(datos) {
   var hoja = _hojaGiftCards();
   hoja.appendRow([
-    datos.codigo || '', new Date(), datos.noches || '', datos.vigencia || '',
+    datos.codigo || '', new Date(), datos.noches || '', datos.vigencia || '', datos.mesesValidos || '',
     datos.inclusiones || '', datos.destinatario || '', datos.remitente || '',
     datos.idioma || '', datos.mensaje || ''
   ]);
