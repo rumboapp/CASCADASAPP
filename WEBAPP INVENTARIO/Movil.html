@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Conteo de Inventario</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- jsPDF + autotable: para generar el PDF del pedido de reposicion -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --bg: #F4F4F5; --surface: #FFFFFF; --text: #3A3A3C; --text-sec: #6E6C69;
+      --accent: #414143; --accent-light: #ECECEE; --border: #C9C6C2; --input-bg: #F3F3F4;
+      --shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(0,0,0,0.06), 0 8px 18px -12px rgba(46,46,48,0.30);
+      --good: #0ca30c; --good-tint: #dcf1dc;
+      --warn: #d98c12; --warn-tint: #faecd2;
+      --crit: #d03b3b; --crit-tint: #f8dcdc;
+      --sobra: #2a78d6; --sobra-tint: #dce8f8;
+      --na: #9c9995; --na-tint: #ececea;
+    }
+    html, body {
+      min-height: 100%; font-family: 'Oswald', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-weight: 300; background-color: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased;
+      overscroll-behavior-y: none;
+    }
+    h1, h2, h3 { font-family: 'Bebas Neue', sans-serif; font-weight: 400; letter-spacing: .5px; }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 50;
+      background: linear-gradient(180deg, #4C4C4F, #414143 60%, #38383A);
+      padding: 14px 16px; box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 3px 10px rgba(0,0,0,.28);
+    }
+    .topbar h1 { color: #E9E7E5; font-size: 19px; }
+    .topbar p { color: #C9C6C2; font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; margin-top: 1px; }
+
+    .buscar-wrap { padding: 10px 12px 0; }
+    .buscar-wrap input {
+      width: 100%; height: 46px; padding: 0 16px; border: none; border-radius: 14px; font-family: 'Oswald', sans-serif;
+      font-size: 15px; background: var(--surface); color: var(--text); box-shadow: inset 0 0 0 1px var(--border);
+    }
+
+    .container { max-width: 640px; margin: 0 auto; padding: 12px 10px 90px; }
+
+    .cat-block { margin-bottom: 10px; }
+    .cat-head { padding: 10px 8px 6px; display: flex; align-items: center; justify-content: space-between; }
+    .cat-head h2 { font-size: 18px; color: var(--accent); }
+    .cat-head .conteo { font-size: 10.5px; color: var(--text-sec); font-weight: 600; text-transform: uppercase; }
+
+    .item-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 14px;
+      box-shadow: var(--shadow); margin-bottom: 9px; display: flex; align-items: center; gap: 10px;
+    }
+    .item-card .info { flex: 1; min-width: 0; }
+    .item-card .nombre { font-size: 15px; font-weight: 500; color: var(--text); line-height: 1.25; }
+    .item-card .meta { font-size: 10.5px; color: var(--text-sec); margin-top: 3px; }
+    .item-card .estado-txt { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; margin-top: 4px; display: inline-block; }
+    .estado-txt.good { color: var(--good); } .estado-txt.warn { color: var(--warn); }
+    .estado-txt.crit { color: var(--crit); } .estado-txt.sobra { color: var(--sobra); } .estado-txt.na { color: var(--na); }
+
+    .contador { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .btn-pm {
+      width: 46px; height: 46px; border-radius: 14px; border: none; font-size: 22px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; user-select: none;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 2px 0 rgba(0,0,0,.18);
+    }
+    .btn-pm.menos { background: linear-gradient(180deg, #b04d47, #8B3A3A 60%, #7a2f2f); }
+    .btn-pm.mas { background: linear-gradient(180deg, #4a9b4a, #3a8a3a 60%, #2f7a2f); }
+    .btn-pm:active { transform: translateY(1px); filter: brightness(.95); }
+    .btn-pm:disabled { opacity: .4; cursor: default; }
+    .num-actual {
+      min-width: 46px; text-align: center; font-family: 'Oswald', sans-serif; font-size: 19px; font-weight: 700;
+      color: var(--text); transition: transform .12s ease;
+    }
+    .num-actual.pulso { transform: scale(1.25); }
+
+    .empty { text-align: center; color: var(--text-sec); font-size: 13px; padding: 40px 20px; }
+
+    .toast {
+      position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%) translateY(20px); opacity: 0;
+      background: #2c2c2e; color: #fff; padding: 11px 20px; border-radius: 12px; font-size: 12.5px;
+      box-shadow: 0 8px 22px rgba(0,0,0,.3); z-index: 300; pointer-events: none; transition: all .25s ease; text-align: center; max-width: 90%;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.error { background: #8B3A3A; }
+
+    .loader-full { display: none; text-align: center; padding: 60px 20px; color: var(--text-sec); font-size: 13px; }
+    .loader-full.show { display: block; }
+
+    /* Barra inferior fija con el boton para generar el PDF del pedido. */
+    .barra-pedido {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+      padding: 9px 12px calc(9px + env(safe-area-inset-bottom));
+      background: linear-gradient(180deg, rgba(244,244,245,.92), #EAEAEC);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -3px 12px rgba(0,0,0,.10);
+    }
+    .barra-pedido button {
+      width: 100%; height: 50px; border: none; border-radius: 14px; cursor: pointer;
+      background: linear-gradient(180deg, #4C4C4F, #414143 60%, #38383A); color: #E9E7E5;
+      font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 15px; letter-spacing: .3px;
+      display: flex; align-items: center; justify-content: center; gap: 9px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 2px 6px rgba(0,0,0,.22);
+    }
+    .barra-pedido button:active { transform: translateY(1px); filter: brightness(.96); }
+    .barra-pedido button:disabled { opacity: .6; cursor: default; }
+    .barra-pedido svg { width: 19px; height: 19px; fill: none; stroke: #E9E7E5; stroke-width: 2; }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <h1>Conteo de Inventario</h1>
+    <p>Cascadas Hotel &middot; suma o resta lo que veas</p>
+  </div>
+
+  <div class="buscar-wrap">
+    <input type="text" id="buscarItem" placeholder="Buscar producto..." oninput="pintarLista()">
+  </div>
+
+  <div class="container">
+    <div id="loaderFull" class="loader-full">Cargando inventario...</div>
+    <div id="listaMovil"></div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- Barra inferior: generar el PDF de reposicion desde el celular -->
+  <div class="barra-pedido">
+    <button id="btnPedido" onclick="exportarPedidoPDF()">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+      <span id="btnPedidoTxt">Generar pedido (PDF)</span>
+    </button>
+  </div>
+
+  <script>
+    var APP = { inventario: [] };
+
+    window.addEventListener('DOMContentLoaded', function () {
+      cargarInventario();
+    });
+
+    function cargarInventario() {
+      document.getElementById('loaderFull').classList.add('show');
+      google.script.run.withSuccessHandler(function (lista) {
+        document.getElementById('loaderFull').classList.remove('show');
+        APP.inventario = lista || [];
+        pintarLista();
+      }).withFailureHandler(function () {
+        document.getElementById('loaderFull').classList.remove('show');
+        mostrarToast('No se pudo cargar el inventario', 'error');
+      }).obtenerInventario();
+    }
+
+    function estadoItem(cantidad, minimo, ideal) {
+      if (!ideal || ideal <= 0) return { label: 'Sin meta', clase: 'na' };
+      if (cantidad < minimo) return { label: 'Critico', clase: 'crit' };
+      if (cantidad < ideal) return { label: 'Falta stock', clase: 'warn' };
+      if (cantidad <= ideal * 1.15) return { label: 'Bien', clase: 'good' };
+      return { label: 'Sobra', clase: 'sobra' };
+    }
+
+    function pintarLista() {
+      var cont = document.getElementById('listaMovil');
+      var filtro = (document.getElementById('buscarItem').value || '').toLowerCase().trim();
+      var lista = APP.inventario.filter(function (it) {
+        if (!filtro) return true;
+        return (it.producto + ' ' + it.categoria).toLowerCase().indexOf(filtro) !== -1;
+      });
+      if (!lista.length) { cont.innerHTML = '<p class="empty">Sin resultados.</p>'; return; }
+
+      var porCat = {}, ordenCat = [];
+      lista.forEach(function (it) {
+        if (!porCat[it.categoria]) { porCat[it.categoria] = []; ordenCat.push(it.categoria); }
+        porCat[it.categoria].push(it);
+      });
+
+      var html = '';
+      ordenCat.forEach(function (cat) {
+        var items = porCat[cat];
+        html += '<div class="cat-block">';
+        html += '<div class="cat-head"><h2>' + escapeHtml(cat) + '</h2><span class="conteo">' + items.length + ' item' + (items.length === 1 ? '' : 's') + '</span></div>';
+        items.forEach(function (it) {
+          var est = estadoItem(it.cantidad, it.minimo, it.ideal);
+          html += '' +
+            '<div class="item-card" data-id="' + it.id + '">' +
+              '<div class="info">' +
+                '<div class="nombre">' + escapeHtml(it.producto) + '</div>' +
+                '<div class="meta">' + escapeHtml(it.unidad || 'un.') + '</div>' +
+                '<span class="estado-txt ' + est.clase + '">' + est.label + '</span>' +
+              '</div>' +
+              '<div class="contador">' +
+                '<button class="btn-pm menos" onclick="cambiarCantidad(\'' + it.id + '\', -1)">&minus;</button>' +
+                '<span class="num-actual" id="num-' + it.id + '">' + it.cantidad + '</span>' +
+                '<button class="btn-pm mas" onclick="cambiarCantidad(\'' + it.id + '\', 1)">+</button>' +
+              '</div>' +
+            '</div>';
+        });
+        html += '</div>';
+      });
+      cont.innerHTML = html;
+    }
+
+    // Cada tap actualiza el numero al toque (optimista) y queda enabled
+    // siempre; los taps se acumulan y se mandan al servidor juntos tras una
+    // pequena pausa, en vez de bloquear el boton mientras viaja cada request.
+    var PEND = {}; var PEND_TIMERS = {};
+    function cambiarCantidad(id, delta) {
+      var item = APP.inventario.find(function (x) { return x.id === id; });
+      if (!item) return;
+      if (delta < 0 && item.cantidad <= 0) return;
+
+      item.cantidad = Math.max(0, item.cantidad + delta);
+      actualizarNumero(id, item.cantidad);
+
+      PEND[id] = (PEND[id] || 0) + delta;
+      if (PEND_TIMERS[id]) clearTimeout(PEND_TIMERS[id]);
+      // Envio rapido (350ms) para que el PC vea el cambio casi al instante.
+      PEND_TIMERS[id] = setTimeout(function () { enviarPendiente(id); }, 350);
+    }
+
+    function enviarPendiente(id) {
+      var delta = PEND[id];
+      if (!delta) return;
+      PEND[id] = 0;
+      var item = APP.inventario.find(function (x) { return x.id === id; });
+
+      google.script.run.withSuccessHandler(function (res) {
+        if (res && res.success) {
+          if (item) { item.cantidad = res.cantidad; actualizarNumero(id, res.cantidad); }
+        } else {
+          mostrarToast('No se pudo actualizar', 'error');
+        }
+      }).withFailureHandler(function () {
+        mostrarToast('Sin conexion, reintentando...', 'error');
+        PEND[id] = (PEND[id] || 0) + delta;
+        PEND_TIMERS[id] = setTimeout(function () { enviarPendiente(id); }, 1500);
+      }).incrementarCantidad(id, delta);
+    }
+
+    function actualizarNumero(id, valor) {
+      var el = document.getElementById('num-' + id);
+      if (!el) return;
+      el.textContent = valor;
+      el.classList.add('pulso');
+      setTimeout(function () { el.classList.remove('pulso'); }, 140);
+
+      var tarjeta = document.querySelector('.item-card[data-id="' + id + '"]');
+      if (tarjeta) {
+        var item = APP.inventario.find(function (x) { return x.id === id; });
+        var est = estadoItem(item.cantidad, item.minimo, item.ideal);
+        var badge = tarjeta.querySelector('.estado-txt');
+        if (badge) {
+          badge.className = 'estado-txt ' + est.clase;
+          badge.textContent = est.label;
+        }
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function mostrarToast(msg, tipo) {
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'toast show' + (tipo === 'error' ? ' error' : '');
+      setTimeout(function () { t.className = 'toast'; }, 2600);
+    }
+
+    // ---------- PDF de pedido de reposicion (mismo diseno que el escritorio) ----------
+    var LOGO_URL = 'https://lh3.googleusercontent.com/d/1l-GRXICSU6fHGe9uGsnGdZ6M0FKgKevJ';
+    var logoBase64Promise = null;
+
+    function fechaHoy() {
+      var d = new Date();
+      return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+    }
+
+    function obtenerLogoBase64() {
+      if (logoBase64Promise) return logoBase64Promise;
+      logoBase64Promise = new Promise(function (resolve) {
+        try {
+          var img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = function () {
+            try {
+              var canvas = document.createElement('canvas');
+              canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+              canvas.getContext('2d').drawImage(img, 0, 0);
+              resolve(canvas.toDataURL('image/png'));
+            } catch (e) { resolve(null); }
+          };
+          img.onerror = function () { resolve(null); };
+          img.src = LOGO_URL;
+        } catch (e) { resolve(null); }
+      });
+      return logoBase64Promise;
+    }
+
+    function dibujarBannerPDF(doc, pageWidth, linea1, linea2, logoData) {
+      doc.setFillColor(65, 65, 67);
+      doc.rect(0, 0, pageWidth, 25, 'F');
+      if (logoData) { try { doc.addImage(logoData, 'PNG', 10, 4.5, 16, 16); } catch (e) {} }
+      doc.setTextColor(255, 255, 255);
+      doc.setFont(undefined, 'bold'); doc.setFontSize(13);
+      doc.text(linea1, pageWidth / 2, 12, { align: 'center' });
+      doc.setFont(undefined, 'normal'); doc.setFontSize(9);
+      doc.text(linea2, pageWidth / 2, 19, { align: 'center' });
+    }
+
+    function construirPDF(opciones) {
+      var doc = new jspdf.jsPDF('p', 'mm', 'a4');
+      var pageWidth = doc.internal.pageSize.getWidth();
+      var pageHeight = doc.internal.pageSize.getHeight();
+      doc.autoTable({
+        startY: 31,
+        margin: { top: 31, right: 12, bottom: 16, left: 12 },
+        head: [opciones.columnas],
+        body: opciones.filas,
+        theme: 'grid',
+        headStyles: { fillColor: [65, 65, 67], textColor: 255, fontSize: 9 },
+        styles: { fontSize: 8.5, cellPadding: 2.2, overflow: 'linebreak', valign: 'middle' },
+        columnStyles: opciones.columnStyles,
+        didDrawPage: function () {
+          dibujarBannerPDF(doc, pageWidth, opciones.linea1, opciones.linea2, opciones.logoData);
+        }
+      });
+      var totalPaginas = doc.internal.getNumberOfPages();
+      for (var p = 1; p <= totalPaginas; p++) {
+        doc.setPage(p);
+        doc.setFontSize(7.5); doc.setTextColor(150, 150, 150); doc.setFont(undefined, 'normal');
+        doc.text('Cascadas Hotel · Inventario Bar/Restaurant', 12, pageHeight - 8);
+        doc.text('Pagina ' + p + ' de ' + totalPaginas, pageWidth - 12, pageHeight - 8, { align: 'right' });
+      }
+      doc.save(opciones.nombreArchivo);
+    }
+
+    async function exportarPedidoPDF() {
+      if (typeof jspdf === 'undefined') { mostrarToast('No se pudo cargar el generador de PDF', 'error'); return; }
+      if (!APP.inventario.length) { mostrarToast('Primero carga el inventario'); return; }
+      var pendientes = APP.inventario.filter(function (it) { return Math.max(0, (it.ideal || 0) - it.cantidad) > 0; });
+      if (!pendientes.length) { mostrarToast('No hay items por debajo del ideal'); return; }
+
+      var btn = document.getElementById('btnPedido');
+      var txt = document.getElementById('btnPedidoTxt');
+      var etiquetaPrev = txt.textContent;
+      btn.disabled = true; txt.textContent = 'Generando...';
+      try {
+        var logoData = await obtenerLogoBase64();
+        construirPDF({
+          linea1: 'PEDIDO DE REPOSICION',
+          linea2: 'Fecha: ' + fechaHoy(),
+          columnas: ['Tipo', 'Producto', 'Unidad', 'Cantidad actual', 'A pedir'],
+          filas: pendientes.map(function (it) {
+            var aPedir = Math.max(0, (it.ideal || 0) - it.cantidad);
+            return [it.categoria, it.producto, it.unidad || 'un.', it.cantidad, aPedir];
+          }),
+          columnStyles: { 0: { cellWidth: 26 }, 1: { cellWidth: 74 }, 2: { cellWidth: 22 }, 3: { cellWidth: 28 }, 4: { cellWidth: 24 } },
+          nombreArchivo: 'Pedido_Reposicion_' + new Date().toISOString().slice(0, 10) + '.pdf',
+          logoData: logoData
+        });
+      } catch (e) {
+        mostrarToast('No se pudo generar el PDF', 'error');
+      } finally {
+        btn.disabled = false; txt.textContent = etiquetaPrev;
+      }
+    }
+  </script>
+</body>
+</html>

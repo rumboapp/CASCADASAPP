@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detalles Cascadas</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Oswald:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --bg: #ECECEE; --surface: #FFFFFF; --tinta: #3A3A3C; --tinta-suave: #6E6C69;
+      --grafito: #414143; --hueso: #ECECEE; --borde: #CECECF; --input: #F3F3F4;
+      --sombra: inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(0,0,0,.06), 0 10px 24px -12px rgba(46,46,48,.3);
+    }
+    html, body { font-family: 'Oswald', -apple-system, sans-serif; font-weight: 300; background: var(--bg); color: var(--tinta);
+      background-image: radial-gradient(ellipse at 50% -20%, rgba(255,255,255,.6), transparent 55%); min-height: 100%; -webkit-font-smoothing: antialiased; }
+    h1, h2, h3 { font-family: 'Bebas Neue', sans-serif; font-weight: 400; letter-spacing: .5px; }
+
+    .topbar { background: linear-gradient(180deg, #4C4C4F, #414143 60%, #38383A); color: #E9E7E5; padding: 16px 18px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 3px 12px rgba(0,0,0,.28); position: sticky; top: 0; z-index: 40; }
+    .topbar .in { max-width: 960px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+    .topbar h1 { font-size: 24px; line-height: 1; }
+    .topbar p { font-size: 10.5px; color: #C9C6C2; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 2px; }
+    .lang { display: flex; gap: 4px; }
+    .lang button { background: rgba(255,255,255,.1); border: none; color: #E9E7E5; font-family: 'Oswald'; font-weight: 500;
+      font-size: 12px; padding: 6px 12px; border-radius: 9px; cursor: pointer; }
+    .lang button.activo { background: #E9E7E5; color: #38383A; }
+
+    .wrap { max-width: 960px; margin: 0 auto; padding: 20px 16px 60px; }
+    .paso-tit { font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: var(--tinta-suave); font-weight: 600;
+      font-family: 'Oswald'; margin: 6px 0 12px; display: flex; align-items: center; gap: 8px; }
+    .paso-tit .n { background: var(--grafito); color: #fff; width: 20px; height: 20px; border-radius: 50%; display: inline-flex;
+      align-items: center; justify-content: center; font-size: 11px; }
+
+    /* Selector de ocasion */
+    .grid-oc { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .oc {
+      background: var(--surface); border: 1px solid var(--borde); border-radius: 16px; padding: 16px 14px; cursor: pointer;
+      box-shadow: var(--sombra); text-align: left; display: flex; flex-direction: column; gap: 8px; position: relative; transition: transform .15s, box-shadow .2s;
+      border-left: 4px solid var(--acc, #999);
+    }
+    .oc:hover { transform: translateY(-3px); }
+    .oc.sel { outline: 2px solid var(--acc); outline-offset: 1px; }
+    .oc .ic { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 17px; color: #fff; background: var(--acc, #888); box-shadow: inset 0 1px 1px rgba(255,255,255,.3), 0 2px 4px rgba(0,0,0,.2); }
+    .oc .nom { font-weight: 500; font-size: 15px; color: var(--tinta); }
+    .oc .tip { font-size: 10.5px; color: var(--tinta-suave); text-transform: uppercase; letter-spacing: .06em; }
+    .oc .cupon-badge { position: absolute; top: 12px; right: 12px; font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--acc); border: 1px solid var(--acc); border-radius: 6px; padding: 2px 6px; font-weight: 600; }
+
+    /* Formulario */
+    .card { background: var(--surface); border: 1px solid var(--borde); border-radius: 18px; padding: 20px; box-shadow: var(--sombra); margin-top: 10px; }
+    .oculto { display: none !important; }
+    .campo { margin-bottom: 14px; }
+    .campo label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--tinta-suave); font-weight: 600; margin-bottom: 5px; }
+    .campo input, .campo textarea, .campo select {
+      width: 100%; border: none; border-radius: 12px; background: var(--input); box-shadow: inset 0 0 0 1px var(--borde);
+      font-family: 'Oswald'; font-size: 15px; color: var(--tinta); padding: 11px 14px; resize: vertical;
+    }
+    .campo textarea { min-height: 92px; line-height: 1.5; }
+    .fila2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .hint { font-size: 11.5px; color: var(--tinta-suave); margin-top: 4px; }
+    .btn { border: none; border-radius: 13px; cursor: pointer; font-family: 'Oswald'; font-weight: 600; font-size: 15px;
+      padding: 13px 18px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; }
+    .btn-dark { background: linear-gradient(180deg, #4C4C4F, #414143 60%, #38383A); color: #E9E7E5; box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 2px 6px rgba(0,0,0,.22); }
+    .btn-dark:active { transform: translateY(1px); }
+    .btn-ghost { background: var(--surface); color: var(--tinta); box-shadow: inset 0 0 0 1px var(--borde); }
+    .acciones { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+
+    .instr { background: #F1EFEA; border: 1px solid var(--borde); border-radius: 14px; padding: 14px 16px; margin-top: 16px; font-size: 13px; color: var(--tinta-suave); line-height: 1.55; }
+    .instr b { color: var(--tinta); }
+    .instr ol { margin: 8px 0 0 18px; }
+    .instr li { margin-bottom: 3px; }
+
+    .previa-wrap { display: flex; justify-content: center; margin-top: 4px; }
+    .previa { width: 210px; border-radius: 6px; box-shadow: 0 12px 30px -12px rgba(30,26,20,.4); }
+    .previa svg { display: block; width: 100%; height: auto; border-radius: 6px; }
+
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); opacity: 0;
+      background: #2c2c2e; color: #fff; padding: 11px 20px; border-radius: 12px; font-size: 13px; box-shadow: 0 8px 22px rgba(0,0,0,.3);
+      z-index: 300; pointer-events: none; transition: all .25s; text-align: center; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.error { background: #8B3A3A; }
+    @media (max-width: 520px) { .fila2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="in">
+      <div>
+        <h1 data-t="titulo">Detalles Cascadas</h1>
+        <p data-t="subtitulo">Tarjetas de atención · Cascadas Hotel</p>
+      </div>
+      <div class="lang">
+        <button id="langEs" class="activo" onclick="setIdioma('es')">ES</button>
+        <button id="langEn" onclick="setIdioma('en')">EN</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="paso-tit"><span class="n">1</span> <span data-t="paso1">Elige el tipo de tarjeta</span></div>
+    <div class="grid-oc" id="gridOcasiones"></div>
+
+    <div id="panelForm" class="oculto">
+      <div class="paso-tit" style="margin-top:26px"><span class="n">2</span> <span data-t="paso2">Completa los datos</span></div>
+      <div class="card">
+        <div id="camposForm"></div>
+        <div class="campo" id="campoMensaje">
+          <label data-t="lbl_mensaje">Mensaje (editable)</label>
+          <textarea id="inpMensaje" oninput="APP.mensajeTocado=true; refrescarPrevia()"></textarea>
+          <p class="hint" data-t="hint_mensaje">Viene un texto sugerido; puedes cambiarlo como quieras.</p>
+        </div>
+        <div class="acciones">
+          <button class="btn btn-ghost" onclick="volverInicio()"><i class="fa-solid fa-arrow-left"></i> <span data-t="btn_cambiar">Cambiar tipo</span></button>
+          <button class="btn btn-dark" onclick="generarPDF()"><i class="fa-solid fa-file-arrow-down"></i> <span data-t="btn_pdf">Generar tarjeta (PDF)</span></button>
+        </div>
+
+        <div class="instr">
+          <b data-t="instr_tit">Cómo armarla (impecable, sin pegar):</b>
+          <ol>
+            <li data-t="instr_1">Imprime la hoja por <b>una sola cara</b> (tamaño real / 100%).</li>
+            <li data-t="instr_2">Dóblala por la mitad siguiendo la línea horizontal punteada.</li>
+            <li data-t="instr_3">Dóblala otra vez por la línea vertical punteada.</li>
+            <li data-t="instr_4">Queda una tarjeta que se abre y se para sola. Lista.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="paso-tit" style="margin-top:22px"><span class="n">3</span> <span data-t="paso3">Vista previa de la portada</span></div>
+      <div class="previa-wrap"><div class="previa" id="previa"></div></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    var APP = { idioma: 'es', ocasion: null, mensajeTocado: false };
+    var LOGO_URL = 'https://lh3.googleusercontent.com/d/1l-GRXICSU6fHGe9uGsnGdZ6M0FKgKevJ';
+
+    // Paleta base de las tarjetas
+    var PAPEL = [247, 244, 238], INK = [58, 54, 48], INK_SOFT = [124, 118, 108];
+
+    // ---------------------------------------------------------------------
+    //  DEFINICION DE OCASIONES
+    //  Cada una: color de acento, icono UI, campos del formulario, dibujo de
+    //  la portada y del mensaje interior, y el texto sugerido (es/en).
+    //  Placeholders en el mensaje: {n1}{n2}{nombre}{remitente}{destinatario}
+    //  {noches}{inclusiones}
+    // ---------------------------------------------------------------------
+    var T = {
+      aniversario: {
+        acc: [169, 115, 123], icon: 'fa-heart', cupon: false,
+        nombre: { es: 'Aniversario', en: 'Anniversary' },
+        campos: [
+          { key: 'n1', label: { es: 'Nombre 1', en: 'Name 1' }, ph: 'Esteban' },
+          { key: 'n2', label: { es: 'Nombre 2', en: 'Name 2' }, ph: 'Carolina' }
+        ],
+        titulo: { es: ['Feliz', 'Aniversario'], en: ['Happy', 'Anniversary'] },
+        sub: function (d) { return (d.n1 && d.n2) ? d.n1 + ' & ' + d.n2 : (d.n1 || d.n2 || ''); },
+        motivo: function (p, cx, cy, a) { anillos(p, cx, cy, 11, a, 1.6); },
+        mensaje: {
+          es: '{n1} y {n2}:\n\nQue este nuevo aniversario los encuentre tan unidos como hoy. Gracias por celebrarlo con nosotros.\n\nCon cariño,\nel equipo de Cascadas Hotel',
+          en: '{n1} & {n2}:\n\nMay this anniversary find you as close as you are today. Thank you for celebrating it with us.\n\nWarmly,\nthe Cascadas Hotel team'
+        }
+      },
+      cumpleanos: {
+        acc: [192, 145, 61], icon: 'fa-cake-candles', cupon: false,
+        nombre: { es: 'Cumpleaños', en: 'Birthday' },
+        campos: [{ key: 'nombre', label: { es: 'Nombre', en: 'Name' }, ph: 'Camila' }],
+        titulo: { es: ['Feliz', 'Cumpleaños'], en: ['Happy', 'Birthday'] },
+        sub: function (d) { return d.nombre || ''; },
+        motivo: function (p, cx, cy, a) { chispas(p, cx, cy - 6, a); vela(p, cx, cy + 7, a); },
+        mensaje: {
+          es: '{nombre}:\n\n¡Feliz cumpleaños! Que tu día esté lleno de momentos hermosos. Es un honor celebrarlo contigo.\n\nCon cariño,\nel equipo de Cascadas Hotel',
+          en: '{nombre}:\n\nHappy birthday! May your day be full of beautiful moments. It is an honor to celebrate it with you.\n\nWarmly,\nthe Cascadas Hotel team'
+        }
+      },
+      lunademiel: {
+        acc: [192, 132, 102], icon: 'fa-ring', cupon: false,
+        nombre: { es: 'Luna de miel', en: 'Honeymoon' },
+        campos: [
+          { key: 'n1', label: { es: 'Nombre 1', en: 'Name 1' }, ph: '' },
+          { key: 'n2', label: { es: 'Nombre 2', en: 'Name 2' }, ph: '' }
+        ],
+        titulo: { es: ['Luna', 'de Miel'], en: ['Honeymoon'] },
+        sub: function (d) { return (d.n1 && d.n2) ? d.n1 + ' & ' + d.n2 : (APP.idioma === 'en' ? 'Newlyweds' : 'Recién casados'); },
+        motivo: function (p, cx, cy, a) { anillos(p, cx, cy, 10, a, 1.5); corazon(p, cx, cy - 20, 5, a); },
+        mensaje: {
+          es: '{n1} y {n2}:\n\n¡Felicidades por su matrimonio! Que esta luna de miel sea el primero de muchos viajes juntos.\n\nCon cariño,\nCascadas Hotel',
+          en: '{n1} & {n2}:\n\nCongratulations on your wedding! May this honeymoon be the first of many journeys together.\n\nWarmly,\nCascadas Hotel'
+        }
+      },
+      bienvenida: {
+        acc: [156, 122, 60], wordmark: [58, 58, 60], icon: 'fa-mountain-sun', cupon: false,
+        nombre: { es: 'Bienvenida', en: 'Welcome' },
+        campos: [{ key: 'nombre', label: { es: 'Nombre / familia', en: 'Name / family' }, ph: 'Familia Pérez' }],
+        kicker: { es: 'LES DAMOS LA', en: 'WE WELCOME YOU' },
+        titulo: { es: ['Bienvenida'], en: ['Welcome'] },
+        sub: function (d) { return d.nombre || ''; },
+        motivo: function (p, cx, cy, a) { montanas(p, cx, cy, a); },
+        mensaje: {
+          es: '{nombre}:\n\nLes damos la bienvenida a Cascadas Hotel. Es un gusto recibirlos; estamos para hacer de su estadía una experiencia inolvidable.\n\nel equipo de Cascadas Hotel',
+          en: '{nombre}:\n\nWelcome to Cascadas Hotel. It is a pleasure to have you; we are here to make your stay an unforgettable experience.\n\nthe Cascadas Hotel team'
+        }
+      },
+      estadiaregalo: {
+        acc: [122, 59, 59], icon: 'fa-gift', cupon: false,
+        nombre: { es: 'Estadía de regalo', en: 'Gifted stay' },
+        campos: [
+          { key: 'destinatario', label: { es: 'Para (huésped)', en: 'To (guest)' }, ph: '' },
+          { key: 'remitente', label: { es: 'De parte de', en: 'From' }, ph: 'Andrés' }
+        ],
+        kicker: { es: 'UN REGALO PARA TI', en: 'A GIFT FOR YOU' },
+        titulo: { es: ['Estadía', 'de Regalo'], en: ['A Gifted', 'Stay'] },
+        sub: function (d) { return d.remitente ? ((APP.idioma === 'en' ? 'From ' : 'De ') + d.remitente) : ''; },
+        motivo: function (p, cx, cy, a) { mono(p, cx, cy, a); },
+        mensaje: {
+          es: '{destinatario}:\n\nAlguien especial pensó en ti. {remitente} te regala esta estadía en Cascadas Hotel. Disfrútala, es toda tuya.\n\ncon cariño, Cascadas Hotel',
+          en: '{destinatario}:\n\nSomeone special thought of you. {remitente} is gifting you this stay at Cascadas Hotel. Enjoy it, it is all yours.\n\nwarmly, Cascadas Hotel'
+        }
+      },
+      giftcard: {
+        acc: [122, 59, 59], icon: 'fa-ticket', cupon: true,
+        nombre: { es: 'Gift Card · noches', en: 'Gift Card · nights' },
+        campos: [
+          { key: 'noches', label: { es: 'N.º de noches', en: 'Number of nights' }, ph: '3', type: 'number' },
+          { key: 'inclusiones', label: { es: 'Incluye (opcional)', en: 'Includes (optional)' }, ph: 'Tinaja y cena' },
+          { key: 'destinatario', label: { es: 'Para (opcional)', en: 'To (optional)' }, ph: '' },
+          { key: 'remitente', label: { es: 'De parte de (opcional)', en: 'From (optional)' }, ph: '' }
+        ],
+        kicker: { es: 'GIFT CARD', en: 'GIFT CARD' },
+        valor: function (d) { var n = Number(d.noches) || 0; return n + (APP.idioma === 'en' ? (n === 1 ? ' NIGHT' : ' NIGHTS') : (n === 1 ? ' NOCHE' : ' NOCHES')); },
+        valorSub: function (d) { return (d.inclusiones || '').toUpperCase(); },
+        motivo: function (p, cx, cy, a) { mono(p, cx, cy, a); },
+        mensaje: {
+          es: 'Esta Gift Card es válida por {noches} noche(s) de estadía en Cascadas Hotel{inclSuf}.\n\n{paraDe}\n\nSujeta a disponibilidad. Presentar en recepción.',
+          en: 'This Gift Card is valid for {noches} night(s) at Cascadas Hotel{inclSuf}.\n\n{paraDe}\n\nSubject to availability. Present at reception.'
+        }
+      },
+      welcomedrink: {
+        acc: [46, 125, 119], icon: 'fa-champagne-glasses', cupon: true,
+        nombre: { es: 'Welcome Drink', en: 'Welcome Drink' },
+        campos: [
+          { key: 'trago', label: { es: 'Trago (editable)', en: 'Drink (editable)' }, ph: 'Agua, jugo o copa de espumante' }
+        ],
+        kicker: { es: 'CORTESÍA', en: 'COURTESY' },
+        valor: function () { return 'Welcome Drink'; }, valorSize: 13,
+        valorSub: function () { return APP.idioma === 'en' ? '2 GUESTS · 1 DRINK EACH' : '2 PERSONAS · 1 TRAGO C/U'; },
+        motivo: function (p, cx, cy, a) { copa(p, cx, cy, a); },
+        mensaje: {
+          es: 'Cupón canjeable por 1 trago por persona (2 personas): {trago}.\n\nUna cortesía de Cascadas Hotel. Presentar en el bar o restaurant.',
+          en: 'Voucher for 1 drink per person (2 guests): {trago}.\n\nA courtesy of Cascadas Hotel. Present it at the bar or restaurant.'
+        }
+      },
+      disculpas: {
+        acc: [92, 90, 85], icon: 'fa-hand-holding-heart', cupon: false,
+        nombre: { es: 'Con nuestras disculpas', en: 'Our apologies' },
+        campos: [{ key: 'nombre', label: { es: 'Nombre (opcional)', en: 'Name (optional)' }, ph: '' }],
+        kicker: { es: 'CON NUESTRAS', en: 'WITH OUR' },
+        titulo: { es: ['Disculpas'], en: ['Apologies'] },
+        sub: function () { return ''; },
+        motivo: function (p, cx, cy, a) { laurel(p, cx, cy, a); },
+        mensaje: {
+          es: '{saludo}Lamentamos el inconveniente. Queremos compensarlo con este pequeño gesto y esperamos que el resto de su estadía sea impecable.\n\nel equipo de Cascadas Hotel',
+          en: '{saludo}We are sorry for the inconvenience. We would like to make up for it with this small gesture and hope the rest of your stay is impeccable.\n\nthe Cascadas Hotel team'
+        }
+      }
+    };
+    var ORDEN = ['aniversario', 'cumpleanos', 'lunademiel', 'bienvenida', 'estadiaregalo', 'giftcard', 'welcomedrink', 'disculpas'];
+
+    // ---------------------------------------------------------------------
+    //  I18N de interfaz
+    // ---------------------------------------------------------------------
+    var UI = {
+      es: { titulo: 'Detalles Cascadas', subtitulo: 'Tarjetas de atención · Cascadas Hotel', paso1: 'Elige el tipo de tarjeta',
+        paso2: 'Completa los datos', paso3: 'Vista previa de la portada', lbl_mensaje: 'Mensaje (editable)',
+        hint_mensaje: 'Viene un texto sugerido; puedes cambiarlo como quieras.', btn_cambiar: 'Cambiar tipo', btn_pdf: 'Generar tarjeta (PDF)',
+        instr_tit: 'Cómo armarla (impecable, sin pegar):', instr_1: 'Imprime la hoja por <b>una sola cara</b> (tamaño real / 100%).',
+        instr_2: 'Dóblala por la mitad siguiendo la línea horizontal punteada.', instr_3: 'Dóblala otra vez por la línea vertical punteada.',
+        instr_4: 'Queda una tarjeta que se abre y se para sola. Lista.', cupon: 'Cupón', tarjeta: 'Tarjeta' },
+      en: { titulo: 'Detalles Cascadas', subtitulo: 'Guest cards · Cascadas Hotel', paso1: 'Choose the card type',
+        paso2: 'Fill in the details', paso3: 'Cover preview', lbl_mensaje: 'Message (editable)',
+        hint_mensaje: 'A suggested text is prefilled; edit it however you like.', btn_cambiar: 'Change type', btn_pdf: 'Generate card (PDF)',
+        instr_tit: 'How to assemble it (flawless, no glue):', instr_1: 'Print the sheet on <b>one side only</b> (actual size / 100%).',
+        instr_2: 'Fold it in half along the dotted horizontal line.', instr_3: 'Fold it again along the dotted vertical line.',
+        instr_4: 'You get a card that opens and stands on its own. Done.', cupon: 'Voucher', tarjeta: 'Card' }
+    };
+    function t(k) { return (UI[APP.idioma] && UI[APP.idioma][k]) || UI.es[k] || k; }
+
+    function aplicarIdiomaUI() {
+      document.querySelectorAll('[data-t]').forEach(function (el) {
+        var v = t(el.getAttribute('data-t'));
+        if (v.indexOf('<') !== -1) el.innerHTML = v; else el.textContent = v;
+      });
+      document.getElementById('langEs').classList.toggle('activo', APP.idioma === 'es');
+      document.getElementById('langEn').classList.toggle('activo', APP.idioma === 'en');
+    }
+    function setIdioma(idi) {
+      APP.idioma = idi; aplicarIdiomaUI(); pintarOcasiones();
+      if (APP.ocasion) { pintarCampos(); if (!APP.mensajeTocado) resetMensaje(); refrescarPrevia(); }
+    }
+
+    // ---------------------------------------------------------------------
+    //  UI: selector de ocasiones
+    // ---------------------------------------------------------------------
+    function pintarOcasiones() {
+      var cont = document.getElementById('gridOcasiones');
+      cont.innerHTML = ORDEN.map(function (id) {
+        var o = T[id];
+        var acc = 'rgb(' + o.acc.join(',') + ')';
+        return '<div class="oc' + (APP.ocasion === id ? ' sel' : '') + '" style="--acc:' + acc + '" onclick="elegirOcasion(\'' + id + '\')">' +
+          (o.cupon ? '<span class="cupon-badge">' + t('cupon') + '</span>' : '') +
+          '<div class="ic"><i class="fa-solid ' + o.icon + '"></i></div>' +
+          '<div class="nom">' + o.nombre[APP.idioma] + '</div>' +
+          '<div class="tip">' + (o.cupon ? t('cupon') : t('tarjeta')) + '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function elegirOcasion(id) {
+      APP.ocasion = id; APP.mensajeTocado = false;
+      pintarOcasiones();
+      document.getElementById('panelForm').classList.remove('oculto');
+      pintarCampos();
+      resetMensaje();
+      refrescarPrevia();
+      document.getElementById('panelForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    function volverInicio() {
+      APP.ocasion = null; pintarOcasiones();
+      document.getElementById('panelForm').classList.add('oculto');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function pintarCampos() {
+      var o = T[APP.ocasion];
+      var cont = document.getElementById('camposForm');
+      var campos = o.campos || [];
+      // Agrupa de a dos los campos cortos
+      var html = '';
+      for (var i = 0; i < campos.length; i++) {
+        var c = campos[i], c2 = campos[i + 1];
+        var esPar = c2 && !esCampoLargo(c) && !esCampoLargo(c2);
+        function inp(cc) {
+          return '<div class="campo"><label>' + cc.label[APP.idioma] + '</label>' +
+            '<input id="f_' + cc.key + '" type="' + (cc.type || 'text') + '" placeholder="' + (cc.ph || '') + '" oninput="onCampo()"></div>';
+        }
+        if (esPar) { html += '<div class="fila2">' + inp(c) + inp(c2) + '</div>'; i++; }
+        else html += inp(c);
+      }
+      cont.innerHTML = html;
+    }
+    function esCampoLargo(c) { return c.key === 'inclusiones'; }
+
+    function onCampo() {
+      if (!APP.mensajeTocado) resetMensaje();
+      refrescarPrevia();
+    }
+
+    function datosForm() {
+      var o = T[APP.ocasion], d = {};
+      (o.campos || []).forEach(function (c) {
+        var el = document.getElementById('f_' + c.key);
+        d[c.key] = el ? el.value.trim() : '';
+      });
+      return d;
+    }
+
+    // Rellena placeholders del mensaje con manejo de casos vacios/plurales.
+    function construirMensaje(o, d) {
+      var s = o.mensaje[APP.idioma];
+      var incl = (d.inclusiones || '').trim();
+      var inclSuf = incl ? (APP.idioma === 'en' ? ', including ' + incl : ', que incluye ' + incl) : '';
+      var paraDe = '';
+      if (d.destinatario || d.remitente) {
+        var para = d.destinatario ? ((APP.idioma === 'en' ? 'For ' : 'Para ') + d.destinatario) : '';
+        var de = d.remitente ? ((APP.idioma === 'en' ? 'from ' : 'de parte de ') + d.remitente) : '';
+        paraDe = [para, de].filter(Boolean).join(', ') + '.';
+      }
+      var saludo = d.nombre ? (d.nombre + ':\n\n') : '';
+      var trago = d.trago ? d.trago : (APP.idioma === 'en' ? 'water, juice or a glass of sparkling wine' : 'agua, jugo o copa de espumante');
+      return s
+        .replace(/\{n1\}/g, d.n1 || '').replace(/\{n2\}/g, d.n2 || '')
+        .replace(/\{nombre\}/g, d.nombre || '').replace(/\{remitente\}/g, d.remitente || (APP.idioma === 'en' ? 'someone special' : 'alguien especial'))
+        .replace(/\{destinatario\}/g, d.destinatario || '').replace(/\{noches\}/g, d.noches || '—')
+        .replace(/\{inclusiones\}/g, incl).replace(/\{inclSuf\}/g, inclSuf).replace(/\{paraDe\}/g, paraDe)
+        .replace(/\{saludo\}/g, saludo).replace(/\{trago\}/g, trago)
+        .replace(/\n{3,}/g, '\n\n').replace(/^\s+|\s+$/g, '');
+    }
+    function resetMensaje() {
+      var o = T[APP.ocasion];
+      document.getElementById('inpMensaje').value = construirMensaje(o, datosForm());
+    }
+
+    // =====================================================================
+    //  DIBUJO — motivos y tarjeta (via "pen" ligado a una transformacion)
+    //  Todo se dibuja en coordenadas locales de tarjeta 105 x 148.5 (mm).
+    // =====================================================================
+    function penFor(doc, tf, rotated) {
+      function P(x, y) { return tf(x, y); }
+      function seg(pts) { var d = []; for (var i = 1; i < pts.length; i++) d.push([pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]]); return d; }
+      return {
+        line: function (x1, y1, x2, y2, col, w) { doc.setDrawColor(col[0], col[1], col[2]); doc.setLineWidth(w || .4); var a = P(x1, y1), b = P(x2, y2); doc.line(a[0], a[1], b[0], b[1]); },
+        circle: function (cx, cy, r, col, w, fill) { var c = P(cx, cy); if (fill) doc.setFillColor(fill[0], fill[1], fill[2]); if (col) doc.setDrawColor(col[0], col[1], col[2]); doc.setLineWidth(w || .4); doc.circle(c[0], c[1], r, fill && col ? 'FD' : (fill ? 'F' : 'S')); },
+        dot: function (cx, cy, r, col) { var c = P(cx, cy); doc.setFillColor(col[0], col[1], col[2]); doc.circle(c[0], c[1], r, 'F'); },
+        poly: function (localPts, col, w) { doc.setDrawColor(col[0], col[1], col[2]); doc.setLineWidth(w || .4); var pts = localPts.map(function (p) { return P(p[0], p[1]); }); doc.lines(seg(pts), pts[0][0], pts[0][1], [1, 1], 'S', false); },
+        fill: function (localPts, col) { doc.setFillColor(col[0], col[1], col[2]); var pts = localPts.map(function (p) { return P(p[0], p[1]); }); doc.lines(seg(pts), pts[0][0], pts[0][1], [1, 1], 'F', true); },
+        rect: function (x, y, w, h, col, lw, dash) { doc.setDrawColor(col[0], col[1], col[2]); doc.setLineWidth(lw || .4); if (dash && doc.setLineDashPattern) doc.setLineDashPattern(dash, 0); var pts = [[x, y], [x + w, y], [x + w, y + h], [x, y + h], [x, y]].map(function (p) { return P(p[0], p[1]); }); doc.lines(seg(pts), pts[0][0], pts[0][1], [1, 1], 'S', true); if (dash && doc.setLineDashPattern) doc.setLineDashPattern([], 0); },
+        text: function (str, x, y, size, col, opts) {
+          opts = opts || {}; var p = P(x, y);
+          doc.setTextColor(col[0], col[1], col[2]);
+          doc.setFont(opts.font || 'helvetica', opts.style || 'normal');
+          doc.setFontSize(size);
+          var o = { align: opts.align || 'center', baseline: 'alphabetic' };
+          if (opts.charSpace) o.charSpace = opts.charSpace;
+          if (rotated) o.angle = 180;
+          doc.text(str, p[0], p[1], o);
+        }
+      };
+    }
+
+    // ---- Muestrario de motivos (mismos que el mockup, en jsPDF) ----
+    function samplePts(fn, n) { var a = []; for (var i = 0; i <= n; i++) a.push(fn(i / n)); return a; }
+    function anillos(p, cx, cy, r, a, w) {
+      p.circle(cx - r * 0.55, cy, r, a, w); p.circle(cx + r * 0.55, cy, r, a, w);
+    }
+    function corazon(p, cx, cy, s, a) {
+      var pts = [[cx, cy + s * 0.9]];
+      pts = pts.concat(bez(cx, cy + s * 0.9, cx - s * 1.4, cy - s * 0.3, cx - s * 0.6, cy - s * 1.1, cx, cy - s * 0.25));
+      pts = pts.concat(bez(cx, cy - s * 0.25, cx + s * 0.6, cy - s * 1.1, cx + s * 1.4, cy - s * 0.3, cx, cy + s * 0.9));
+      p.fill(pts, a);
+    }
+    function chispas(p, cx, cy, a) {
+      [[0, -16, 2.2], [15, -8, 1.5], [-15, -6, 1.6], [11, 9, 1.3], [-12, 10, 1.4], [0, 15, 1.1]].forEach(function (q) {
+        var x = cx + q[0], y = cy + q[1], r = q[2];
+        p.fill([[x, y - r * 2], [x + r * .5, y - r * .5], [x + r * 2, y], [x + r * .5, y + r * .5], [x, y + r * 2], [x - r * .5, y + r * .5], [x - r * 2, y], [x - r * .5, y - r * .5]], a);
+      });
+    }
+    function vela(p, cx, cy, a) {
+      p.rect(cx - 3, cy - 6, 6, 24, a, 1.6);
+      p.line(cx - 3, cy + 2, cx + 3, cy + 2, a, 1);
+      p.line(cx, cy - 10, cx, cy - 6, a, 1.4);
+      p.fill(bez(cx, cy - 20, cx + 5, cy - 15, cx + 3, cy - 9, cx, cy - 10).concat(bez(cx, cy - 10, cx - 3, cy - 9, cx - 5, cy - 15, cx, cy - 20)), a);
+    }
+    function montanas(p, cx, cy, a) {
+      p.poly([[cx - 26, cy + 14], [cx - 10, cy - 12], [cx + 2, cy + 4], [cx + 12, cy - 18], [cx + 28, cy + 14], [cx - 26, cy + 14]], a, 1.6);
+      [-6, -2, 2].forEach(function (dx, i) { p.line(cx + dx, cy - 4 + i, cx + dx, cy + 13, a, .8); });
+      p.line(cx - 30, cy + 15, cx + 30, cy + 15, a, .8);
+    }
+    function mono(p, cx, cy, a) {
+      p.poly(bez(cx, cy, cx - 20, cy - 12, cx - 20, cy + 12, cx, cy), a, 1.6);
+      p.poly(bez(cx, cy, cx + 20, cy - 12, cx + 20, cy + 12, cx, cy), a, 1.6);
+      p.circle(cx, cy, 2.6, a, 1, a);
+      p.line(cx, cy + 2.5, cx - 6, cy + 16, a, 1.4); p.line(cx, cy + 2.5, cx + 6, cy + 16, a, 1.4);
+    }
+    function copa(p, cx, cy, a) {
+      // Bol de la copa: semielipse (arco superior) que abre hacia arriba.
+      var bol = samplePts(function (t) { var ang = Math.PI + Math.PI * t; return [cx + 12 * Math.cos(ang), cy - 10 - 8 * Math.sin(ang)]; }, 16);
+      p.poly(bol, a, 1.6);
+      p.line(cx, cy - 10, cx, cy + 14, a, 1.6);       // tallo
+      p.line(cx - 9, cy + 16, cx + 9, cy + 16, a, 1.6); // base
+      [[cx, cy - 22, 1.3], [cx + 5, cy - 27, 1], [cx - 4, cy - 28, .8]].forEach(function (b) { p.circle(b[0], b[1], b[2], a, .8); });
+    }
+    function laurel(p, cx, cy, a) {
+      [-1, 1].forEach(function (lado) {
+        var x0 = cx + lado * 2, y0 = cy + 17, cxp = cx + lado * 20, cyp = cy - 2, x1 = cx + lado * 9, y1 = cy - 17;
+        p.poly(bez(x0, y0, cxp, cyp, x1, y1, x1, y1, true), a, 1.1);
+        var N = 6;
+        for (var i = 1; i <= N; i++) {
+          var tt = i / (N + .5), u = 1 - tt;
+          var bx = u * u * x0 + 2 * u * tt * cxp + tt * tt * x1, by = u * u * y0 + 2 * u * tt * cyp + tt * tt * y1;
+          var dx = 2 * u * (cxp - x0) + 2 * tt * (x1 - cxp), dy = 2 * u * (cyp - y0) + 2 * tt * (y1 - cyp);
+          var ang = Math.atan2(dy, dx) + lado * .9, lh = 5.2 * (1 - tt * .3);
+          var ex = bx + Math.cos(ang) * lh, ey = by + Math.sin(ang) * lh;
+          var nx = -Math.sin(ang), ny = Math.cos(ang), wl = lh * .42;
+          p.fill([[bx, by], [bx + Math.cos(ang) * lh * .5 + nx * wl, by + Math.sin(ang) * lh * .5 + ny * wl], [ex, ey], [bx + Math.cos(ang) * lh * .5 - nx * wl, by + Math.sin(ang) * lh * .5 - ny * wl]], a);
+        }
+      });
+    }
+    // Bezier cubica -> array de puntos
+    function bez(x0, y0, c1x, c1y, c2x, c2y, x1, y1, quad) {
+      var pts = [], n = 14;
+      for (var i = 0; i <= n; i++) {
+        var t = i / n, u = 1 - t;
+        if (quad) { pts.push([u * u * x0 + 2 * u * t * c1x + t * t * c2x, u * u * y0 + 2 * u * t * c1y + t * t * c2y]); }
+        else { pts.push([u * u * u * x0 + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t * t * t * x1, u * u * u * y0 + 3 * u * u * t * c1y + 3 * u * t * t * c2y + t * t * t * y1]); }
+      }
+      return pts;
+    }
+
+    // ---- Cara: PORTADA ----
+    var W = 105, H = 148.5; // tarjeta A6
+    function dibujarPortada(p, o, d) {
+      var acc = o.acc, wm = o.wordmark || INK;
+      if (o.cupon) {
+        p.rect(7, 7, W - 14, H - 14, acc, .7, [2.6, 2]);
+        p.circle(7, H / 2, 3, PAPEL, .7, PAPEL); p.circle(7, H / 2, 3, acc, .7);
+        p.circle(W - 7, H / 2, 3, PAPEL, .7, PAPEL); p.circle(W - 7, H / 2, 3, acc, .7);
+      } else {
+        p.rect(7, 7, W - 14, H - 14, acc, .5);
+      }
+      // Wordmark
+      p.text('C A S C A D A S', W / 2, 24, 8, wm, { font: 'helvetica', style: 'bold', charSpace: .6 });
+      p.text('H O T E L', W / 2, 30, 4.6, INK_SOFT, { font: 'helvetica', charSpace: 1.4 });
+      // Motivo
+      if (o.motivo) o.motivo(p, W / 2, o.cupon ? 54 : 62, acc);
+      // Kicker
+      if (o.kicker) p.text(o.kicker[APP.idioma], W / 2, o.cupon ? 86 : 96, 4.2, INK_SOFT, { font: 'helvetica', charSpace: 1.4 });
+      if (o.cupon) {
+        p.text(o.valor(d), W / 2, 104, o.valorSize || 20, acc, { font: 'times', style: 'bold' });
+        var vs = o.valorSub ? o.valorSub(d) : '';
+        if (vs) p.text(vs, W / 2, 113, 4.4, INK_SOFT, { font: 'helvetica', charSpace: 1 });
+      } else {
+        var tit = o.titulo[APP.idioma] || [];
+        var ty = tit.length > 1 ? 106 : 110;
+        tit.forEach(function (l, i) { p.text(l, W / 2, ty + i * 11.5, 15, acc, { font: 'times', style: 'italic' }); });
+        var sub = o.sub ? o.sub(d) : '';
+        if (sub) p.text(sub, W / 2, ty + tit.length * 11.5 + 4, 8.5, INK_SOFT, { font: 'times', style: 'italic' });
+      }
+      // Cierre inferior (solo tarjetas)
+      if (!o.cupon) {
+        p.line(41, 136, 49, 136, acc, .5); p.line(56, 136, 64, 136, acc, .5);
+        p.circle(52.5, 136, 1.4, acc, .5);
+      }
+    }
+
+    // ---- Cara: MENSAJE (interior) ----
+    function dibujarMensaje(p, o, d, mensaje) {
+      p.rect(10, 12, W - 20, H - 24, o.acc, .5);
+      if (o.motivo) o.motivo(p, W / 2, 30, o.acc);
+      var lineas = wrapTexto(mensaje, 30);
+      var y = 52, lh = 6.2;
+      lineas.forEach(function (l) {
+        var esFirma = /Cascadas Hotel|Cascadas$/.test(l) || /^con cari|^warmly|^el equipo|^the Cascadas/i.test(l);
+        p.text(l, W / 2, y, esFirma ? 6.2 : 7, esFirma ? o.acc : INK, { font: 'times', style: esFirma ? 'italic' : 'normal' });
+        y += (l === '' ? lh * 0.6 : lh);
+      });
+    }
+    // Corta el mensaje (con \n propios) en lineas que quepan (~maxch caracteres).
+    function wrapTexto(txt, maxch) {
+      var out = [];
+      String(txt).split('\n').forEach(function (par) {
+        if (par === '') { out.push(''); return; }
+        var pal = par.split(' '), linea = '';
+        pal.forEach(function (w) {
+          if ((linea + ' ' + w).trim().length > maxch) { out.push(linea.trim()); linea = w; }
+          else linea += ' ' + w;
+        });
+        if (linea.trim()) out.push(linea.trim());
+      });
+      return out;
+    }
+
+    // ---- Cara: interior izquierdo / contra (sello discreto) ----
+    function dibujarSello(p, o) {
+      p.rect(12, 12, W - 24, H - 24, o.acc, .4);
+      p.text('C A S C A D A S', W / 2, H / 2 - 4, 7, INK, { font: 'helvetica', style: 'bold', charSpace: .6 });
+      p.text('H O T E L', W / 2, H / 2 + 3, 4.2, INK_SOFT, { font: 'helvetica', charSpace: 1.6 });
+      p.line(W / 2 - 8, H / 2 + 10, W / 2 + 8, H / 2 + 10, o.acc, .4);
+    }
+
+    // =====================================================================
+    //  GENERAR PDF (French fold, una sola cara)
+    //  A4 vertical, 4 cuadrantes de 105 x 148.5:
+    //   BR (abajo-dcha)  -> PORTADA, rotada 180
+    //   TR (arriba-dcha) -> MENSAJE, derecha
+    //   TL (arriba-izq)  -> sello interior, derecha
+    //   BL (abajo-izq)   -> sello / contra, rotada 180
+    //  (imposicion verificada con simulador de doblez)
+    // =====================================================================
+    function generarPDF() {
+      if (typeof jspdf === 'undefined') { toast('No se pudo cargar el generador de PDF', 'error'); return; }
+      var o = T[APP.ocasion], d = datosForm();
+      var mensaje = document.getElementById('inpMensaje').value;
+      var doc = new jspdf.jsPDF('p', 'mm', 'a4');
+
+      // Guias de doblez (tenues) — en los ejes centrales.
+      doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.2);
+      if (doc.setLineDashPattern) doc.setLineDashPattern([1.5, 1.5], 0);
+      doc.line(105, 6, 105, 291); doc.line(8, 148.5, 202, 148.5);
+      if (doc.setLineDashPattern) doc.setLineDashPattern([], 0);
+      doc.setFontSize(6.5); doc.setTextColor(170, 170, 170); doc.setFont('helvetica', 'normal');
+      doc.text(APP.idioma === 'en' ? 'fold' : 'doblar', 4, 148.5, { align: 'left', angle: 90 });
+      doc.text(APP.idioma === 'en' ? 'fold' : 'doblar', 105, 294, { align: 'center' });
+
+      // Transformaciones por cuadrante
+      var tfBR = function (x, y) { return [210 - x, 297 - y]; };       // portada, rotada
+      var tfTR = function (x, y) { return [105 + x, y]; };             // mensaje, derecha
+      var tfTL = function (x, y) { return [x, y]; };                   // interior izq, derecha
+      var tfBL = function (x, y) { return [105 - x, 297 - y]; };       // contra, rotada
+
+      dibujarPortada(penFor(doc, tfBR, true), o, d);
+      dibujarMensaje(penFor(doc, tfTR, false), o, d, mensaje);
+      dibujarSello(penFor(doc, tfTL, false), o);
+      dibujarSello(penFor(doc, tfBL, true), o);
+
+      var nombreArch = 'Detalle_' + o.nombre.es.replace(/[^a-zA-Z0-9]/g, '_') + '_' + new Date().toISOString().slice(0, 10) + '.pdf';
+      doc.save(nombreArch);
+    }
+
+    // ---- Vista previa (SVG de la portada) ----
+    function refrescarPrevia() {
+      var o = T[APP.ocasion]; if (!o) return;
+      var cont = document.getElementById('previa');
+      var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 105 148.5');
+      var d = datosForm();
+      // Reusar el mismo dibujo con un "pen" que escribe SVG
+      var p = penSVG(svg);
+      svg.appendChild(rectSVG(0, 0, 105, 148.5, '#F7F4EE'));
+      dibujarPortada(p, o, d);
+      cont.innerHTML = ''; cont.appendChild(svg);
+    }
+    // "pen" para SVG (misma interfaz que penFor, coordenadas directas)
+    var SVGNS = 'http://www.w3.org/2000/svg';
+    function rgb(c) { return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; }
+    function rectSVG(x, y, w, h, fill) { var e = document.createElementNS(SVGNS, 'rect'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('width', w); e.setAttribute('height', h); e.setAttribute('fill', fill); return e; }
+    function penSVG(svg) {
+      function ptsStr(pts) { return pts.map(function (p) { return p[0].toFixed(2) + ' ' + p[1].toFixed(2); }).join(' L '); }
+      return {
+        line: function (x1, y1, x2, y2, col, w) { var e = document.createElementNS(SVGNS, 'line'); e.setAttribute('x1', x1); e.setAttribute('y1', y1); e.setAttribute('x2', x2); e.setAttribute('y2', y2); e.setAttribute('stroke', rgb(col)); e.setAttribute('stroke-width', w || .4); svg.appendChild(e); },
+        circle: function (cx, cy, r, col, w, fill) { var e = document.createElementNS(SVGNS, 'circle'); e.setAttribute('cx', cx); e.setAttribute('cy', cy); e.setAttribute('r', r); e.setAttribute('fill', fill ? rgb(fill) : 'none'); if (col) { e.setAttribute('stroke', rgb(col)); e.setAttribute('stroke-width', w || .4); } svg.appendChild(e); },
+        dot: function (cx, cy, r, col) { this.circle(cx, cy, r, null, 0, col); },
+        poly: function (pts, col, w) { var e = document.createElementNS(SVGNS, 'path'); e.setAttribute('d', 'M ' + ptsStr(pts)); e.setAttribute('fill', 'none'); e.setAttribute('stroke', rgb(col)); e.setAttribute('stroke-width', w || .4); svg.appendChild(e); },
+        fill: function (pts, col) { var e = document.createElementNS(SVGNS, 'path'); e.setAttribute('d', 'M ' + ptsStr(pts) + ' Z'); e.setAttribute('fill', rgb(col)); svg.appendChild(e); },
+        rect: function (x, y, w, h, col, lw, dash) { var e = document.createElementNS(SVGNS, 'rect'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('width', w); e.setAttribute('height', h); e.setAttribute('fill', 'none'); e.setAttribute('stroke', rgb(col)); e.setAttribute('stroke-width', lw || .4); if (dash) e.setAttribute('stroke-dasharray', dash.join(' ')); svg.appendChild(e); },
+        text: function (str, x, y, size, col, opts) { opts = opts || {}; var e = document.createElementNS(SVGNS, 'text'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('text-anchor', opts.align === 'left' ? 'start' : 'middle'); e.setAttribute('font-size', size); e.setAttribute('fill', rgb(col)); e.setAttribute('font-family', opts.font === 'times' ? 'Cormorant Garamond, Georgia, serif' : 'Oswald, sans-serif'); if (opts.style === 'italic') e.setAttribute('font-style', 'italic'); if (opts.style === 'bold') e.setAttribute('font-weight', '600'); if (opts.charSpace) e.setAttribute('letter-spacing', opts.charSpace); e.textContent = str; svg.appendChild(e); }
+      };
+    }
+
+    function toast(msg, tipo) {
+      var el = document.getElementById('toast'); el.textContent = msg;
+      el.className = 'toast show' + (tipo === 'error' ? ' error' : '');
+      setTimeout(function () { el.className = 'toast'; }, 2600);
+    }
+
+    // Arranque
+    aplicarIdiomaUI();
+    pintarOcasiones();
+  </script>
+</body>
+</html>

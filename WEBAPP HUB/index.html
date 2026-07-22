@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Cascadas Hotel — Sistema Integrado</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Tipografías Cascadas -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    /* ===== PALETA CASCADAS (grafito · gris neutro · blanco) ===== */
+    :root {
+      --bg: #F4F4F5;
+      --surface: #FFFFFF;
+      --text: #3A3A3C;
+      --text-sec: #6E6C69;
+      --accent: #414143;
+      --border: #C9C6C2;
+      --shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(0,0,0,0.06), 0 10px 24px -14px rgba(46,46,48,0.30);
+      --shadow-hover: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(0,0,0,0.08), 0 18px 36px -14px rgba(46,46,48,0.42);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Oswald', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-weight: 300;
+      background-color: var(--bg);
+      background-image:
+        radial-gradient(ellipse at 50% -20%, rgba(255,255,255,.7), transparent 55%),
+        repeating-linear-gradient(0deg, rgba(65,65,67,.02) 0 1px, transparent 1px 4px),
+        repeating-linear-gradient(90deg, rgba(65,65,67,.02) 0 1px, transparent 1px 4px);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      position: relative;
+    }
+    .page::before {
+      content: '';
+      position: fixed;
+      top: -10%; right: -10%;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(65,65,67,0.04) 0%, transparent 70%);
+      border-radius: 50%; pointer-events: none; z-index: 0;
+    }
+    .page::after {
+      content: '';
+      position: fixed;
+      bottom: -15%; left: -10%;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(65,65,67,0.03) 0%, transparent 70%);
+      border-radius: 50%; pointer-events: none; z-index: 0;
+    }
+
+    .container {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 680px; text-align: center;
+    }
+
+    .brand {
+      margin-bottom: 40px;
+      animation: fadeInDown 0.6s ease both;
+    }
+    .brand-logo {
+      width: 88px; height: 88px; object-fit: contain;
+      border-radius: 24px; display: inline-block; margin-bottom: 20px;
+      background:
+        repeating-linear-gradient(90deg, rgba(255,255,255,.03) 0 1px, transparent 1px 3px),
+        linear-gradient(160deg, #525255, #414143 55%, #353537);
+      padding: 10px; border: 1px solid #2A2A2C;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 12px 28px -10px rgba(46,46,48,0.55);
+    }
+    .brand h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 40px; font-weight: 400; letter-spacing: 1.5px;
+      color: var(--text); line-height: 1.05;
+      text-shadow: 0 1px 0 rgba(255,255,255,.6);
+    }
+    .brand p {
+      font-size: 14px; color: var(--text-sec); margin-top: 8px;
+      font-weight: 400; text-transform: uppercase; letter-spacing: 1.5px;
+    }
+
+    /* ===== CUADRÍCULA 2 × 2 ===== */
+    .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    .card {
+      display: flex; flex-direction: column; align-items: flex-start; gap: 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 18px; padding: 24px 20px;
+      text-align: left; text-decoration: none; color: inherit; cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: var(--shadow); position: relative; overflow: hidden;
+      animation: fadeInUp 0.6s ease both; min-height: 100%;
+    }
+    .card:nth-child(1) { animation-delay: 0.08s; }
+    .card:nth-child(2) { animation-delay: 0.16s; }
+    .card:nth-child(3) { animation-delay: 0.24s; }
+    .card:nth-child(4) { animation-delay: 0.32s; }
+    .card:nth-child(5) { animation-delay: 0.40s; }
+    .card.card-wide { grid-column: 1 / -1; }
+
+    .card::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+      width: 4px; background: transparent; transition: background 0.25s;
+    }
+    .card:hover::before { background: var(--accent); }
+    .card:hover {
+      transform: translateY(-4px); box-shadow: var(--shadow-hover); border-color: #B7B4AF;
+    }
+    .card:active { transform: translateY(-1px) scale(0.995); }
+
+    /* Medallón metálico grafito */
+    .card-icon {
+      width: 54px; height: 54px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0; color: #E9E7E5;
+      background: radial-gradient(circle at 32% 26%, #6B6B6F, #414143 62%, #313133);
+      box-shadow: 0 2px 5px rgba(0,0,0,.35), inset 0 1px 1px rgba(255,255,255,.28), inset 0 -2px 4px rgba(0,0,0,.4);
+      text-shadow: 0 -1px 0 rgba(0,0,0,.5);
+      transition: transform 0.3s ease;
+    }
+    .card:hover .card-icon { transform: scale(1.08); }
+
+    .card-body h2 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 18px; font-weight: 600; color: var(--text);
+      margin-bottom: 5px; letter-spacing: 0.2px;
+    }
+    .card-body span {
+      font-size: 12.5px; color: var(--text-sec); line-height: 1.45; display: block; font-weight: 300;
+    }
+
+    /* Flecha en la esquina superior derecha */
+    .card-arrow {
+      position: absolute; top: 20px; right: 18px;
+      color: #B7B4AF; font-size: 15px; transition: all 0.25s;
+    }
+    .card:hover .card-arrow { color: var(--accent); transform: translateX(3px); }
+
+    .footer {
+      margin-top: 36px; font-size: 12px; color: #A8A5A0; font-weight: 500;
+      text-transform: uppercase; letter-spacing: 1px;
+      animation: fadeIn 0.8s ease both; animation-delay: 0.5s;
+    }
+
+    @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    @media (min-width: 640px) {
+      .brand h1 { font-size: 52px; }
+      .brand-logo { width: 100px; height: 100px; }
+      .card { padding: 30px 26px; }
+      .card-body h2 { font-size: 20px; }
+      .card-icon { width: 60px; height: 60px; font-size: 25px; }
+    }
+  </style>
+<base target="_blank">
+</head>
+<body>
+  <div class="page">
+    <div class="container">
+
+      <div class="brand">
+        <img src="https://lh3.googleusercontent.com/d/1l-GRXICSU6fHGe9uGsnGdZ6M0FKgKevJ" alt="Cascadas Hotel" class="brand-logo" onerror="this.style.display='none';document.getElementById('fallback-icon').style.display='inline-flex';">
+        <div id="fallback-icon" class="brand-logo" style="display:none;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;color:#E9E7E5;font-size:44px;letter-spacing:1px;">C</div>
+        <h1>Cascadas Hotel</h1>
+        <p>Sistema de gestión integral</p>
+      </div>
+
+      <div class="cards">
+        <!-- Cotizador -->
+        <a class="card" href="https://script.google.com/macros/s/AKfycbxuEbZ4MHZj3jT_f0QTlepN0MBSeU9zfW3ymoDEaAPbjMiALzTvLiAb76XF3cbMIyX00w/exec" target="_blank">
+          <div class="card-icon">
+            <i class="fa-solid fa-file-invoice-dollar"></i>
+          </div>
+          <div class="card-body">
+            <h2>Generar Cotizaciones</h2>
+            <span>Crea cotizaciones en PDF o Word con tarifas, programas especiales, amenities y editor de plantilla.</span>
+          </div>
+          <div class="card-arrow">
+            <i class="fa-solid fa-chevron-right"></i>
+          </div>
+        </a>
+
+        <!-- Registro Huéspedes -->
+        <a class="card" href="https://script.google.com/macros/s/AKfycbwK95js0d9uj29MvD5qT0VsAZr0DLgvFl18GCKnEaFM5RezYBrj-zaG5Fyp7gLRKzmX/exec" target="_blank">
+          <div class="card-icon">
+            <i class="fa-solid fa-bed"></i>
+          </div>
+          <div class="card-body">
+            <h2>Base de Datos</h2>
+            <span>Alimenta nuestra base de datos de huéspedes con Check-in, tarifas, motivos de estadía, medios de reserva y genera reportes con gráficos.</span>
+          </div>
+          <div class="card-arrow">
+            <i class="fa-solid fa-chevron-right"></i>
+          </div>
+        </a>
+
+        <!-- Housekeeping -->
+        <a class="card" href="https://script.google.com/macros/s/AKfycbzMDBljwz4RMEasxC7c1gcaZq-4XMedKYTMEBN7QN0XRLLDbT0_N1BuSsZpSbTkudKi/exec" target="_blank">
+          <div class="card-icon">
+            <i class="fa-solid fa-broom"></i>
+          </div>
+          <div class="card-body">
+            <h2>Housekeeping</h2>
+            <span>Comunicación en tiempo real entre housekeeping y recepción. Estado de aseo de habitaciones.</span>
+          </div>
+          <div class="card-arrow">
+            <i class="fa-solid fa-chevron-right"></i>
+          </div>
+        </a>
+
+        <!-- Concierge -->
+        <a class="card" href="https://script.google.com/macros/s/AKfycbwlO3PSoCgahzjKaTtAKIy7lFGhG_OYXRn_85abyLNj9pju1nUsAxiOLanw9I5rUpKo/exec" target="_blank">
+          <div class="card-icon">
+            <i class="fa-solid fa-bell-concierge"></i>
+          </div>
+          <div class="card-body">
+            <h2>Concierge</h2>
+            <span>Gestión de solicitudes, experiencias y atención personalizada de los huéspedes.</span>
+          </div>
+          <div class="card-arrow">
+            <i class="fa-solid fa-chevron-right"></i>
+          </div>
+        </a>
+
+        <!-- Encuesta de Satisfacción -->
+        <!-- IMPORTANTE: reemplaza el href de abajo por la URL /exec?panel=1 de tu
+             implementación real de WEBAPP ENCUESTA una vez que la publiques. -->
+        <a class="card" href="https://script.google.com/macros/s/PEGA_AQUI_TU_ID_DE_ENCUESTA/exec?panel=1" target="_blank">
+          <div class="card-icon">
+            <i class="fa-solid fa-star-half-stroke"></i>
+          </div>
+          <div class="card-body">
+            <h2>Encuestas</h2>
+            <span>Mide la satisfacción de tus huéspedes: genera el link de la encuesta y revisa informes con gráficos y estadísticas.</span>
+          </div>
+          <div class="card-arrow">
+            <i class="fa-solid fa-chevron-right"></i>
+          </div>
+        </a>
+
+        <!-- Cocina y Restaurant -->
+        <a class="card" href="https://script.google.com/macros/s/AKfycbxqSOtZAeNCOM3PPm3snqnc2KeIaZwMXIXlNRb6HJ8m7JGktua9XnTA6PrmDEy8sg7YWQ/exec" target="_blank">
+          <div class="card-icon">
+            <i class="fa-solid fa-kitchen-set"></i>
+          </div>
+          <div class="card-body">
+            <h2>Cocina y Restaurant</h2>
+            <span>Inventario de bar con conteo por celular, y Sugerencia del Chef para generar el PDF del menu especial.</span>
+          </div>
+          <div class="card-arrow">
+            <i class="fa-solid fa-chevron-right"></i>
+          </div>
+        </a>
+
+        <!-- Detalles Cascadas -->
+        <!-- IMPORTANTE: reemplaza el href de abajo por la URL /exec de tu
+             implementacion real de WEBAPP DETALLES una vez que la publiques. -->
+        <a class="card" href="PEGA_AQUI_TU_ID_DE_DETALLES" target="_blank">
+          <div class="card-icon">
+            <i class="fa-solid fa-gift"></i>
+          </div>
+          <div class="card-body">
+            <h2>Detalles Cascadas</h2>
+            <span>Genera tarjetas de atencion (aniversario, cumpleanos, bienvenida...) y cupones canjeables en PDF, listas para imprimir y doblar.</span>
+          </div>
+          <div class="card-arrow">
+            <i class="fa-solid fa-chevron-right"></i>
+          </div>
+        </a>
+      </div>
+
+      <div class="footer">Cascadas Hotel</div>
+
+    </div>
+  </div>
+</body>
+</html>
