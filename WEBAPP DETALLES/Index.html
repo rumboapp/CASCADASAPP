@@ -78,8 +78,10 @@
     .instr li { margin-bottom: 3px; }
 
     .previa-wrap { display: flex; justify-content: center; margin-top: 4px; }
-    .previa { width: 210px; border-radius: 6px; box-shadow: 0 12px 30px -12px rgba(30,26,20,.4); }
+    .previa { width: 250px; border-radius: 6px; box-shadow: 0 12px 30px -12px rgba(30,26,20,.4); }
     .previa svg { display: block; width: 100%; height: auto; border-radius: 6px; }
+    .previa-cap { text-align: center; font-size: 11.5px; color: var(--tinta-suave); text-transform: uppercase; letter-spacing: .06em; margin-top: 16px; margin-bottom: 6px; }
+    .previa-reverso { width: 250px; aspect-ratio: 210/148.5; border-radius: 6px; box-shadow: 0 12px 30px -12px rgba(30,26,20,.4); }
 
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); opacity: 0;
       background: #2c2c2e; color: #fff; padding: 11px 20px; border-radius: 12px; font-size: 13px; box-shadow: 0 8px 22px rgba(0,0,0,.3);
@@ -125,16 +127,22 @@
         <div class="instr">
           <b data-t="instr_tit">Cómo armarla (impecable, sin pegar):</b>
           <ol>
-            <li data-t="instr_1">Imprime la hoja por <b>una sola cara</b> (tamaño real / 100%).</li>
-            <li data-t="instr_2">Dóblala por la mitad siguiendo la línea horizontal punteada.</li>
-            <li data-t="instr_3">Dóblala otra vez por la línea vertical punteada.</li>
-            <li data-t="instr_4">Queda una tarjeta que se abre y se para sola. Lista.</li>
+            <li data-t="instr_1">El PDF tiene <b>2 páginas</b>: página 1 = interior (el mensaje), página 2 = reverso (color sólido).</li>
+            <li data-t="instr_2">Imprime a <b>doble cara</b> (o imprime la página 1, da vuelta esa misma hoja e imprime la página 2 del otro lado — no importa de qué lado la voltees, el reverso es un color parejo).</li>
+            <li data-t="instr_3">Dobla la hoja exactamente por la mitad (junta el borde de arriba con el de abajo) y marca el pliegue.</li>
+            <li data-t="instr_4">Lista: por fuera queda el grafito sólido, por dentro el mensaje.</li>
           </ol>
         </div>
       </div>
 
-      <div class="paso-tit" style="margin-top:22px"><span class="n">3</span> <span data-t="paso3">Vista previa de la portada</span></div>
-      <div class="previa-wrap"><div class="previa" id="previa"></div></div>
+      <div class="paso-tit" style="margin-top:22px"><span class="n">3</span> <span data-t="paso3">Vista previa</span></div>
+      <div class="previa-wrap">
+        <div class="previa" id="previa"></div>
+      </div>
+      <p class="previa-cap" data-t="previa_reverso">Reverso (color sólido, a sangre completa)</p>
+      <div class="previa-wrap">
+        <div class="previa-reverso" id="previaReverso"></div>
+      </div>
     </div>
   </div>
 
@@ -146,6 +154,9 @@
 
     // Paleta base de las tarjetas
     var PAPEL = [247, 244, 238], INK = [58, 54, 48], INK_SOFT = [124, 118, 108];
+    var GRAFITO = [65, 65, 67]; // reverso solido: mismo grafito de marca del resto de las apps
+    // Mezcla dos colores RGB (f=1 -> todo c1, f=0 -> todo c2). Para tintes de fondo.
+    function mezclar(c1, c2, f) { return [0, 1, 2].map(function (i) { return Math.round(c1[i] * f + c2[i] * (1 - f)); }); }
 
     // ---------------------------------------------------------------------
     //  DEFINICION DE OCASIONES
@@ -280,17 +291,21 @@
     // ---------------------------------------------------------------------
     var UI = {
       es: { titulo: 'Detalles Cascadas', subtitulo: 'Tarjetas de atención · Cascadas Hotel', paso1: 'Elige el tipo de tarjeta',
-        paso2: 'Completa los datos', paso3: 'Vista previa de la portada', lbl_mensaje: 'Mensaje (editable)',
+        paso2: 'Completa los datos', paso3: 'Vista previa', lbl_mensaje: 'Mensaje (editable)',
         hint_mensaje: 'Viene un texto sugerido; puedes cambiarlo como quieras.', btn_cambiar: 'Cambiar tipo', btn_pdf: 'Generar tarjeta (PDF)',
-        instr_tit: 'Cómo armarla (impecable, sin pegar):', instr_1: 'Imprime la hoja por <b>una sola cara</b> (tamaño real / 100%).',
-        instr_2: 'Dóblala por la mitad siguiendo la línea horizontal punteada.', instr_3: 'Dóblala otra vez por la línea vertical punteada.',
-        instr_4: 'Queda una tarjeta que se abre y se para sola. Lista.', cupon: 'Cupón', tarjeta: 'Tarjeta' },
+        instr_tit: 'Cómo armarla (impecable, sin pegar):', instr_1: 'El PDF tiene <b>2 páginas</b>: página 1 = interior (el mensaje), página 2 = reverso (color sólido).',
+        instr_2: 'Imprime a <b>doble cara</b> (o imprime la página 1, da vuelta esa misma hoja e imprime la página 2 del otro lado — no importa de qué lado la voltees, el reverso es un color parejo).',
+        instr_3: 'Dobla la hoja exactamente por la mitad (junta el borde de arriba con el de abajo) y marca el pliegue.',
+        instr_4: 'Lista: por fuera queda el grafito sólido, por dentro el mensaje.', cupon: 'Cupón', tarjeta: 'Tarjeta',
+        previa_reverso: 'Reverso (color sólido, a sangre completa)' },
       en: { titulo: 'Detalles Cascadas', subtitulo: 'Guest cards · Cascadas Hotel', paso1: 'Choose the card type',
-        paso2: 'Fill in the details', paso3: 'Cover preview', lbl_mensaje: 'Message (editable)',
+        paso2: 'Fill in the details', paso3: 'Preview', lbl_mensaje: 'Message (editable)',
         hint_mensaje: 'A suggested text is prefilled; edit it however you like.', btn_cambiar: 'Change type', btn_pdf: 'Generate card (PDF)',
-        instr_tit: 'How to assemble it (flawless, no glue):', instr_1: 'Print the sheet on <b>one side only</b> (actual size / 100%).',
-        instr_2: 'Fold it in half along the dotted horizontal line.', instr_3: 'Fold it again along the dotted vertical line.',
-        instr_4: 'You get a card that opens and stands on its own. Done.', cupon: 'Voucher', tarjeta: 'Card' }
+        instr_tit: 'How to assemble it (flawless, no glue):', instr_1: 'The PDF has <b>2 pages</b>: page 1 = interior (the message), page 2 = back (solid color).',
+        instr_2: 'Print <b>double-sided</b> (or print page 1, flip that same sheet over and print page 2 on the back — it does not matter which way you flip it, the back is a uniform color).',
+        instr_3: 'Fold the sheet exactly in half (bring the top edge to meet the bottom edge) and crease it.',
+        instr_4: 'Done: the outside is solid graphite, the inside has the message.', cupon: 'Voucher', tarjeta: 'Card',
+        previa_reverso: 'Back (solid color, full bleed)' }
     };
     function t(k) { return (UI[APP.idioma] && UI[APP.idioma][k]) || UI.es[k] || k; }
 
@@ -413,6 +428,7 @@
         poly: function (localPts, col, w) { doc.setDrawColor(col[0], col[1], col[2]); doc.setLineWidth(w || .4); var pts = localPts.map(function (p) { return P(p[0], p[1]); }); doc.lines(seg(pts), pts[0][0], pts[0][1], [1, 1], 'S', false); },
         fill: function (localPts, col) { doc.setFillColor(col[0], col[1], col[2]); var pts = localPts.map(function (p) { return P(p[0], p[1]); }); doc.lines(seg(pts), pts[0][0], pts[0][1], [1, 1], 'F', true); },
         rect: function (x, y, w, h, col, lw, dash) { doc.setDrawColor(col[0], col[1], col[2]); doc.setLineWidth(lw || .4); if (dash && doc.setLineDashPattern) doc.setLineDashPattern(dash, 0); var pts = [[x, y], [x + w, y], [x + w, y + h], [x, y + h], [x, y]].map(function (p) { return P(p[0], p[1]); }); doc.lines(seg(pts), pts[0][0], pts[0][1], [1, 1], 'S', true); if (dash && doc.setLineDashPattern) doc.setLineDashPattern([], 0); },
+        bg: function (x, y, w, h, col) { doc.setFillColor(col[0], col[1], col[2]); var a = P(x, y), b = P(x + w, y + h); doc.rect(Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]), 'F'); },
         text: function (str, x, y, size, col, opts) {
           opts = opts || {}; var p = P(x, y);
           doc.setTextColor(col[0], col[1], col[2]);
@@ -495,54 +511,6 @@
       return pts;
     }
 
-    // ---- Cara: PORTADA ----
-    var W = 105, H = 148.5; // tarjeta A6
-    function dibujarPortada(p, o, d) {
-      var acc = o.acc, wm = o.wordmark || INK;
-      if (o.cupon) {
-        p.rect(7, 7, W - 14, H - 14, acc, .7, [2.6, 2]);
-        p.circle(7, H / 2, 3, PAPEL, .7, PAPEL); p.circle(7, H / 2, 3, acc, .7);
-        p.circle(W - 7, H / 2, 3, PAPEL, .7, PAPEL); p.circle(W - 7, H / 2, 3, acc, .7);
-      } else {
-        p.rect(7, 7, W - 14, H - 14, acc, .5);
-      }
-      // Wordmark
-      p.text('C A S C A D A S', W / 2, 24, 8, wm, { font: 'helvetica', style: 'bold', charSpace: .6 });
-      p.text('H O T E L', W / 2, 30, 4.6, INK_SOFT, { font: 'helvetica', charSpace: 1.4 });
-      // Motivo
-      if (o.motivo) o.motivo(p, W / 2, o.cupon ? 54 : 62, acc);
-      // Kicker
-      if (o.kicker) p.text(o.kicker[APP.idioma], W / 2, o.cupon ? 86 : 96, 4.2, INK_SOFT, { font: 'helvetica', charSpace: 1.4 });
-      if (o.cupon) {
-        p.text(o.valor(d), W / 2, 104, o.valorSize || 20, acc, { font: 'times', style: 'bold' });
-        var vs = o.valorSub ? o.valorSub(d) : '';
-        if (vs) p.text(vs, W / 2, 113, 4.4, INK_SOFT, { font: 'helvetica', charSpace: 1 });
-      } else {
-        var tit = o.titulo[APP.idioma] || [];
-        var ty = tit.length > 1 ? 106 : 110;
-        tit.forEach(function (l, i) { p.text(l, W / 2, ty + i * 11.5, 15, acc, { font: 'times', style: 'italic' }); });
-        var sub = o.sub ? o.sub(d) : '';
-        if (sub) p.text(sub, W / 2, ty + tit.length * 11.5 + 4, 8.5, INK_SOFT, { font: 'times', style: 'italic' });
-      }
-      // Cierre inferior (solo tarjetas)
-      if (!o.cupon) {
-        p.line(41, 136, 49, 136, acc, .5); p.line(56, 136, 64, 136, acc, .5);
-        p.circle(52.5, 136, 1.4, acc, .5);
-      }
-    }
-
-    // ---- Cara: MENSAJE (interior) ----
-    function dibujarMensaje(p, o, d, mensaje) {
-      p.rect(10, 12, W - 20, H - 24, o.acc, .5);
-      if (o.motivo) o.motivo(p, W / 2, 30, o.acc);
-      var lineas = wrapTexto(mensaje, 30);
-      var y = 52, lh = 6.2;
-      lineas.forEach(function (l) {
-        var esFirma = /Cascadas Hotel|Cascadas$/.test(l) || /^con cari|^warmly|^el equipo|^the Cascadas/i.test(l);
-        p.text(l, W / 2, y, esFirma ? 6.2 : 7, esFirma ? o.acc : INK, { font: 'times', style: esFirma ? 'italic' : 'normal' });
-        y += (l === '' ? lh * 0.6 : lh);
-      });
-    }
     // Corta el mensaje (con \n propios) en lineas que quepan (~maxch caracteres).
     function wrapTexto(txt, maxch) {
       var out = [];
@@ -558,65 +526,105 @@
       return out;
     }
 
-    // ---- Cara: interior izquierdo / contra (sello discreto) ----
-    function dibujarSello(p, o) {
-      p.rect(12, 12, W - 24, H - 24, o.acc, .4);
-      p.text('C A S C A D A S', W / 2, H / 2 - 4, 7, INK, { font: 'helvetica', style: 'bold', charSpace: .6 });
-      p.text('H O T E L', W / 2, H / 2 + 3, 4.2, INK_SOFT, { font: 'helvetica', charSpace: 1.6 });
-      p.line(W / 2 - 8, H / 2 + 10, W / 2 + 8, H / 2 + 10, o.acc, .4);
+    // =====================================================================
+    //  DISEÑO DE UNA SOLA HOJA A4, IMPRESA A DOBLE CARA, CON UN SOLO DOBLEZ
+    //  Pagina 1 ("interior"): todo el mensaje y motivo, en una sola pieza de
+    //    arte que ocupa la hoja completa (210x297), evitando la franja del
+    //    pliegue (y=148.5) para que ningun texto quede justo en la marca.
+    //  Pagina 2 ("reverso"): color grafito solido, a sangre completa (sin
+    //    margenes blancos). Al doblar la hoja por la mitad, este reverso
+    //    queda por FUERA de la tarjeta cerrada (ambas tapas) y, al ser un
+    //    color parejo, no importa si el registro de la impresora a doble
+    //    cara no es perfecto: no se nota ningun desalineado.
+    // =====================================================================
+    function dibujarInterior(p, o, d, mensaje) {
+      var acc = o.acc, wm = o.wordmark || INK;
+      var fondo = mezclar(acc, PAPEL, 0.15); // tinte de color en toda la hoja (no blanco plano)
+      p.bg(0, 0, 210, 297, fondo);
+
+      // Marco: doble filete (o punteado + muescas si es cupon canjeable).
+      if (o.cupon) {
+        p.rect(13, 13, 210 - 26, 297 - 26, acc, .9, [3, 2.3]);
+        p.rect(17, 17, 210 - 34, 297 - 34, acc, .35);
+      } else {
+        p.rect(13, 13, 210 - 26, 297 - 26, acc, .9);
+        p.rect(16.5, 16.5, 210 - 33, 297 - 33, mezclar(acc, INK, .3), .35);
+      }
+
+      // ---- Zona superior (panel 1 del pliegue: 0 a 148.5mm) ----
+      p.text('C A S C A D A S', 105, 34, 11, wm, { font: 'helvetica', style: 'bold', charSpace: .8 });
+      p.text('H O T E L', 105, 41.5, 5.4, INK_SOFT, { font: 'helvetica', charSpace: 1.8 });
+
+      var cyMotivo = 74;
+      p.circle(105, cyMotivo, 23, null, 0, mezclar(acc, fondo, .18)); // halo de color detras del motivo
+      if (o.motivo) o.motivo(p, 105, cyMotivo, acc);
+
+      if (o.kicker) p.text(o.kicker[APP.idioma], 105, 104, 5, INK_SOFT, { font: 'helvetica', charSpace: 1.8 });
+
+      if (o.cupon) {
+        p.text(o.valor(d), 105, 122, (o.valorSize || 20) * 1.35, acc, { font: 'times', style: 'bold' });
+        var vs = o.valorSub ? o.valorSub(d) : '';
+        if (vs) p.text(vs, 105, 133, 5.6, INK_SOFT, { font: 'helvetica', charSpace: 1.3 });
+      } else {
+        var tit = o.titulo[APP.idioma] || [];
+        var ty = tit.length > 1 ? 110 : 118;
+        tit.forEach(function (l, i) { p.text(l, 105, ty + i * 14, 21, acc, { font: 'times', style: 'italic' }); });
+        var sub = o.sub ? o.sub(d) : '';
+        if (sub) p.text(sub, 105, ty + tit.length * 14 + 7, 10.5, INK_SOFT, { font: 'times', style: 'italic' });
+      }
+
+      // ---- Divisor central (marca el inicio del mensaje, lejos del pliegue) ----
+      var yDiv = 170;
+      p.line(78, yDiv, 96, yDiv, acc, .6);
+      p.line(114, yDiv, 132, yDiv, acc, .6);
+      p.circle(105, yDiv, 2.1, acc, .7, fondo);
+
+      // ---- Zona inferior (panel 2 del pliegue: 148.5 a 297mm): el mensaje ----
+      var lineas = wrapTexto(mensaje, 50);
+      var y = yDiv + 16, lh = 8.4;
+      lineas.forEach(function (l) {
+        var esFirma = /Cascadas Hotel|Cascadas$/.test(l) || /^con cari|^warmly|^el equipo|^the Cascadas/i.test(l);
+        p.text(l, 105, y, esFirma ? 9.5 : 10.5, esFirma ? acc : INK, { font: 'times', style: esFirma ? 'italic' : 'normal' });
+        y += (l === '' ? lh * 0.55 : lh);
+      });
     }
 
-    // =====================================================================
-    //  GENERAR PDF (French fold, una sola cara)
-    //  A4 vertical, 4 cuadrantes de 105 x 148.5:
-    //   BR (abajo-dcha)  -> PORTADA, rotada 180
-    //   TR (arriba-dcha) -> MENSAJE, derecha
-    //   TL (arriba-izq)  -> sello interior, derecha
-    //   BL (abajo-izq)   -> sello / contra, rotada 180
-    //  (imposicion verificada con simulador de doblez)
-    // =====================================================================
     function generarPDF() {
       if (typeof jspdf === 'undefined') { toast('No se pudo cargar el generador de PDF', 'error'); return; }
       var o = T[APP.ocasion], d = datosForm();
       var mensaje = document.getElementById('inpMensaje').value;
       var doc = new jspdf.jsPDF('p', 'mm', 'a4');
 
-      // Guias de doblez (tenues) — en los ejes centrales.
-      doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.2);
-      if (doc.setLineDashPattern) doc.setLineDashPattern([1.5, 1.5], 0);
-      doc.line(105, 6, 105, 291); doc.line(8, 148.5, 202, 148.5);
-      if (doc.setLineDashPattern) doc.setLineDashPattern([], 0);
-      doc.setFontSize(6.5); doc.setTextColor(170, 170, 170); doc.setFont('helvetica', 'normal');
-      doc.text(APP.idioma === 'en' ? 'fold' : 'doblar', 4, 148.5, { align: 'left', angle: 90 });
-      doc.text(APP.idioma === 'en' ? 'fold' : 'doblar', 105, 294, { align: 'center' });
+      // Pagina 1: el interior (todo el diseño, en una sola hoja).
+      var identidad = function (x, y) { return [x, y]; };
+      dibujarInterior(penFor(doc, identidad, false), o, d, mensaje);
 
-      // Transformaciones por cuadrante
-      var tfBR = function (x, y) { return [210 - x, 297 - y]; };       // portada, rotada
-      var tfTR = function (x, y) { return [105 + x, y]; };             // mensaje, derecha
-      var tfTL = function (x, y) { return [x, y]; };                   // interior izq, derecha
-      var tfBL = function (x, y) { return [105 - x, 297 - y]; };       // contra, rotada
-
-      dibujarPortada(penFor(doc, tfBR, true), o, d);
-      dibujarMensaje(penFor(doc, tfTR, false), o, d, mensaje);
-      dibujarSello(penFor(doc, tfTL, false), o);
-      dibujarSello(penFor(doc, tfBL, true), o);
+      // Pagina 2: el reverso, solo color solido a sangre completa. Nada
+      // mas — asi no importa de que lado se de vuelta la hoja al imprimir
+      // a doble cara, siempre se ve igual.
+      doc.addPage();
+      doc.setFillColor(GRAFITO[0], GRAFITO[1], GRAFITO[2]);
+      doc.rect(0, 0, 210, 297, 'F');
 
       var nombreArch = 'Detalle_' + o.nombre.es.replace(/[^a-zA-Z0-9]/g, '_') + '_' + new Date().toISOString().slice(0, 10) + '.pdf';
       doc.save(nombreArch);
     }
 
-    // ---- Vista previa (SVG de la portada) ----
+    // ---- Vista previa (SVG del interior completo + swatch del reverso) ----
     function refrescarPrevia() {
       var o = T[APP.ocasion]; if (!o) return;
+      var d = datosForm();
+      var mensaje = document.getElementById('inpMensaje').value;
+
       var cont = document.getElementById('previa');
       var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('viewBox', '0 0 105 148.5');
-      var d = datosForm();
-      // Reusar el mismo dibujo con un "pen" que escribe SVG
+      svg.setAttribute('viewBox', '0 0 210 297');
       var p = penSVG(svg);
-      svg.appendChild(rectSVG(0, 0, 105, 148.5, '#F7F4EE'));
-      dibujarPortada(p, o, d);
+      dibujarInterior(p, o, d, mensaje);
       cont.innerHTML = ''; cont.appendChild(svg);
+
+      var rev = document.getElementById('previaReverso');
+      rev.style.background = rgb(GRAFITO);
     }
     // "pen" para SVG (misma interfaz que penFor, coordenadas directas)
     var SVGNS = 'http://www.w3.org/2000/svg';
@@ -631,6 +639,7 @@
         poly: function (pts, col, w) { var e = document.createElementNS(SVGNS, 'path'); e.setAttribute('d', 'M ' + ptsStr(pts)); e.setAttribute('fill', 'none'); e.setAttribute('stroke', rgb(col)); e.setAttribute('stroke-width', w || .4); svg.appendChild(e); },
         fill: function (pts, col) { var e = document.createElementNS(SVGNS, 'path'); e.setAttribute('d', 'M ' + ptsStr(pts) + ' Z'); e.setAttribute('fill', rgb(col)); svg.appendChild(e); },
         rect: function (x, y, w, h, col, lw, dash) { var e = document.createElementNS(SVGNS, 'rect'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('width', w); e.setAttribute('height', h); e.setAttribute('fill', 'none'); e.setAttribute('stroke', rgb(col)); e.setAttribute('stroke-width', lw || .4); if (dash) e.setAttribute('stroke-dasharray', dash.join(' ')); svg.appendChild(e); },
+        bg: function (x, y, w, h, col) { svg.appendChild(rectSVG(x, y, w, h, rgb(col))); },
         text: function (str, x, y, size, col, opts) { opts = opts || {}; var e = document.createElementNS(SVGNS, 'text'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('text-anchor', opts.align === 'left' ? 'start' : 'middle'); e.setAttribute('font-size', size); e.setAttribute('fill', rgb(col)); e.setAttribute('font-family', opts.font === 'times' ? 'Cormorant Garamond, Georgia, serif' : 'Oswald, sans-serif'); if (opts.style === 'italic') e.setAttribute('font-style', 'italic'); if (opts.style === 'bold') e.setAttribute('font-weight', '600'); if (opts.charSpace) e.setAttribute('letter-spacing', opts.charSpace); e.textContent = str; svg.appendChild(e); }
       };
     }
