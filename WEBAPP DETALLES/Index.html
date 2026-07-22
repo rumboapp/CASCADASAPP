@@ -88,6 +88,12 @@
     .previa-cap { text-align: center; font-size: 11.5px; color: var(--tinta-suave); text-transform: uppercase; letter-spacing: .06em; margin-top: 16px; margin-bottom: 6px; }
     .previa-reverso { width: 250px; aspect-ratio: 210/148.5; border-radius: 6px; box-shadow: 0 12px 30px -12px rgba(30,26,20,.4); }
 
+    .tabla-gc { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    .tabla-gc th, .tabla-gc td { text-align: left; padding: 9px 12px; white-space: nowrap; }
+    .tabla-gc th { color: var(--tinta-suave); text-transform: uppercase; font-size: 11px; letter-spacing: .04em; border-bottom: 2px solid var(--borde); }
+    .tabla-gc td { border-bottom: 1px solid var(--borde); }
+    .tabla-gc tbody tr:last-child td { border-bottom: none; }
+
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); opacity: 0;
       background: #2c2c2e; color: #fff; padding: 11px 20px; border-radius: 12px; font-size: 13px; box-shadow: 0 8px 22px rgba(0,0,0,.3);
       z-index: 300; pointer-events: none; transition: all .25s; text-align: center; }
@@ -141,6 +147,11 @@
         <div class="previa-wrap">
           <div class="previa-reverso" id="previaReverso"></div>
         </div>
+      </div>
+
+      <div id="giftcardsSection" class="oculto">
+        <div class="paso-tit" style="margin-top:22px"><i class="fa-solid fa-clock-rotate-left"></i> <span data-t="gc_historial">Gift Cards emitidas</span></div>
+        <div class="card" id="giftcardsLista"></div>
       </div>
     </div>
   </div>
@@ -316,6 +327,7 @@
         nombre: { es: 'Gift Card · noches', en: 'Gift Card · nights' },
         campos: [
           { key: 'noches', label: { es: 'N.º de noches', en: 'Number of nights' }, ph: '3', type: 'number', chips: ['1', '2', '3', '5', '7'] },
+          { key: 'vigencia', label: { es: 'Vigencia (meses)', en: 'Validity (months)' }, ph: '12', type: 'number', chips: ['3', '6', '12', '24'] },
           { key: 'inclusiones', label: { es: 'Incluye (opcional)', en: 'Includes (optional)' }, ph: 'Tinaja y cena', chipsMulti: true,
             chips: { es: ['Tinaja', 'Cena', 'Desayuno', 'Masaje', 'Traslado'], en: ['Hot tub', 'Dinner', 'Breakfast', 'Massage', 'Transfer'] } },
           { key: 'destinatario', label: { es: 'Para (opcional)', en: 'To (optional)' }, ph: '' },
@@ -325,13 +337,23 @@
         valor: function (d) { var n = Number(d.noches) || 0; return n + (APP.idioma === 'en' ? (n === 1 ? ' NIGHT' : ' NIGHTS') : (n === 1 ? ' NOCHE' : ' NOCHES')); },
         valorSub: function (d) { return (d.inclusiones || '').toUpperCase(); },
         motivo: function (p, cx, cy, a) { mono(p, cx, cy, a); },
+        // Mensaje calido (editable): la parte "de regalo". Los datos duros
+        // (noches, vigencia, condicion de disponibilidad) van aparte, en la
+        // letra chica fija de abajo, para que SIEMPRE queden aunque el
+        // usuario edite o borre este texto.
         mensaje: {
-          es: 'Esta Gift Card es válida por {noches} noche(s) de estadía en Cascadas Hotel{inclSuf}.\n\n{paraDe}\n\nEsta cortesía tiene una vigencia de 12 meses desde la fecha de emisión y está sujeta a disponibilidad. Debe presentarse (impresa o digital) al momento de realizar el check-in.\n\nAgradecemos profundamente la preferencia y esperamos que cada detalle de la estadía sea memorable.',
-          en: 'This Gift Card is valid for {noches} night(s) at Cascadas Hotel{inclSuf}.\n\n{paraDe}\n\nThis courtesy is valid for 12 months from the date of issue and is subject to availability. It must be presented (printed or digital) at check-in.\n\nWe deeply appreciate your trust and hope every detail of the stay is memorable.'
+          es: 'Esta Gift Card es un regalo especial de Cascadas Hotel, pensado para que puedas disfrutar de una estadía inolvidable{inclSuf}.\n\n{paraDe}\n\nAgradecemos profundamente la preferencia y esperamos que cada detalle de la estadía sea memorable.',
+          en: 'This Gift Card is a special gift from Cascadas Hotel, meant for you to enjoy an unforgettable stay{inclSuf}.\n\n{paraDe}\n\nWe deeply appreciate your trust and hope every detail of the stay is memorable.'
+        },
+        // Letra chica fija (NO editable): siempre se imprime, con las
+        // condiciones reales de la cortesia.
+        letraChica: {
+          es: 'Válida por {noches} noche(s) de estadía en Cascadas Hotel{inclSuf}. Vigencia de {vigencia} mes(es) desde la fecha de emisión. Esta Gift Card está sujeta a disponibilidad y no garantiza disponibilidad en la fecha específica solicitada. Debe presentarse (impresa o digital) al momento de realizar el check-in.',
+          en: 'Valid for {noches} night(s) at Cascadas Hotel{inclSuf}. Valid for {vigencia} month(s) from the date of issue. This Gift Card is subject to availability and does not guarantee availability on the specific date requested. It must be presented (printed or digital) at check-in.'
         }
       },
       welcomedrink: {
-        acc: [46, 125, 119], icon: 'fa-champagne-glasses', cupon: true,
+        acc: [149, 120, 64], icon: 'fa-champagne-glasses', cupon: true,
         nombre: { es: 'Welcome Drink', en: 'Welcome Drink' },
         campos: [
           { key: 'trago', label: { es: 'Trago (editable)', en: 'Drink (editable)' }, ph: 'Agua, jugo o copa de espumante',
@@ -366,7 +388,8 @@
         instr_c2: 'No lleva doblez: es una tarjeta plana. Solo recorta por las líneas punteadas entre cada cupón.',
         instr_g1: 'El PDF es <b>1 sola hoja tamaño carta</b>, apaisada, lista para imprimir y entregar tal cual.',
         instr_g2: 'No lleva corte ni doblez.',
-        cupon: 'Cupón', tarjeta: 'Tarjeta', giftcardtag: 'Gift Card', previa_reverso: 'Reverso (color sólido, a sangre completa)' },
+        cupon: 'Cupón', tarjeta: 'Tarjeta', giftcardtag: 'Gift Card', previa_reverso: 'Reverso (color sólido, a sangre completa)',
+        gc_historial: 'Gift Cards emitidas' },
       en: { titulo: 'Detalles Cascadas', subtitulo: 'Guest cards · Cascadas Hotel', paso1: 'Choose the card type',
         paso2: 'Fill in the details', paso3: 'Preview', lbl_mensaje: 'Message (editable)',
         hint_mensaje: 'A suggested text is prefilled; edit it however you like.', btn_cambiar: 'Change type', btn_pdf: 'Generate PDF',
@@ -379,7 +402,8 @@
         instr_c2: "There's no folding: it's a flat card. Just cut along the dashed lines between each voucher.",
         instr_g1: 'The PDF is <b>1 single letter-size sheet</b>, landscape, ready to print and hand over as is.',
         instr_g2: 'No cutting or folding needed.',
-        cupon: 'Voucher', tarjeta: 'Card', giftcardtag: 'Gift Card', previa_reverso: 'Back (solid color, full bleed)' }
+        cupon: 'Voucher', tarjeta: 'Card', giftcardtag: 'Gift Card', previa_reverso: 'Back (solid color, full bleed)',
+        gc_historial: 'Issued Gift Cards' }
     };
     function t(k) { return (UI[APP.idioma] && UI[APP.idioma][k]) || UI.es[k] || k; }
 
@@ -433,6 +457,9 @@
       resetMensaje();
       refrescarPrevia();
       actualizarInstrucciones();
+      var seccionGC = document.getElementById('giftcardsSection');
+      if (T[id].full) { seccionGC.classList.remove('oculto'); cargarGiftCardsEmitidas(); }
+      else seccionGC.classList.add('oculto');
       document.getElementById('panelForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     function volverInicio() {
@@ -513,9 +540,8 @@
       return d;
     }
 
-    // Rellena placeholders del mensaje con manejo de casos vacios/plurales.
-    function construirMensaje(o, d) {
-      var s = o.mensaje[APP.idioma];
+    // Rellena los placeholders de una plantilla con manejo de casos vacios/plurales.
+    function rellenarPlantilla(s, d) {
       var incl = (d.inclusiones || '').trim();
       var inclSuf = incl ? (APP.idioma === 'en' ? ', including ' + incl : ', que incluye ' + incl) : '';
       var paraDe = '';
@@ -530,9 +556,16 @@
         .replace(/\{n1\}/g, d.n1 || '').replace(/\{n2\}/g, d.n2 || '')
         .replace(/\{nombre\}/g, d.nombre || '').replace(/\{remitente\}/g, d.remitente || (APP.idioma === 'en' ? 'someone special' : 'alguien especial'))
         .replace(/\{destinatario\}/g, d.destinatario || '').replace(/\{noches\}/g, d.noches || '—')
+        .replace(/\{vigencia\}/g, d.vigencia || '12')
         .replace(/\{inclusiones\}/g, incl).replace(/\{inclSuf\}/g, inclSuf).replace(/\{paraDe\}/g, paraDe)
         .replace(/\{saludo\}/g, saludo).replace(/\{trago\}/g, trago)
         .replace(/\n{3,}/g, '\n\n').replace(/^\s+|\s+$/g, '');
+    }
+    function construirMensaje(o, d) { return rellenarPlantilla(o.mensaje[APP.idioma], d); }
+    // Letra chica FIJA (Gift Card): no es editable, para que las condiciones
+    // reales de la cortesia (vigencia, disponibilidad) siempre queden impresas.
+    function construirLetraChica(o, d) {
+      return o.letraChica ? rellenarPlantilla(o.letraChica[APP.idioma], d) : '';
     }
     function resetMensaje() {
       var o = T[APP.ocasion];
@@ -845,7 +878,7 @@
       p.rect(12, 12, W - 24, H - 24, acc, 1);
       p.rect(15, 15, W - 30, H - 30, mezclar(acc, GRAFITO, .45), .35);
       patronRombos(p, 26, W - 26, 24, acc, 15);
-      patronRombos(p, 26, W - 26, H - 30, acc, 15);
+      patronRombos(p, 26, W - 26, H - 27, acc, 15);
 
       dibujarMarca(p, W / 2, 36, 17, CREMA, mezclar(acc, CREMA, .5), 90);
 
@@ -859,11 +892,24 @@
       p.circle(W / 2, 98, 1.9, acc, .6, GRAFITO);
 
       var lineas = wrapTexto(mensaje, 88);
-      var y = 110, lh = 7.3;
+      var y = 108, lh = 7;
       lineas.forEach(function (l) {
         p.text(l, W / 2, y, 10, CREMA, { font: 'times', style: 'normal' });
         y += (l === '' ? lh * 0.45 : lh);
       });
+
+      // Letra chica FIJA con las condiciones reales (vigencia, disponibilidad):
+      // posicion fija (no depende de cuan largo sea el mensaje editable de
+      // arriba), para que nunca choque con el resto del diseno.
+      var chica = construirLetraChica(o, d);
+      if (chica) {
+        var lineasChica = wrapTexto(chica, 118);
+        var yChica = 170, lhChica = 4.6;
+        lineasChica.slice(0, 3).forEach(function (l) {
+          p.text(l, W / 2, yChica, 6, mezclar(acc, CREMA, .18), { font: 'helvetica', style: 'italic' });
+          yChica += lhChica;
+        });
+      }
 
       // Pie: codigo unico a la izquierda, fecha de emision a la derecha.
       var hoy = new Date();
@@ -885,6 +931,7 @@
       if (o.full) {
         doc = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
         construirHojaGiftCard(doc, o, d, mensaje);
+        guardarGiftCardEmitida(d, mensaje);
       } else if (o.cupon) {
         doc = new jspdf.jsPDF('p', 'mm', 'a4');
         construirHojaCupones(doc, o, d, mensaje);
@@ -893,6 +940,55 @@
         construirHojaTarjeta(doc, o, d, mensaje);
       }
       doc.save(nombreDeArchivo(o));
+    }
+
+    // Guarda la Gift Card recien generada en la planilla (si la app corre
+    // como Web App de Apps Script; si se abre como archivo local para
+    // pruebas, "google" no existe y esto simplemente no hace nada).
+    function guardarGiftCardEmitida(d, mensaje) {
+      if (typeof google === 'undefined' || !google.script || !google.script.run) return;
+      google.script.run
+        .withFailureHandler(function () { /* silencioso: no bloquear la descarga del PDF por esto */ })
+        .withSuccessHandler(function () { if (APP.ocasion === 'giftcard') cargarGiftCardsEmitidas(); })
+        .guardarGiftCard({
+          codigo: codigoGiftCard(), noches: d.noches, vigencia: d.vigencia,
+          inclusiones: d.inclusiones, destinatario: d.destinatario, remitente: d.remitente,
+          idioma: APP.idioma, mensaje: mensaje
+        });
+      APP.codigoGift = null; // la proxima Gift Card que se genere tendra su propio codigo
+    }
+
+    // ---- Listado de Gift Cards ya emitidas (solo visible en la ocasion Gift Card) ----
+    function cargarGiftCardsEmitidas() {
+      var cont = document.getElementById('giftcardsLista');
+      if (!cont) return;
+      if (typeof google === 'undefined' || !google.script || !google.script.run) {
+        cont.innerHTML = '<p class="hint">' + (APP.idioma === 'en'
+          ? 'Issued Gift Cards list is only available once this app runs as a deployed Web App.'
+          : 'El listado de Gift Cards emitidas solo está disponible cuando la app corre como Web App.') + '</p>';
+        return;
+      }
+      cont.innerHTML = '<p class="hint">' + (APP.idioma === 'en' ? 'Loading…' : 'Cargando…') + '</p>';
+      google.script.run
+        .withFailureHandler(function (err) { cont.innerHTML = '<p class="hint">' + (APP.idioma === 'en' ? 'Could not load the list.' : 'No se pudo cargar el listado.') + '</p>'; })
+        .withSuccessHandler(function (filas) { pintarGiftCardsEmitidas(filas || []); })
+        .listarGiftCards(30);
+    }
+    function pintarGiftCardsEmitidas(filas) {
+      var cont = document.getElementById('giftcardsLista');
+      if (!cont) return;
+      if (!filas.length) { cont.innerHTML = '<p class="hint">' + (APP.idioma === 'en' ? 'No Gift Cards issued yet.' : 'Todavía no se ha emitido ninguna Gift Card.') + '</p>'; return; }
+      var cab = APP.idioma === 'en'
+        ? ['Code', 'Issued', 'Nights', 'Validity', 'To', 'From']
+        : ['Código', 'Emitida', 'Noches', 'Vigencia', 'Para', 'De'];
+      var html = '<div style="overflow-x:auto"><table class="tabla-gc"><thead><tr>' +
+        cab.map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr></thead><tbody>' +
+        filas.map(function (f) {
+          return '<tr><td>' + (f.Codigo || '') + '</td><td>' + (f.FechaEmision || '') + '</td><td>' + (f.Noches || '') +
+            '</td><td>' + (f.VigenciaMeses || '') + (f.VigenciaMeses ? (APP.idioma === 'en' ? ' mo.' : ' m.') : '') +
+            '</td><td>' + (f.Para || '') + '</td><td>' + (f.De || '') + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+      cont.innerHTML = html;
     }
 
     // ---- Vista previa ----
