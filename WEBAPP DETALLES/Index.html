@@ -331,16 +331,18 @@
       },
       eventoespecial: {
         acc: [92, 102, 140], icon: 'fa-star', cupon: false, tituloCampo: true,
+        oscuro: true, usarLogoComoMotivo: true,
         nombre: { es: 'Evento especial', en: 'Special event' },
         // Plantilla en blanco para armar la tarjeta de cualquier evento
         // (corporativo, grupo, celebracion puntual): el titulo tambien es
-        // un campo libre, no uno fijo por ocasion.
+        // un campo libre, no uno fijo por ocasion. A pedido: interior
+        // grafito con letras/lineas blancas y el logo del hotel (grande)
+        // en vez de un icono generico.
         campos: [
           { key: 'titulo', label: { es: 'Título de la tarjeta', en: 'Card title' }, ph: 'Bienvenida Corporativa' },
           { key: 'nombre', label: { es: 'Nombre / Habitación (opcional)', en: 'Name / Room (optional)' }, ph: 'Habitación 204' }
         ],
         sub: function (d) { return d.nombre || ''; },
-        motivo: function (p, cx, cy, a) { chispas(p, cx, cy, a); },
         mensaje: {
           es: '{saludo}Sea muy bienvenido a Cascadas Hotel. Esperamos que disfrute cada momento de esta experiencia.\n\nCon cariño,\nel equipo de Cascadas Hotel',
           en: '{saludo}Welcome to Cascadas Hotel. We hope you enjoy every moment of this experience.\n\nWarmly,\nthe Cascadas Hotel team'
@@ -740,45 +742,55 @@
     // Pagina izquierda (portada): motivo con halo, titulo y nombre grande.
     // El logo del hotel ya NO va aqui (paso al reverso grafito, a pedido).
     function dibujarPagPortada(p, o, d) {
-      var acc = o.acc;
-      var fondo = mezclar(acc, PAPEL, 0.16);
+      var acc = o.acc, oscuro = !!o.oscuro;
+      var fondo = oscuro ? GRAFITO : mezclar(acc, PAPEL, 0.16);
+      var linea = oscuro ? CREMA : acc;
+      var textoFuerte = oscuro ? CREMA : acc;
+      var textoSuave = oscuro ? mezclar(CREMA, GRAFITO, .55) : INK_SOFT;
       p.bg(0, 0, CARD_W, CARD_H, fondo);
-      patronPuntos(p, 9, 9, CARD_W - 9, CARD_H - 9, mezclar(acc, fondo, .3), 8.5);
-      p.rect(7, 7, CARD_W - 14, CARD_H - 14, acc, .8);
-      p.rect(9.5, 9.5, CARD_W - 19, CARD_H - 19, mezclar(acc, INK, .3), .3);
-      patronRombos(p, 15, CARD_W - 15, 13.5, acc, 8);
-      patronRombos(p, 15, CARD_W - 15, CARD_H - 13.5, acc, 8);
+      patronPuntos(p, 9, 9, CARD_W - 9, CARD_H - 9, mezclar(linea, fondo, .3), 8.5);
+      p.rect(7, 7, CARD_W - 14, CARD_H - 14, linea, .8);
+      p.rect(9.5, 9.5, CARD_W - 19, CARD_H - 19, mezclar(linea, fondo, .55), .3);
+      patronRombos(p, 15, CARD_W - 15, 13.5, linea, 8);
+      patronRombos(p, 15, CARD_W - 15, CARD_H - 13.5, linea, 8);
 
       var cyMotivo = 46;
-      p.circle(CARD_W / 2, cyMotivo, 24, null, 0, mezclar(acc, fondo, .22));
-      if (o.motivo) o.motivo(p, CARD_W / 2, cyMotivo, acc);
+      if (o.usarLogoComoMotivo) {
+        dibujarMarca(p, CARD_W / 2, cyMotivo, 42, textoFuerte, textoSuave, 88);
+      } else {
+        p.circle(CARD_W / 2, cyMotivo, 24, null, 0, mezclar(linea, fondo, .22));
+        if (o.motivo) o.motivo(p, CARD_W / 2, cyMotivo, linea);
+      }
 
-      if (o.kicker) p.text(o.kicker[APP.idioma], CARD_W / 2, 82, 4.6, INK_SOFT, { font: 'helvetica', charSpace: 1.6 });
+      if (o.kicker) p.text(o.kicker[APP.idioma], CARD_W / 2, 82, 4.6, textoSuave, { font: 'helvetica', charSpace: 1.6 });
 
       // "Evento especial" tiene el titulo libre (lo escribe quien arma la
       // tarjeta), en vez de un titulo fijo por idioma.
       var tit = o.tituloCampo ? wrapTexto(d.titulo || (APP.idioma === 'en' ? 'Special Event' : 'Evento Especial'), 15) : (o.titulo[APP.idioma] || []);
       var ty = (o.kicker ? 96 : 90) - (tit.length > 1 ? 4 : 0);
-      tit.forEach(function (l, i) { p.text(l, CARD_W / 2, ty + i * 12.5, 18, acc, { font: 'times', style: 'italic' }); });
+      tit.forEach(function (l, i) { p.text(l, CARD_W / 2, ty + i * 12.5, 18, textoFuerte, { font: 'times', style: 'italic' }); });
       var sub = o.sub ? o.sub(d) : '';
-      if (sub) p.text(sub, CARD_W / 2, ty + (tit.length - 1) * 12.5 + 13, 13.5, INK_SOFT, { font: 'times', style: 'italic' });
+      if (sub) p.text(sub, CARD_W / 2, ty + (tit.length - 1) * 12.5 + 13, 13.5, textoSuave, { font: 'times', style: 'italic' });
     }
 
     // Pagina derecha (mensaje): encabezado ornamental + texto completo + firma.
     function dibujarPagMensaje(p, o, d, mensaje) {
-      var acc = o.acc;
-      var fondo = mezclar(acc, PAPEL, 0.16);
+      var acc = o.acc, oscuro = !!o.oscuro;
+      var fondo = oscuro ? GRAFITO : mezclar(acc, PAPEL, 0.16);
+      var linea = oscuro ? CREMA : acc;
+      var textoFuerte = oscuro ? CREMA : acc;
+      var textoBase = oscuro ? CREMA : INK;
       p.bg(0, 0, CARD_W, CARD_H, fondo);
-      patronPuntos(p, 9, 9, CARD_W - 9, CARD_H - 9, mezclar(acc, fondo, .3), 8.5);
-      p.rect(7, 7, CARD_W - 14, CARD_H - 14, acc, .8);
-      p.rect(9.5, 9.5, CARD_W - 19, CARD_H - 19, mezclar(acc, INK, .3), .3);
-      patronRombos(p, 15, CARD_W - 15, 13.5, acc, 8);
-      patronRombos(p, 15, CARD_W - 15, CARD_H - 13.5, acc, 8);
+      patronPuntos(p, 9, 9, CARD_W - 9, CARD_H - 9, mezclar(linea, fondo, .3), 8.5);
+      p.rect(7, 7, CARD_W - 14, CARD_H - 14, linea, .8);
+      p.rect(9.5, 9.5, CARD_W - 19, CARD_H - 19, mezclar(linea, fondo, .55), .3);
+      patronRombos(p, 15, CARD_W - 15, 13.5, linea, 8);
+      patronRombos(p, 15, CARD_W - 15, CARD_H - 13.5, linea, 8);
 
       var yEnc = 24;
-      p.line(CARD_W / 2 - 16, yEnc, CARD_W / 2 - 4, yEnc, acc, .6);
-      p.line(CARD_W / 2 + 4, yEnc, CARD_W / 2 + 16, yEnc, acc, .6);
-      p.circle(CARD_W / 2, yEnc, 1.7, acc, .6, fondo);
+      p.line(CARD_W / 2 - 16, yEnc, CARD_W / 2 - 4, yEnc, linea, .6);
+      p.line(CARD_W / 2 + 4, yEnc, CARD_W / 2 + 16, yEnc, linea, .6);
+      p.circle(CARD_W / 2, yEnc, 1.7, linea, .6, fondo);
 
       var lineas = wrapTexto(mensaje, 33);
       var y = yEnc + 10, lh = 6;
@@ -786,7 +798,7 @@
         // Solo la despedida final (no cualquier mencion a "Cascadas Hotel" en medio del texto).
         var esFirma = /^(con cari|con afecto|con respeto|warmly|with warmth|with respect)/i.test(l) ||
           /^(el equipo de cascadas hotel|the cascadas hotel team)\.?$/i.test(l.trim());
-        p.text(l, CARD_W / 2, y, esFirma ? 8.6 : 7.4, esFirma ? acc : INK, { font: 'times', style: esFirma ? 'italic' : 'normal' });
+        p.text(l, CARD_W / 2, y, esFirma ? 8.6 : 7.4, esFirma ? textoFuerte : textoBase, { font: 'times', style: esFirma ? 'italic' : 'normal' });
         y += (l === '' ? lh * 0.5 : (esFirma ? lh * 1.15 : lh));
       });
     }
