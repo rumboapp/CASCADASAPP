@@ -78,8 +78,10 @@
     .instr li { margin-bottom: 3px; }
 
     .previa-wrap { display: flex; justify-content: center; margin-top: 4px; }
-    .previa { width: 210px; border-radius: 6px; box-shadow: 0 12px 30px -12px rgba(30,26,20,.4); }
+    .previa { width: 250px; border-radius: 6px; box-shadow: 0 12px 30px -12px rgba(30,26,20,.4); }
     .previa svg { display: block; width: 100%; height: auto; border-radius: 6px; }
+    .previa-cap { text-align: center; font-size: 11.5px; color: var(--tinta-suave); text-transform: uppercase; letter-spacing: .06em; margin-top: 16px; margin-bottom: 6px; }
+    .previa-reverso { width: 250px; aspect-ratio: 210/148.5; border-radius: 6px; box-shadow: 0 12px 30px -12px rgba(30,26,20,.4); }
 
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); opacity: 0;
       background: #2c2c2e; color: #fff; padding: 11px 20px; border-radius: 12px; font-size: 13px; box-shadow: 0 8px 22px rgba(0,0,0,.3);
@@ -122,19 +124,19 @@
           <button class="btn btn-dark" onclick="generarPDF()"><i class="fa-solid fa-file-arrow-down"></i> <span data-t="btn_pdf">Generar tarjeta (PDF)</span></button>
         </div>
 
-        <div class="instr">
-          <b data-t="instr_tit">Cómo armarla (impecable, sin pegar):</b>
-          <ol>
-            <li data-t="instr_1">Imprime la hoja por <b>una sola cara</b> (tamaño real / 100%).</li>
-            <li data-t="instr_2">Dóblala por la mitad siguiendo la línea horizontal punteada.</li>
-            <li data-t="instr_3">Dóblala otra vez por la línea vertical punteada.</li>
-            <li data-t="instr_4">Queda una tarjeta que se abre y se para sola. Lista.</li>
-          </ol>
-        </div>
+        <div class="instr" id="instrBox"></div>
       </div>
 
-      <div class="paso-tit" style="margin-top:22px"><span class="n">3</span> <span data-t="paso3">Vista previa de la portada</span></div>
-      <div class="previa-wrap"><div class="previa" id="previa"></div></div>
+      <div class="paso-tit" style="margin-top:22px"><span class="n">3</span> <span data-t="paso3">Vista previa</span></div>
+      <div class="previa-wrap">
+        <div class="previa" id="previa"></div>
+      </div>
+      <div id="previaRevSection">
+        <p class="previa-cap" data-t="previa_reverso">Reverso (color sólido, a sangre completa)</p>
+        <div class="previa-wrap">
+          <div class="previa-reverso" id="previaReverso"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -146,6 +148,84 @@
 
     // Paleta base de las tarjetas
     var PAPEL = [247, 244, 238], INK = [58, 54, 48], INK_SOFT = [124, 118, 108];
+    var GRAFITO = [65, 65, 67]; // reverso solido: mismo grafito de marca del resto de las apps
+    // Mezcla dos colores RGB (f=1 -> todo c1, f=0 -> todo c2). Para tintes de fondo.
+    function mezclar(c1, c2, f) { return [0, 1, 2].map(function (i) { return Math.round(c1[i] * f + c2[i] * (1 - f)); }); }
+
+    // ---------------------------------------------------------------------
+    //  LOGO real del hotel (mismo que usan las demas apps de Cascadas).
+    //  Se convierte a base64 una sola vez (promesa cacheada) y se guarda su
+    //  proporcion ancho/alto para dibujarlo sin deformarlo. Si no carga (sin
+    //  internet, CORS, etc.) se usa el respaldo de texto "CASCADAS HOTEL".
+    // ---------------------------------------------------------------------
+    var LOGO_URL = 'https://lh3.googleusercontent.com/d/1l-GRXICSU6fHGe9uGsnGdZ6M0FKgKevJ';
+    var logoPromise = null;
+    function obtenerLogo() {
+      if (logoPromise) return logoPromise;
+      logoPromise = new Promise(function (resolve) {
+        try {
+          var img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = function () {
+            try {
+              var canvas = document.createElement('canvas');
+              canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+              canvas.getContext('2d').drawImage(img, 0, 0);
+              resolve({ url: canvas.toDataURL('image/png'), aspecto: img.naturalWidth / img.naturalHeight });
+            } catch (e) { resolve(null); }
+          };
+          img.onerror = function () { resolve(null); };
+          img.src = LOGO_URL;
+        } catch (e) { resolve(null); }
+      });
+      return logoPromise;
+    }
+    // Precarga el logo apenas arranca la app; si llega despues de pintar la
+    // vista previa, la vuelve a pintar para que aparezca el logo real.
+    obtenerLogo().then(function (logo) {
+      APP.logo = logo;
+      if (APP.ocasion) refrescarPrevia();
+    });
+
+    // Dibuja el logo (si cargo) centrado en (cx,cy) con una altura fija; si
+    // no hay logo, cae al respaldo de texto "CASCADAS / HOTEL".
+    function dibujarMarca(p, cx, cy, altura, colorTexto, colorSub, maxW) {
+      if (APP.logo) {
+        var h = altura, w = h * APP.logo.aspecto;
+        maxW = maxW || 62; if (w > maxW) { w = maxW; h = w / APP.logo.aspecto; }
+        p.image(APP.logo.url, cx - w / 2, cy - h / 2, w, h);
+      } else if (altura < 9) {
+        // Espacio angosto (p.ej. cupones): version compacta, sin quiebre de linea.
+        var s = altura / 11;
+        p.text('CASCADAS', cx, cy + 1.5 * s, Math.max(4.2, 9 * s), colorTexto, { font: 'helvetica', style: 'bold', charSpace: .15 });
+      } else {
+        p.text('C A S C A D A S', cx, cy + 1, 10, colorTexto, { font: 'helvetica', style: 'bold', charSpace: .8 });
+        p.text('H O T E L', cx, cy + 7, 5, colorSub, { font: 'helvetica', charSpace: 1.8 });
+      }
+    }
+
+    // ---------------------------------------------------------------------
+    //  PATRONES DECORATIVOS (para que las tarjetas no se sientan vacias)
+    // ---------------------------------------------------------------------
+    // Ribete de pequeños rombos conectados por lineas finas, a lo largo de
+    // una franja horizontal (arriba/abajo de cada pagina).
+    function patronRombos(p, x0, x1, y, col, n) {
+      n = n || 7;
+      var paso = (x1 - x0) / (n - 1);
+      for (var i = 0; i < n; i++) {
+        var x = x0 + i * paso;
+        p.poly([[x, y - 1.3], [x + 1.3, y], [x, y + 1.3], [x - 1.3, y], [x, y - 1.3]], col, .35);
+        if (i < n - 1) p.line(x + 1.7, y, x + paso - 1.7, y, col, .25);
+      }
+    }
+    // Textura de puntos muy tenue en toda un area, para dar riqueza al fondo
+    // sin ensuciar la lectura del texto.
+    function patronPuntos(p, x0, y0, x1, y1, col, paso) {
+      paso = paso || 8.5;
+      for (var yy = y0; yy <= y1; yy += paso) {
+        for (var xx = x0; xx <= x1; xx += paso) { p.dot(xx, yy, 0.32, col); }
+      }
+    }
 
     // ---------------------------------------------------------------------
     //  DEFINICION DE OCASIONES
@@ -166,8 +246,8 @@
         sub: function (d) { return (d.n1 && d.n2) ? d.n1 + ' & ' + d.n2 : (d.n1 || d.n2 || ''); },
         motivo: function (p, cx, cy, a) { anillos(p, cx, cy, 11, a, 1.6); },
         mensaje: {
-          es: '{n1} y {n2}:\n\nQue este nuevo aniversario los encuentre tan unidos como hoy. Gracias por celebrarlo con nosotros.\n\nCon cariño,\nel equipo de Cascadas Hotel',
-          en: '{n1} & {n2}:\n\nMay this anniversary find you as close as you are today. Thank you for celebrating it with us.\n\nWarmly,\nthe Cascadas Hotel team'
+          es: '{n1} y {n2}:\n\nQue este nuevo aniversario los encuentre tan unidos como hoy, y que cada año que pasa sea una razón más para celebrar el camino que han construido juntos.\n\nNos llena de alegría poder acompañarlos en una fecha tan especial. Que la disfruten muchísimo.\n\nCon cariño,\nel equipo de Cascadas Hotel',
+          en: '{n1} & {n2}:\n\nMay this anniversary find you as close as you are today, and may every year that passes be one more reason to celebrate the path you have built together.\n\nIt fills us with joy to be part of such a special date. We hope you enjoy it to the fullest.\n\nWarmly,\nthe Cascadas Hotel team'
         }
       },
       cumpleanos: {
@@ -178,8 +258,8 @@
         sub: function (d) { return d.nombre || ''; },
         motivo: function (p, cx, cy, a) { chispas(p, cx, cy - 6, a); vela(p, cx, cy + 7, a); },
         mensaje: {
-          es: '{nombre}:\n\n¡Feliz cumpleaños! Que tu día esté lleno de momentos hermosos. Es un honor celebrarlo contigo.\n\nCon cariño,\nel equipo de Cascadas Hotel',
-          en: '{nombre}:\n\nHappy birthday! May your day be full of beautiful moments. It is an honor to celebrate it with you.\n\nWarmly,\nthe Cascadas Hotel team'
+          es: '{nombre}:\n\n¡Feliz cumpleaños! Que este nuevo año de vida esté lleno de momentos hermosos, de risas compartidas y de todas esas pequeñas cosas que hacen la vida más dulce.\n\nEs un honor para todo el equipo poder celebrarlo contigo. Esperamos que tu estadía sea tan especial como la fecha.\n\nCon cariño,\nel equipo de Cascadas Hotel',
+          en: '{nombre}:\n\nHappy birthday! May this new year of life be full of beautiful moments, shared laughter, and all those little things that make life sweeter.\n\nIt is an honor for our whole team to celebrate it with you. We hope your stay is as special as the date itself.\n\nWarmly,\nthe Cascadas Hotel team'
         }
       },
       lunademiel: {
@@ -193,8 +273,8 @@
         sub: function (d) { return (d.n1 && d.n2) ? d.n1 + ' & ' + d.n2 : (APP.idioma === 'en' ? 'Newlyweds' : 'Recién casados'); },
         motivo: function (p, cx, cy, a) { anillos(p, cx, cy, 10, a, 1.5); corazon(p, cx, cy - 20, 5, a); },
         mensaje: {
-          es: '{n1} y {n2}:\n\n¡Felicidades por su matrimonio! Que esta luna de miel sea el primero de muchos viajes juntos.\n\nCon cariño,\nCascadas Hotel',
-          en: '{n1} & {n2}:\n\nCongratulations on your wedding! May this honeymoon be the first of many journeys together.\n\nWarmly,\nCascadas Hotel'
+          es: '{n1} y {n2}:\n\n¡Felicidades por su matrimonio! Que esta luna de miel sea apenas el primero de muchos viajes que emprendan juntos, y que cada uno de ellos los una todavía más.\n\nEstamos felices de acompañarlos en el inicio de esta nueva etapa. Que la disfruten al máximo.\n\nCon cariño,\nel equipo de Cascadas Hotel',
+          en: '{n1} & {n2}:\n\nCongratulations on your wedding! May this honeymoon be just the first of many journeys you take together, and may each one bring you even closer.\n\nWe are delighted to be part of the start of this new chapter. We hope you enjoy it to the fullest.\n\nWarmly,\nthe Cascadas Hotel team'
         }
       },
       bienvenida: {
@@ -206,8 +286,8 @@
         sub: function (d) { return d.nombre || ''; },
         motivo: function (p, cx, cy, a) { montanas(p, cx, cy, a); },
         mensaje: {
-          es: '{nombre}:\n\nLes damos la bienvenida a Cascadas Hotel. Es un gusto recibirlos; estamos para hacer de su estadía una experiencia inolvidable.\n\nel equipo de Cascadas Hotel',
-          en: '{nombre}:\n\nWelcome to Cascadas Hotel. It is a pleasure to have you; we are here to make your stay an unforgettable experience.\n\nthe Cascadas Hotel team'
+          es: '{nombre}:\n\nLes damos la más cálida bienvenida a Cascadas Hotel. Es un verdadero gusto recibirlos, y esperamos que desde el primer momento se sientan como en casa.\n\nNuestro equipo está para lo que necesiten, con el único objetivo de que su estadía sea una experiencia inolvidable, llena de descanso y buenos momentos.\n\nCon afecto,\nel equipo de Cascadas Hotel',
+          en: '{nombre}:\n\nWe extend the warmest welcome to Cascadas Hotel. It is a true pleasure to have you, and we hope that from the very first moment you feel right at home.\n\nOur team is here for whatever you may need, with the sole goal of making your stay an unforgettable experience full of rest and good moments.\n\nWith warmth,\nthe Cascadas Hotel team'
         }
       },
       estadiaregalo: {
@@ -222,8 +302,8 @@
         sub: function (d) { return d.remitente ? ((APP.idioma === 'en' ? 'From ' : 'De ') + d.remitente) : ''; },
         motivo: function (p, cx, cy, a) { mono(p, cx, cy, a); },
         mensaje: {
-          es: '{destinatario}:\n\nAlguien especial pensó en ti. {remitente} te regala esta estadía en Cascadas Hotel. Disfrútala, es toda tuya.\n\ncon cariño, Cascadas Hotel',
-          en: '{destinatario}:\n\nSomeone special thought of you. {remitente} is gifting you this stay at Cascadas Hotel. Enjoy it, it is all yours.\n\nwarmly, Cascadas Hotel'
+          es: '{destinatario}:\n\nAlguien muy especial pensó en ti. {remitente} quiso regalarte esta estadía en Cascadas Hotel, para que te tomes un tiempo solo para disfrutar y desconectar.\n\nDe nuestra parte, pondremos todo el cariño para que la experiencia sea inolvidable. Disfrútala, es toda tuya.\n\nCon cariño,\nel equipo de Cascadas Hotel',
+          en: '{destinatario}:\n\nSomeone very special thought of you. {remitente} wanted to gift you this stay at Cascadas Hotel, so you can take some time just for yourself to relax and unwind.\n\nOn our end, we will put all our care into making this experience unforgettable. Enjoy it, it is all yours.\n\nWarmly,\nthe Cascadas Hotel team'
         }
       },
       giftcard: {
@@ -268,8 +348,8 @@
         sub: function () { return ''; },
         motivo: function (p, cx, cy, a) { laurel(p, cx, cy, a); },
         mensaje: {
-          es: '{saludo}Lamentamos el inconveniente. Queremos compensarlo con este pequeño gesto y esperamos que el resto de su estadía sea impecable.\n\nel equipo de Cascadas Hotel',
-          en: '{saludo}We are sorry for the inconvenience. We would like to make up for it with this small gesture and hope the rest of your stay is impeccable.\n\nthe Cascadas Hotel team'
+          es: '{saludo}Lamentamos sinceramente el inconveniente que tuvo lugar durante su estadía. Su comodidad es nuestra prioridad, y sabemos que en esta ocasión no estuvimos a la altura.\n\nQueremos compensarlo con este pequeño gesto de nuestra parte, y esperamos de corazón que el resto de su estadía en Cascadas Hotel sea impecable.\n\nCon respeto,\nel equipo de Cascadas Hotel',
+          en: '{saludo}We sincerely apologize for the inconvenience that took place during your stay. Your comfort is our priority, and we know that on this occasion we did not meet that standard.\n\nWe would like to make up for it with this small gesture on our part, and we truly hope that the rest of your stay at Cascadas Hotel is impeccable.\n\nWith respect,\nthe Cascadas Hotel team'
         }
       }
     };
@@ -280,17 +360,27 @@
     // ---------------------------------------------------------------------
     var UI = {
       es: { titulo: 'Detalles Cascadas', subtitulo: 'Tarjetas de atención · Cascadas Hotel', paso1: 'Elige el tipo de tarjeta',
-        paso2: 'Completa los datos', paso3: 'Vista previa de la portada', lbl_mensaje: 'Mensaje (editable)',
-        hint_mensaje: 'Viene un texto sugerido; puedes cambiarlo como quieras.', btn_cambiar: 'Cambiar tipo', btn_pdf: 'Generar tarjeta (PDF)',
-        instr_tit: 'Cómo armarla (impecable, sin pegar):', instr_1: 'Imprime la hoja por <b>una sola cara</b> (tamaño real / 100%).',
-        instr_2: 'Dóblala por la mitad siguiendo la línea horizontal punteada.', instr_3: 'Dóblala otra vez por la línea vertical punteada.',
-        instr_4: 'Queda una tarjeta que se abre y se para sola. Lista.', cupon: 'Cupón', tarjeta: 'Tarjeta' },
+        paso2: 'Completa los datos', paso3: 'Vista previa', lbl_mensaje: 'Mensaje (editable)',
+        hint_mensaje: 'Viene un texto sugerido; puedes cambiarlo como quieras.', btn_cambiar: 'Cambiar tipo', btn_pdf: 'Generar PDF',
+        instr_tit: 'Cómo armarla (impecable, sin pegar):',
+        instr_t1: 'El PDF trae <b>2 copias</b> de la tarjeta (por si te equivocas) y <b>2 páginas</b>: página 1 = interior, página 2 = reverso (grafito sólido).',
+        instr_t2: 'Recorta por la línea de corte del medio para separar las 2 copias.',
+        instr_t3: 'Imprime a <b>doble cara</b> (o imprime la página 1, da vuelta la hoja e imprime la página 2 — no importa de qué lado la voltees, el reverso es parejo).',
+        instr_t4: 'Dobla cada copia por la mitad (línea vertical) y marca el pliegue. Lista: por fuera el grafito, por dentro el mensaje.',
+        instr_c1: 'El PDF trae <b>4 cupones</b> idénticos en una sola página, listos para repartir.',
+        instr_c2: 'No lleva doblez: es una tarjeta plana. Solo recorta por las líneas punteadas entre cada cupón.',
+        cupon: 'Cupón', tarjeta: 'Tarjeta', previa_reverso: 'Reverso (color sólido, a sangre completa)' },
       en: { titulo: 'Detalles Cascadas', subtitulo: 'Guest cards · Cascadas Hotel', paso1: 'Choose the card type',
-        paso2: 'Fill in the details', paso3: 'Cover preview', lbl_mensaje: 'Message (editable)',
-        hint_mensaje: 'A suggested text is prefilled; edit it however you like.', btn_cambiar: 'Change type', btn_pdf: 'Generate card (PDF)',
-        instr_tit: 'How to assemble it (flawless, no glue):', instr_1: 'Print the sheet on <b>one side only</b> (actual size / 100%).',
-        instr_2: 'Fold it in half along the dotted horizontal line.', instr_3: 'Fold it again along the dotted vertical line.',
-        instr_4: 'You get a card that opens and stands on its own. Done.', cupon: 'Voucher', tarjeta: 'Card' }
+        paso2: 'Fill in the details', paso3: 'Preview', lbl_mensaje: 'Message (editable)',
+        hint_mensaje: 'A suggested text is prefilled; edit it however you like.', btn_cambiar: 'Change type', btn_pdf: 'Generate PDF',
+        instr_tit: 'How to assemble it (flawless, no glue):',
+        instr_t1: 'The PDF includes <b>2 copies</b> of the card (in case of a mistake) and <b>2 pages</b>: page 1 = interior, page 2 = back (solid graphite).',
+        instr_t2: 'Cut along the middle cut line to separate the 2 copies.',
+        instr_t3: 'Print <b>double-sided</b> (or print page 1, flip the sheet over and print page 2 — it does not matter which way you flip it, the back is uniform).',
+        instr_t4: 'Fold each copy in half (vertical line) and crease it. Done: graphite outside, message inside.',
+        instr_c1: 'The PDF includes <b>4 identical vouchers</b> on a single page, ready to hand out.',
+        instr_c2: "There's no folding: it's a flat card. Just cut along the dashed lines between each voucher.",
+        cupon: 'Voucher', tarjeta: 'Card', previa_reverso: 'Back (solid color, full bleed)' }
     };
     function t(k) { return (UI[APP.idioma] && UI[APP.idioma][k]) || UI.es[k] || k; }
 
@@ -304,7 +394,16 @@
     }
     function setIdioma(idi) {
       APP.idioma = idi; aplicarIdiomaUI(); pintarOcasiones();
-      if (APP.ocasion) { pintarCampos(); if (!APP.mensajeTocado) resetMensaje(); refrescarPrevia(); }
+      if (APP.ocasion) { pintarCampos(); if (!APP.mensajeTocado) resetMensaje(); refrescarPrevia(); actualizarInstrucciones(); }
+    }
+
+    // Las instrucciones de armado cambian segun si es una tarjeta que se
+    // dobla o un cupon plano (sin doblez).
+    function actualizarInstrucciones() {
+      var o = T[APP.ocasion]; if (!o) return;
+      var pasos = o.cupon ? ['instr_c1', 'instr_c2'] : ['instr_t1', 'instr_t2', 'instr_t3', 'instr_t4'];
+      document.getElementById('instrBox').innerHTML =
+        '<b>' + t('instr_tit') + '</b><ol>' + pasos.map(function (k) { return '<li>' + t(k) + '</li>'; }).join('') + '</ol>';
     }
 
     // ---------------------------------------------------------------------
@@ -331,6 +430,7 @@
       pintarCampos();
       resetMensaje();
       refrescarPrevia();
+      actualizarInstrucciones();
       document.getElementById('panelForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     function volverInicio() {
@@ -413,6 +513,8 @@
         poly: function (localPts, col, w) { doc.setDrawColor(col[0], col[1], col[2]); doc.setLineWidth(w || .4); var pts = localPts.map(function (p) { return P(p[0], p[1]); }); doc.lines(seg(pts), pts[0][0], pts[0][1], [1, 1], 'S', false); },
         fill: function (localPts, col) { doc.setFillColor(col[0], col[1], col[2]); var pts = localPts.map(function (p) { return P(p[0], p[1]); }); doc.lines(seg(pts), pts[0][0], pts[0][1], [1, 1], 'F', true); },
         rect: function (x, y, w, h, col, lw, dash) { doc.setDrawColor(col[0], col[1], col[2]); doc.setLineWidth(lw || .4); if (dash && doc.setLineDashPattern) doc.setLineDashPattern(dash, 0); var pts = [[x, y], [x + w, y], [x + w, y + h], [x, y + h], [x, y]].map(function (p) { return P(p[0], p[1]); }); doc.lines(seg(pts), pts[0][0], pts[0][1], [1, 1], 'S', true); if (dash && doc.setLineDashPattern) doc.setLineDashPattern([], 0); },
+        bg: function (x, y, w, h, col) { doc.setFillColor(col[0], col[1], col[2]); var a = P(x, y), b = P(x + w, y + h); doc.rect(Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]), 'F'); },
+        image: function (dataUrl, x, y, w, h) { var a = P(x, y); try { doc.addImage(dataUrl, 'PNG', a[0], a[1], w, h); } catch (e) {} },
         text: function (str, x, y, size, col, opts) {
           opts = opts || {}; var p = P(x, y);
           doc.setTextColor(col[0], col[1], col[2]);
@@ -495,54 +597,6 @@
       return pts;
     }
 
-    // ---- Cara: PORTADA ----
-    var W = 105, H = 148.5; // tarjeta A6
-    function dibujarPortada(p, o, d) {
-      var acc = o.acc, wm = o.wordmark || INK;
-      if (o.cupon) {
-        p.rect(7, 7, W - 14, H - 14, acc, .7, [2.6, 2]);
-        p.circle(7, H / 2, 3, PAPEL, .7, PAPEL); p.circle(7, H / 2, 3, acc, .7);
-        p.circle(W - 7, H / 2, 3, PAPEL, .7, PAPEL); p.circle(W - 7, H / 2, 3, acc, .7);
-      } else {
-        p.rect(7, 7, W - 14, H - 14, acc, .5);
-      }
-      // Wordmark
-      p.text('C A S C A D A S', W / 2, 24, 8, wm, { font: 'helvetica', style: 'bold', charSpace: .6 });
-      p.text('H O T E L', W / 2, 30, 4.6, INK_SOFT, { font: 'helvetica', charSpace: 1.4 });
-      // Motivo
-      if (o.motivo) o.motivo(p, W / 2, o.cupon ? 54 : 62, acc);
-      // Kicker
-      if (o.kicker) p.text(o.kicker[APP.idioma], W / 2, o.cupon ? 86 : 96, 4.2, INK_SOFT, { font: 'helvetica', charSpace: 1.4 });
-      if (o.cupon) {
-        p.text(o.valor(d), W / 2, 104, o.valorSize || 20, acc, { font: 'times', style: 'bold' });
-        var vs = o.valorSub ? o.valorSub(d) : '';
-        if (vs) p.text(vs, W / 2, 113, 4.4, INK_SOFT, { font: 'helvetica', charSpace: 1 });
-      } else {
-        var tit = o.titulo[APP.idioma] || [];
-        var ty = tit.length > 1 ? 106 : 110;
-        tit.forEach(function (l, i) { p.text(l, W / 2, ty + i * 11.5, 15, acc, { font: 'times', style: 'italic' }); });
-        var sub = o.sub ? o.sub(d) : '';
-        if (sub) p.text(sub, W / 2, ty + tit.length * 11.5 + 4, 8.5, INK_SOFT, { font: 'times', style: 'italic' });
-      }
-      // Cierre inferior (solo tarjetas)
-      if (!o.cupon) {
-        p.line(41, 136, 49, 136, acc, .5); p.line(56, 136, 64, 136, acc, .5);
-        p.circle(52.5, 136, 1.4, acc, .5);
-      }
-    }
-
-    // ---- Cara: MENSAJE (interior) ----
-    function dibujarMensaje(p, o, d, mensaje) {
-      p.rect(10, 12, W - 20, H - 24, o.acc, .5);
-      if (o.motivo) o.motivo(p, W / 2, 30, o.acc);
-      var lineas = wrapTexto(mensaje, 30);
-      var y = 52, lh = 6.2;
-      lineas.forEach(function (l) {
-        var esFirma = /Cascadas Hotel|Cascadas$/.test(l) || /^con cari|^warmly|^el equipo|^the Cascadas/i.test(l);
-        p.text(l, W / 2, y, esFirma ? 6.2 : 7, esFirma ? o.acc : INK, { font: 'times', style: esFirma ? 'italic' : 'normal' });
-        y += (l === '' ? lh * 0.6 : lh);
-      });
-    }
     // Corta el mensaje (con \n propios) en lineas que quepan (~maxch caracteres).
     function wrapTexto(txt, maxch) {
       var out = [];
@@ -558,65 +612,214 @@
       return out;
     }
 
-    // ---- Cara: interior izquierdo / contra (sello discreto) ----
-    function dibujarSello(p, o) {
-      p.rect(12, 12, W - 24, H - 24, o.acc, .4);
-      p.text('C A S C A D A S', W / 2, H / 2 - 4, 7, INK, { font: 'helvetica', style: 'bold', charSpace: .6 });
-      p.text('H O T E L', W / 2, H / 2 + 3, 4.2, INK_SOFT, { font: 'helvetica', charSpace: 1.6 });
-      p.line(W / 2 - 8, H / 2 + 10, W / 2 + 8, H / 2 + 10, o.acc, .4);
+    // =====================================================================
+    //  TARJETAS (aniversario, cumpleanos, etc.): tarjeta PEQUEÑA tipo libro.
+    //  Card cerrada = A6 (105 x 148.5mm). Blanco sin doblar = 210 x 148.5mm
+    //  (dos paginas de 105 una junto a otra). Un A4 trae 2 copias apiladas
+    //  (un solo corte al medio) para no desperdiciar papel / tener repuesto.
+    //  Pagina 1 = interior (izquierda: sello+motivo+titulo: derecha: mensaje).
+    //  Pagina 2 = reverso, grafito SOLIDO a sangre completa. Al doblar cada
+    //  copia por la mitad (vertical), el grafito queda afuera (ambas tapas)
+    //  y el interior adentro; como el reverso es un color parejo, no importa
+    //  el registro de la impresora a doble cara.
+    // =====================================================================
+    var CARD_W = 105, CARD_H = 148.5;
+
+    // Pagina izquierda (portada): logo/marca, motivo con halo, titulo y nombre.
+    function dibujarPagPortada(p, o, d) {
+      var acc = o.acc;
+      var fondo = mezclar(acc, PAPEL, 0.16);
+      p.bg(0, 0, CARD_W, CARD_H, fondo);
+      patronPuntos(p, 9, 9, CARD_W - 9, CARD_H - 9, mezclar(acc, fondo, .3), 8.5);
+      p.rect(7, 7, CARD_W - 14, CARD_H - 14, acc, .8);
+      p.rect(9.5, 9.5, CARD_W - 19, CARD_H - 19, mezclar(acc, INK, .3), .3);
+      patronRombos(p, 15, CARD_W - 15, 13.5, acc, 8);
+      patronRombos(p, 15, CARD_W - 15, CARD_H - 13.5, acc, 8);
+
+      dibujarMarca(p, CARD_W / 2, 25, 11, INK, INK_SOFT);
+
+      var cyMotivo = 63;
+      p.circle(CARD_W / 2, cyMotivo, 21, null, 0, mezclar(acc, fondo, .22));
+      if (o.motivo) o.motivo(p, CARD_W / 2, cyMotivo, acc);
+
+      if (o.kicker) p.text(o.kicker[APP.idioma], CARD_W / 2, 92, 4.4, INK_SOFT, { font: 'helvetica', charSpace: 1.6 });
+
+      var tit = o.titulo[APP.idioma] || [];
+      var ty = tit.length > 1 ? 100 : 106;
+      tit.forEach(function (l, i) { p.text(l, CARD_W / 2, ty + i * 11.5, 16.5, acc, { font: 'times', style: 'italic' }); });
+      var sub = o.sub ? o.sub(d) : '';
+      if (sub) p.text(sub, CARD_W / 2, ty + tit.length * 11.5 + 6, 9, INK_SOFT, { font: 'times', style: 'italic' });
+      // (el ribete de rombos de abajo ya cierra la composicion; sin flourish extra para no chocar con el nombre)
+    }
+
+    // Pagina derecha (mensaje): encabezado ornamental + texto completo + firma.
+    function dibujarPagMensaje(p, o, d, mensaje) {
+      var acc = o.acc;
+      var fondo = mezclar(acc, PAPEL, 0.16);
+      p.bg(0, 0, CARD_W, CARD_H, fondo);
+      patronPuntos(p, 9, 9, CARD_W - 9, CARD_H - 9, mezclar(acc, fondo, .3), 8.5);
+      p.rect(7, 7, CARD_W - 14, CARD_H - 14, acc, .8);
+      p.rect(9.5, 9.5, CARD_W - 19, CARD_H - 19, mezclar(acc, INK, .3), .3);
+      patronRombos(p, 15, CARD_W - 15, 13.5, acc, 8);
+      patronRombos(p, 15, CARD_W - 15, CARD_H - 13.5, acc, 8);
+
+      var yEnc = 24;
+      p.line(CARD_W / 2 - 16, yEnc, CARD_W / 2 - 4, yEnc, acc, .6);
+      p.line(CARD_W / 2 + 4, yEnc, CARD_W / 2 + 16, yEnc, acc, .6);
+      p.circle(CARD_W / 2, yEnc, 1.7, acc, .6, fondo);
+
+      var lineas = wrapTexto(mensaje, 33);
+      var y = yEnc + 10, lh = 6;
+      lineas.forEach(function (l) {
+        // Solo la despedida final (no cualquier mencion a "Cascadas Hotel" en medio del texto).
+        var esFirma = /^(con cari|con afecto|con respeto|warmly|with warmth|with respect)/i.test(l) ||
+          /^(el equipo de cascadas hotel|the cascadas hotel team)\.?$/i.test(l.trim());
+        p.text(l, CARD_W / 2, y, esFirma ? 6.6 : 7.4, esFirma ? acc : INK, { font: 'times', style: esFirma ? 'italic' : 'normal' });
+        y += (l === '' ? lh * 0.5 : lh);
+      });
+    }
+
+    function nombreDeArchivo(o) {
+      return 'Detalle_' + o.nombre.es.replace(/[^a-zA-Z0-9]/g, '_') + '_' + new Date().toISOString().slice(0, 10) + '.pdf';
+    }
+
+    function construirHojaTarjeta(doc, o, d, mensaje) {
+      [0, CARD_H].forEach(function (offY) {
+        var tfIzq = function (x, y) { return [x, offY + y]; };
+        var tfDer = function (x, y) { return [CARD_W + x, offY + y]; };
+        dibujarPagPortada(penFor(doc, tfIzq, false), o, d);
+        dibujarPagMensaje(penFor(doc, tfDer, false), o, d, mensaje);
+      });
+      // Guias: 1 corte horizontal al medio de la hoja + 1 doblez vertical por copia.
+      doc.setDrawColor(185, 185, 185); doc.setLineWidth(.2);
+      if (doc.setLineDashPattern) doc.setLineDashPattern([1.4, 1.4], 0);
+      doc.line(6, CARD_H, 204, CARD_H);
+      doc.line(CARD_W, 4, CARD_W, CARD_H - 4);
+      doc.line(CARD_W, CARD_H + 4, CARD_W, 297 - 4);
+      if (doc.setLineDashPattern) doc.setLineDashPattern([], 0);
+      doc.setFontSize(6.5); doc.setTextColor(150, 150, 150); doc.setFont('helvetica', 'normal');
+      doc.text(APP.idioma === 'en' ? 'cut' : 'cortar', 4, CARD_H + 2, { align: 'left' });
+      doc.text(APP.idioma === 'en' ? 'fold' : 'doblar', CARD_W, 2.6, { align: 'center' });
+      doc.text(APP.idioma === 'en' ? 'fold' : 'doblar', CARD_W, 296, { align: 'center' });
+
+      // Pagina 2: reverso solido a sangre completa (sirve para las 2 copias).
+      doc.addPage();
+      doc.setFillColor(GRAFITO[0], GRAFITO[1], GRAFITO[2]);
+      doc.rect(0, 0, 210, 297, 'F');
     }
 
     // =====================================================================
-    //  GENERAR PDF (French fold, una sola cara)
-    //  A4 vertical, 4 cuadrantes de 105 x 148.5:
-    //   BR (abajo-dcha)  -> PORTADA, rotada 180
-    //   TR (arriba-dcha) -> MENSAJE, derecha
-    //   TL (arriba-izq)  -> sello interior, derecha
-    //   BL (abajo-izq)   -> sello / contra, rotada 180
-    //  (imposicion verificada con simulador de doblez)
+    //  CUPONES (Gift Card, Welcome Drink): NO se doblan. Una tarjeta chica,
+    //  plana, tipo boleto/ticket. Se imprimen 4 por hoja A4, listas para
+    //  cortar entre si (sin necesidad de reverso).
     // =====================================================================
-    function generarPDF() {
+    var CUPON_W = 182, CUPON_H = 66, CUPON_GAP = 6, CUPON_TOP = 11;
+
+    function dibujarCupon(p, o, d, mensaje) {
+      var acc = o.acc, W = CUPON_W, H = CUPON_H;
+      var fondo = mezclar(acc, PAPEL, 0.16);
+      p.bg(0, 0, W, H, fondo);
+      patronPuntos(p, 8, 8, W - 8, H - 8, mezclar(acc, fondo, .3), 7.5);
+      p.rect(4, 4, W - 8, H - 8, acc, .8, [2.8, 2.2]);
+      p.circle(4, H / 2, 3, fondo, .6, fondo); p.circle(4, H / 2, 3, acc, .6);
+      p.circle(W - 4, H / 2, 3, fondo, .6, fondo); p.circle(W - 4, H / 2, 3, acc, .6);
+
+      var xIcono = 30, xDivA = 54, xDetalles = 83, xDivB = 112, xTerm = 148;
+      p.line(xDivA, 11, xDivA, H - 11, acc, .3);
+      p.line(xDivB, 11, xDivB, H - 11, acc, .3);
+
+      dibujarMarca(p, xIcono, 13, 7.5, INK, INK_SOFT, 40);
+      p.circle(xIcono, H / 2 + 6, 14, null, 0, mezclar(acc, fondo, .22));
+      if (o.motivo) o.motivo(p, xIcono, H / 2 + 6, acc);
+
+      if (o.kicker) p.text(o.kicker[APP.idioma], xDetalles, 22, 4, INK_SOFT, { font: 'helvetica', charSpace: 1.4 });
+      p.text(o.valor(d), xDetalles, H / 2 + 5, (o.valorSize || 16) * 0.9, acc, { font: 'times', style: 'bold' });
+      var vs = o.valorSub ? o.valorSub(d) : '';
+      if (vs) {
+        wrapTexto(vs, 20).forEach(function (l, i) { p.text(l, xDetalles, H / 2 + 13 + i * 4.6, 3.9, INK_SOFT, { font: 'helvetica', charSpace: .8 }); });
+      }
+
+      var lineas = wrapTexto(mensaje, 27);
+      var lh = 5.4;
+      var y = Math.max(13, H / 2 - (lineas.length - 1) * lh / 2);
+      lineas.forEach(function (l) {
+        var esFirma = /^(una cortesía|a courtesy)/i.test(l);
+        p.text(l, xTerm, y, esFirma ? 5.8 : 6.1, esFirma ? acc : INK, { font: 'times', style: esFirma ? 'italic' : 'normal' });
+        y += (l === '' ? lh * 0.5 : lh);
+      });
+    }
+
+    function construirHojaCupones(doc, o, d, mensaje) {
+      var left = (210 - CUPON_W) / 2;
+      for (var i = 0; i < 4; i++) {
+        var y0 = CUPON_TOP + i * (CUPON_H + CUPON_GAP);
+        (function (y0) {
+          var tf = function (x, y) { return [left + x, y0 + y]; };
+          dibujarCupon(penFor(doc, tf, false), o, d, mensaje);
+        })(y0);
+        if (i < 3) {
+          var yCorte = y0 + CUPON_H + CUPON_GAP / 2;
+          doc.setDrawColor(185, 185, 185); doc.setLineWidth(.2);
+          if (doc.setLineDashPattern) doc.setLineDashPattern([1.4, 1.4], 0);
+          doc.line(left - 4, yCorte, left + CUPON_W + 4, yCorte);
+          if (doc.setLineDashPattern) doc.setLineDashPattern([], 0);
+        }
+      }
+      doc.setFontSize(6.5); doc.setTextColor(150, 150, 150); doc.setFont('helvetica', 'normal');
+      doc.text(APP.idioma === 'en' ? 'cut along the dashed lines' : 'recorta por las lineas punteadas', 105, 291, { align: 'center' });
+    }
+
+    async function generarPDF() {
       if (typeof jspdf === 'undefined') { toast('No se pudo cargar el generador de PDF', 'error'); return; }
       var o = T[APP.ocasion], d = datosForm();
       var mensaje = document.getElementById('inpMensaje').value;
+      await obtenerLogo().then(function (logo) { APP.logo = logo; });
       var doc = new jspdf.jsPDF('p', 'mm', 'a4');
-
-      // Guias de doblez (tenues) — en los ejes centrales.
-      doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.2);
-      if (doc.setLineDashPattern) doc.setLineDashPattern([1.5, 1.5], 0);
-      doc.line(105, 6, 105, 291); doc.line(8, 148.5, 202, 148.5);
-      if (doc.setLineDashPattern) doc.setLineDashPattern([], 0);
-      doc.setFontSize(6.5); doc.setTextColor(170, 170, 170); doc.setFont('helvetica', 'normal');
-      doc.text(APP.idioma === 'en' ? 'fold' : 'doblar', 4, 148.5, { align: 'left', angle: 90 });
-      doc.text(APP.idioma === 'en' ? 'fold' : 'doblar', 105, 294, { align: 'center' });
-
-      // Transformaciones por cuadrante
-      var tfBR = function (x, y) { return [210 - x, 297 - y]; };       // portada, rotada
-      var tfTR = function (x, y) { return [105 + x, y]; };             // mensaje, derecha
-      var tfTL = function (x, y) { return [x, y]; };                   // interior izq, derecha
-      var tfBL = function (x, y) { return [105 - x, 297 - y]; };       // contra, rotada
-
-      dibujarPortada(penFor(doc, tfBR, true), o, d);
-      dibujarMensaje(penFor(doc, tfTR, false), o, d, mensaje);
-      dibujarSello(penFor(doc, tfTL, false), o);
-      dibujarSello(penFor(doc, tfBL, true), o);
-
-      var nombreArch = 'Detalle_' + o.nombre.es.replace(/[^a-zA-Z0-9]/g, '_') + '_' + new Date().toISOString().slice(0, 10) + '.pdf';
-      doc.save(nombreArch);
+      if (o.cupon) construirHojaCupones(doc, o, d, mensaje);
+      else construirHojaTarjeta(doc, o, d, mensaje);
+      doc.save(nombreDeArchivo(o));
     }
 
-    // ---- Vista previa (SVG de la portada) ----
+    // ---- Vista previa ----
     function refrescarPrevia() {
       var o = T[APP.ocasion]; if (!o) return;
+      var d = datosForm();
+      var mensaje = document.getElementById('inpMensaje').value;
       var cont = document.getElementById('previa');
       var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('viewBox', '0 0 105 148.5');
-      var d = datosForm();
-      // Reusar el mismo dibujo con un "pen" que escribe SVG
-      var p = penSVG(svg);
-      svg.appendChild(rectSVG(0, 0, 105, 148.5, '#F7F4EE'));
-      dibujarPortada(p, o, d);
+
+      if (o.cupon) {
+        svg.setAttribute('viewBox', '0 0 ' + CUPON_W + ' ' + CUPON_H);
+        dibujarCupon(penSVG(svg), o, d, mensaje);
+        document.getElementById('previaRevSection').classList.add('oculto');
+      } else {
+        svg.setAttribute('viewBox', '0 0 ' + (CARD_W * 2) + ' ' + CARD_H);
+        var p = penSVG(svg);
+        var pIzq = penSVGOffset(svg, 0, 0), pDer = penSVGOffset(svg, CARD_W, 0);
+        dibujarPagPortada(pIzq, o, d);
+        dibujarPagMensaje(pDer, o, d, mensaje);
+        svg.appendChild((function () { var l = document.createElementNS('http://www.w3.org/2000/svg', 'line'); l.setAttribute('x1', CARD_W); l.setAttribute('y1', 0); l.setAttribute('x2', CARD_W); l.setAttribute('y2', CARD_H); l.setAttribute('stroke', '#B9B9BC'); l.setAttribute('stroke-width', .6); l.setAttribute('stroke-dasharray', '2 2'); return l; })());
+        document.getElementById('previaRevSection').classList.remove('oculto');
+        var rev = document.getElementById('previaReverso');
+        rev.style.background = rgb(GRAFITO);
+      }
       cont.innerHTML = ''; cont.appendChild(svg);
+    }
+    // Variante del pen SVG que ademas desplaza todo en (offX,offY): se usa
+    // para pintar la vista previa de ambas paginas (izq/der) en un mismo SVG.
+    function penSVGOffset(svg, offX, offY) {
+      var base = penSVG(svg);
+      return {
+        line: function (x1, y1, x2, y2, col, w) { base.line(x1 + offX, y1 + offY, x2 + offX, y2 + offY, col, w); },
+        circle: function (cx, cy, r, col, w, fill) { base.circle(cx + offX, cy + offY, r, col, w, fill); },
+        dot: function (cx, cy, r, col) { base.dot(cx + offX, cy + offY, r, col); },
+        poly: function (pts, col, w) { base.poly(pts.map(function (pt) { return [pt[0] + offX, pt[1] + offY]; }), col, w); },
+        fill: function (pts, col) { base.fill(pts.map(function (pt) { return [pt[0] + offX, pt[1] + offY]; }), col); },
+        rect: function (x, y, w, h, col, lw, dash) { base.rect(x + offX, y + offY, w, h, col, lw, dash); },
+        bg: function (x, y, w, h, col) { base.bg(x + offX, y + offY, w, h, col); },
+        image: function (dataUrl, x, y, w, h) { base.image(dataUrl, x + offX, y + offY, w, h); },
+        text: function (str, x, y, size, col, opts) { base.text(str, x + offX, y + offY, size, col, opts); }
+      };
     }
     // "pen" para SVG (misma interfaz que penFor, coordenadas directas)
     var SVGNS = 'http://www.w3.org/2000/svg';
@@ -631,6 +834,8 @@
         poly: function (pts, col, w) { var e = document.createElementNS(SVGNS, 'path'); e.setAttribute('d', 'M ' + ptsStr(pts)); e.setAttribute('fill', 'none'); e.setAttribute('stroke', rgb(col)); e.setAttribute('stroke-width', w || .4); svg.appendChild(e); },
         fill: function (pts, col) { var e = document.createElementNS(SVGNS, 'path'); e.setAttribute('d', 'M ' + ptsStr(pts) + ' Z'); e.setAttribute('fill', rgb(col)); svg.appendChild(e); },
         rect: function (x, y, w, h, col, lw, dash) { var e = document.createElementNS(SVGNS, 'rect'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('width', w); e.setAttribute('height', h); e.setAttribute('fill', 'none'); e.setAttribute('stroke', rgb(col)); e.setAttribute('stroke-width', lw || .4); if (dash) e.setAttribute('stroke-dasharray', dash.join(' ')); svg.appendChild(e); },
+        bg: function (x, y, w, h, col) { svg.appendChild(rectSVG(x, y, w, h, rgb(col))); },
+        image: function (dataUrl, x, y, w, h) { var e = document.createElementNS(SVGNS, 'image'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('width', w); e.setAttribute('height', h); e.setAttributeNS('http://www.w3.org/1999/xlink', 'href', dataUrl); svg.appendChild(e); },
         text: function (str, x, y, size, col, opts) { opts = opts || {}; var e = document.createElementNS(SVGNS, 'text'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('text-anchor', opts.align === 'left' ? 'start' : 'middle'); e.setAttribute('font-size', size); e.setAttribute('fill', rgb(col)); e.setAttribute('font-family', opts.font === 'times' ? 'Cormorant Garamond, Georgia, serif' : 'Oswald, sans-serif'); if (opts.style === 'italic') e.setAttribute('font-style', 'italic'); if (opts.style === 'bold') e.setAttribute('font-weight', '600'); if (opts.charSpace) e.setAttribute('letter-spacing', opts.charSpace); e.textContent = str; svg.appendChild(e); }
       };
     }
