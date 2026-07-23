@@ -2491,7 +2491,11 @@ function refrescarDatosServidor() {
             '<button type="button" onclick="copiarMensajeWhatsApp(this)" class="inline-flex items-center gap-2 text-white font-black px-5 py-2.5 rounded-xl transition shadow-sm text-xs cursor-pointer" style="background:#25D366;">' +
               '<i class="fa-brands fa-whatsapp text-base"></i> COPIAR MENSAJE WHATSAPP' +
             '</button>' +
+            '<button type="button" onclick="abrirCorreoOutlook()" class="inline-flex items-center gap-2 text-white font-black px-5 py-2.5 rounded-xl transition shadow-sm text-xs cursor-pointer" style="background:#0072C6;">' +
+              '<i class="fa-solid fa-envelope text-base"></i> ABRIR CORREO OUTLOOK' +
+            '</button>' +
           '</div>' +
+          '<span class="text-emerald-700 block mt-2" style="font-size:11px;">Recuerda adjuntar el ' + (esWord ? 'Word' : 'PDF') + ' descargado antes de enviar.</span>' +
         '</div>';
     }
 
@@ -2513,9 +2517,14 @@ function refrescarDatosServidor() {
           box.innerHTML =
             '<div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">' +
               '<span class="text-amber-800 font-bold block mb-2 text-sm">El PDF se descargó, pero falló el respaldo en Drive/Historial: ' + escTx(err) + '</span>' +
-              '<button type="button" onclick="copiarMensajeWhatsApp(this)" class="inline-flex items-center gap-2 text-white font-black px-5 py-2.5 rounded-xl transition shadow-sm text-xs cursor-pointer" style="background:#25D366;">' +
-                '<i class="fa-brands fa-whatsapp text-base"></i> COPIAR MENSAJE WHATSAPP' +
-              '</button>' +
+              '<div class="flex flex-wrap gap-2 justify-center">' +
+                '<button type="button" onclick="copiarMensajeWhatsApp(this)" class="inline-flex items-center gap-2 text-white font-black px-5 py-2.5 rounded-xl transition shadow-sm text-xs cursor-pointer" style="background:#25D366;">' +
+                  '<i class="fa-brands fa-whatsapp text-base"></i> COPIAR MENSAJE WHATSAPP' +
+                '</button>' +
+                '<button type="button" onclick="abrirCorreoOutlook()" class="inline-flex items-center gap-2 text-white font-black px-5 py-2.5 rounded-xl transition shadow-sm text-xs cursor-pointer" style="background:#0072C6;">' +
+                  '<i class="fa-solid fa-envelope text-base"></i> ABRIR CORREO OUTLOOK' +
+                '</button>' +
+              '</div>' +
             '</div>';
         })
         .guardarPdfClienteYRegistrar(payload, base64, nombreArchivo);
@@ -2722,6 +2731,46 @@ function refrescarDatosServidor() {
       } else {
         listo(copiarPorSeleccion(txt));
       }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  ABRIR CORREO NUEVO EN OUTLOOK (mailto)
+    // ═══════════════════════════════════════════════════════════
+    // Pide (y recuerda en este navegador) el nombre de quien firma el correo.
+    function obtenerNombreRecepcionista() {
+      let guardado = localStorage.getItem('cotizador_nombre_recepcionista') || '';
+      let nombre = prompt('¿Quién firma este correo? (se recuerda para la próxima vez)', guardado);
+      if (nombre === null) return null; // canceló
+      nombre = nombre.trim();
+      if (nombre) localStorage.setItem('cotizador_nombre_recepcionista', nombre);
+      return nombre;
+    }
+
+    // Cuerpo del correo en texto plano (mailto no admite negrita/subrayado ni HTML).
+    // La firma con el logo/datos de contacto se deja a la firma predeterminada
+    // de Outlook para nuevos mensajes, que ya trae ese formato.
+    function cuerpoCorreoOutlookDe(payload, nombreRecepcionista) {
+      return payload.saludo + ' ' + payload.nombre_cliente + ',\n\n' +
+        'Junto con saludar y agradeciendo su contacto, adjunto encontrará información acorde a servicios solicitados.\n\n' +
+        'Esta cotización no garantiza el bloqueo de habitaciones, tiene una vigencia de 5 días y está sujeta a disponibilidad al momento de su envío.\n\n' +
+        'Quedo atento\n\n' +
+        'Se despide cordialmente\n\n' +
+        nombreRecepcionista + '.';
+    }
+
+    function abrirCorreoOutlook() {
+      if (!payloadParaWhatsApp) return;
+      let nombreRecepcionista = obtenerNombreRecepcionista();
+      if (nombreRecepcionista === null) return; // canceló el prompt
+      let payload = payloadParaWhatsApp;
+      let checkinTx = (payload.checkin || '').replace(/\//g, '-');
+      let asunto = 'Cascadas Hotel / Cot. ' + checkinTx + ' ' + payload.nombre_cliente;
+      let cuerpo = cuerpoCorreoOutlookDe(payload, nombreRecepcionista || '');
+      let mailto = 'mailto:' +
+        '?subject=' + encodeURIComponent(asunto) +
+        '&cc=' + encodeURIComponent('npizarro@cascadashotel.cl,administracion@cascadashotel.cl') +
+        '&body=' + encodeURIComponent(cuerpo);
+      window.location.href = mailto;
     }
 
     // ═══════════════════════════════════════════════════════════
