@@ -2513,18 +2513,14 @@ function refrescarDatosServidor() {
     function mostrarCajaExito(pdfUrl, esWord) {
       let box = document.getElementById('download-box');
       box.classList.remove('hidden');
-      let linkDrive = pdfUrl
-        ? '<a href="' + pdfUrl + '" target="_blank" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black px-5 py-2.5 rounded-xl transition shadow-sm text-xs cursor-pointer"><i class="fa-solid fa-file-pdf"></i> VER RESPALDO EN DRIVE</a>'
-        : '';
       box.innerHTML =
         '<div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">' +
           '<span class="text-emerald-800 font-bold block mb-3"><i class="fa-solid fa-circle-check"></i> Cotización Lista — ' + (esWord ? 'Word' : 'PDF') + ' descargado</span>' +
-          '<div class="flex flex-wrap gap-2 justify-center">' +
-            linkDrive +
-            '<button type="button" onclick="copiarMensajeWhatsApp(this)" class="inline-flex items-center gap-2 text-white font-black px-5 py-2.5 rounded-xl transition shadow-sm text-xs cursor-pointer" style="background:#25D366;">' +
+          '<div class="flex gap-2 justify-center">' +
+            '<button type="button" onclick="copiarMensajeWhatsApp(this)" class="inline-flex items-center gap-2 text-white font-black px-5 py-2.5 rounded-xl transition shadow-sm text-xs cursor-pointer whitespace-nowrap" style="background:#25D366;">' +
               '<i class="fa-brands fa-whatsapp text-base"></i> COPIAR MENSAJE WHATSAPP' +
             '</button>' +
-            '<button type="button" onclick="abrirCorreoOutlook()" class="inline-flex items-center gap-2 text-white font-black px-5 py-2.5 rounded-xl transition shadow-sm text-xs cursor-pointer" style="background:#0072C6;">' +
+            '<button type="button" onclick="abrirCorreoOutlook()" class="inline-flex items-center gap-2 text-white font-black px-5 py-2.5 rounded-xl transition shadow-sm text-xs cursor-pointer whitespace-nowrap" style="background:#0072C6;">' +
               '<i class="fa-solid fa-envelope text-base"></i> ABRIR CORREO OUTLOOK' +
             '</button>' +
           '</div>' +
