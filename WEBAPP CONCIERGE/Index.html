@@ -990,6 +990,7 @@ var I18N = {
     a_habitacion: 'A la habitacion',
     hab_no_disponible: 'El pedido a la habitacion no esta disponible hoy.',
     aviso_anticipacion: 'Solo se puede hacer un pedido con {min} minutos de anticipacion a la hora seleccionada.',
+    aviso_anticipacion_servicio: 'Este servicio solo se puede reservar con al menos {horas} horas de anticipacion.',
     aviso_no_modificable: 'Este pedido no se puede modificar dentro de los {min} minutos previos a la hora de la reserva.',
     notas_pedido: 'Notas del pedido (opcional)',
     notas_pedido_ph: 'Ej: filete a punto, sin cebolla, alergia a frutos secos...',
@@ -1055,6 +1056,7 @@ var I18N = {
     a_habitacion: 'To the room',
     hab_no_disponible: 'Room delivery is not available today.',
     aviso_anticipacion: 'Orders can only be placed at least {min} minutes ahead of the selected time.',
+    aviso_anticipacion_servicio: 'This service can only be booked at least {horas} hours in advance.',
     aviso_no_modificable: 'This order cannot be changed within {min} minutes of the reservation time.',
     notas_pedido: 'Order notes (optional)',
     notas_pedido_ph: 'e.g. steak medium, no onion, nut allergy...',
@@ -1610,6 +1612,13 @@ function seleccionarServicioHuesped(servicioID) {
       '<p class="text-xs opacity-60 mb-3"><i class="fa-solid fa-circle-info"></i> ' + t('aviso_anticipacion', { min: limiteServ }) + '</p>';
   }
 
+  // Aviso de anticipo minimo (regla configurable por servicio, ej. Masajes = 12h).
+  var cajaAnticipo = '';
+  if (Number(s.AnticipoMinimoHoras) > 0) {
+    cajaAnticipo = '<p class="text-xs opacity-70 mb-3"><i class="fa-solid fa-circle-info"></i> ' +
+      t('aviso_anticipacion_servicio', { horas: s.AnticipoMinimoHoras }) + '</p>';
+  }
+
   // Caja informativa del Desayuno Habitacion (lee del propio servicio S002).
   var cajaDesayuno = '';
   if (s.ID === 'S002') {
@@ -1657,6 +1666,7 @@ function seleccionarServicioHuesped(servicioID) {
       '<div><p class="font-semibold text-lg leading-tight">' + escaparHTML(nombreDe(s)) + '</p>' +
       '<p class="text-xs opacity-60">' + t('rango_horario', { ini: s.HorarioInicio, fin: s.HorarioFin }) + '</p></div>' +
     '</div>' +
+    cajaAnticipo +
     cajaDesayuno +
     cajaEntrega +
     cajaVariantes +
@@ -3925,7 +3935,8 @@ function abrirFormServicio(servicioID) {
   var s = servicioID ? (APP.serviciosConfig || []).filter(function (x) { return x.ID === servicioID; })[0] : null;
   s = s || { ID: '', Nombre: '', Categoria: 'Bienestar', Descripcion: '', Icono: 'fa-bell-concierge',
     CostoBase: 0, Capacidad: 1, DuracionMinutos: 60, HorarioInicio: '10:00', HorarioFin: '20:00',
-    RequiereAprobacion: false, PermitePrepedido: false, UsoExclusivo: false, Activo: true, Visible: true, Variantes: [] };
+    RequiereAprobacion: false, PermitePrepedido: false, UsoExclusivo: false, Activo: true, Visible: true, Variantes: [],
+    AnticipoMinimoHoras: 0 };
 
   APP.formServicioID = servicioID || '';
   APP.formIcono = s.Icono || 'fa-bell-concierge';
@@ -3948,7 +3959,9 @@ function abrirFormServicio(servicioID) {
       '<div><label class="lbl">Precio base</label><input id="fsPrecio" type="number" class="input" value="' + s.CostoBase + '"></div>' +
       '<div><label class="lbl">Abre</label><input id="fsAbre" class="input text-center" value="' + s.HorarioInicio + '" placeholder="10:00"></div>' +
       '<div><label class="lbl">Cierra</label><input id="fsCierra" class="input text-center" value="' + s.HorarioFin + '" placeholder="20:00"></div>' +
+      '<div class="col-span-2"><label class="lbl">Anticipo minimo (horas)</label><input id="fsAnticipo" type="number" min="0" step="1" class="input" value="' + (s.AnticipoMinimoHoras || 0) + '"></div>' +
     '</div>' +
+    '<p class="text-xs opacity-55 -mt-1 mb-1">0 = sin restriccion. Si pones, por ejemplo, 12, el huesped solo puede reservar este servicio con al menos 12 horas de anticipacion (no aplica a reservas creadas por recepcion). El huesped vera este aviso en la pantalla del servicio.</p>' +
     '<div class="mt-2"><label class="lbl">Descripcion</label><textarea id="fsDescripcion" class="input" rows="2">' + escaparHTML(s.Descripcion || '') + '</textarea></div>' +
     '<div class="mt-2"><label class="lbl"><i class="fa-solid fa-language"></i> Descripcion (ingles)</label><textarea id="fsDescripcionEN" class="input" rows="2" placeholder="English description">' + escaparHTML(s.DescripcionEN || '') + '</textarea></div>' +
 
@@ -4080,6 +4093,7 @@ function guardarFormServicio() {
     activo: document.getElementById('fsActivo').checked,
     visible: document.getElementById('fsVisible').checked,
     color: APP.formColor,
+    anticipoMinimoHoras: document.getElementById('fsAnticipo').value,
     variantes: variantes
   };
   if (!datos.nombre) { mostrarToast('El nombre es obligatorio.', 'error'); return; }

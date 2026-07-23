@@ -438,6 +438,29 @@ function _asegurarColumnaVisibleServicios() {
 }
 
 /**
+ * Auto-reparacion: asegura que la hoja Servicios tenga la columna
+ * AnticipoMinimoHoras (regla opcional, activable por servicio: "solo se
+ * puede reservar con N horas de anticipacion"). 0 = sin restriccion (valor
+ * por defecto para no afectar servicios existentes). La primera vez que se
+ * crea la columna, deja Masajes (S007) en 12 horas, que es la regla que
+ * pidio el hotel para ese servicio; el resto queda en 0 (sin restriccion)
+ * y se puede activar desde el editor de servicios cuando haga falta.
+ */
+function _asegurarColumnaAnticipoServicios() {
+  var hoja = _hoja(HOJAS.SERVICIOS);
+  var encabezados = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0];
+  var yaExistia = encabezados.indexOf('AnticipoMinimoHoras') !== -1;
+  _asegurarColumna(hoja, 'AnticipoMinimoHoras', 0);
+  if (!yaExistia) {
+    var datos = hoja.getDataRange().getValues();
+    var col = _indiceColumna(hoja, 'AnticipoMinimoHoras') + 1;
+    for (var i = 1; i < datos.length; i++) {
+      if (datos[i][0] === 'S007') hoja.getRange(i + 1, col).setValue(12);
+    }
+  }
+}
+
+/**
  * Escribe un valor en una columna por nombre, solo si la columna existe.
  * Evita romper hojas que aun no tengan la columna bilingue.
  */
@@ -807,6 +830,7 @@ function _recargoHabitacion() {
  */
 function obtenerServiciosActivos() {
   _asegurarColumnaVisibleServicios();
+  _asegurarColumnaAnticipoServicios();
   return _leerHojaComoObjetos(HOJAS.SERVICIOS).filter(function (s) {
     return _aBooleano(s.Activo);
   }).map(_normalizarServicio);
@@ -837,7 +861,8 @@ function _normalizarServicio(s) {
     Icono: s.Icono ? String(s.Icono) : '',
     Variantes: _parsearVariantes(s.Variantes),
     UsoExclusivo: _aBooleano(s.UsoExclusivo),
-    Color: s.Color ? String(s.Color) : ''
+    Color: s.Color ? String(s.Color) : '',
+    AnticipoMinimoHoras: Number(s.AnticipoMinimoHoras) || 0
   };
 }
 
@@ -881,6 +906,7 @@ function _serializarVariantes(variantes) {
 /** Devuelve un servicio normalizado por ID (o null). */
 function _obtenerServicio(servicioID) {
   _asegurarColumnaVisibleServicios();
+  _asegurarColumnaAnticipoServicios();
   var filas = _leerHojaComoObjetos(HOJAS.SERVICIOS);
   for (var i = 0; i < filas.length; i++) {
     if (filas[i].ID === servicioID) return _normalizarServicio(filas[i]);
@@ -1218,6 +1244,26 @@ function _minutosAhoraLocal() {
   return _horaAMinutos(hhmm);
 }
 
+/** Dias de diferencia entre dos fechas "YYYY-MM-DD" (hastaISO - desdeISO). */
+function _diasEntreISO(desdeISO, hastaISO) {
+  var d1 = new Date(desdeISO + 'T00:00:00Z');
+  var d2 = new Date(hastaISO + 'T00:00:00Z');
+  return Math.round((d2.getTime() - d1.getTime()) / 86400000);
+}
+
+/**
+ * Horas (puede ser fraccion o negativo) entre ahora y una fecha+hora de
+ * reserva, segun la zona horaria del script. Se usa para la regla de
+ * "anticipo minimo" por servicio (ej. Masajes: 12 horas).
+ */
+function _horasHastaReserva(fechaISO, horaInicio) {
+  var hoy = _fechaISO(new Date());
+  var diffDias = _diasEntreISO(hoy, fechaISO);
+  var minutosReserva = _horaAMinutos(horaInicio);
+  var ahoraMin = _minutosAhoraLocal();
+  return diffDias * 24 + (minutosReserva - ahoraMin) / 60;
+}
+
 /** Reservas activas (no canceladas) del dia para un servicio. */
 function _reservasActivasDelDia(servicioID, fecha) {
   return _leerHojaComoObjetos(HOJAS.RESERVAS).filter(function (r) {
@@ -1339,6 +1385,17 @@ function crearReserva(datos) {
       limite.setDate(limite.getDate() + maxDias);
       if (fecha > _fechaISO(limite)) {
         return { success: false, mensaje: 'Solo puedes reservar hasta ' + maxDias + ' dias desde hoy. Para fechas mas lejanas, consulta en recepcion.' };
+      }
+    }
+
+    // Regla configurable por servicio: reservar con un minimo de horas de
+    // anticipacion (ej. Masajes = 12h). Se activa/desactiva por servicio
+    // (AnticipoMinimoHoras = 0 significa sin restriccion). No aplica al
+    // personal, que puede agendar en el momento desde el Centro de Operaciones.
+    if (!esStaff && servicio.AnticipoMinimoHoras > 0) {
+      var horasFaltantes = _horasHastaReserva(fecha, datos.horaInicio);
+      if (horasFaltantes < servicio.AnticipoMinimoHoras) {
+        return { success: false, mensaje: 'Este servicio requiere reservar con al menos ' + servicio.AnticipoMinimoHoras + ' horas de anticipacion.' };
       }
     }
 
@@ -2157,6 +2214,17 @@ function _generarAlertasCapacidad(reservasDelDia, servicios) {
     var partes = clave.split('|');
     var serv = servicios[partes[0]];
     if (!serv) return;
+    // Servicios de uso exclusivo (ej. Tinaja, Masajes) se reservan enteros:
+    // una sola reserva ocupa todo el horario sin importar cuantas personas
+    // asistan (2 personas en una tinaja de 4 igual la dejan tomada por
+    // completo). Ahi no existe un "quedan X cupos" parcial: o esta libre o
+    // esta ocupada.
+    if (_esServicioExclusivo(serv)) {
+      if (mapa[clave] > 0) {
+        alertas.push('Sin cupos para ' + serv.Nombre + ' a las ' + partes[1] + ' (uso exclusivo).');
+      }
+      return;
+    }
     var restante = serv.Capacidad - mapa[clave];
     if (restante <= 2 && restante > 0) {
       alertas.push('Quedan ' + restante + ' cupos para ' + serv.Nombre + ' a las ' + partes[1] + '.');
@@ -2828,6 +2896,7 @@ function actualizarConfiguracion(clave, valor, email) {
  */
 function obtenerServiciosGestion() {
   _asegurarColumnaVisibleServicios();
+  _asegurarColumnaAnticipoServicios();
   return _leerHojaComoObjetos(HOJAS.SERVICIOS).map(_normalizarServicio);
 }
 
@@ -2844,6 +2913,7 @@ function guardarServicioConfig(datos, email) {
     return { success: false, mensaje: 'No tienes permisos para editar servicios.' };
   }
   _asegurarColumnaVisibleServicios();
+  _asegurarColumnaAnticipoServicios();
   var hoja = _hoja(HOJAS.SERVICIOS);
   var filas = _leerHojaComoObjetos(HOJAS.SERVICIOS);
   for (var i = 0; i < filas.length; i++) {
@@ -2871,6 +2941,7 @@ function guardarServicioNuevo(datos, email) {
   if (!datos.nombre) return { success: false, mensaje: 'El nombre es obligatorio.' };
 
   _asegurarColumnaVisibleServicios();
+  _asegurarColumnaAnticipoServicios();
   var hoja = _hoja(HOJAS.SERVICIOS);
   // Genera el proximo ID S00X.
   var max = 0;
@@ -2924,6 +2995,7 @@ function _escribirCamposServicio(hoja, fila, datos) {
   if (datos.visible !== undefined) set('Visible', datos.visible ? 'TRUE' : 'FALSE');
   if (datos.variantes !== undefined) setHora('Variantes', _serializarVariantes(datos.variantes));
   if (datos.color !== undefined) set('Color', datos.color || '');
+  if (datos.anticipoMinimoHoras !== undefined) set('AnticipoMinimoHoras', Number(datos.anticipoMinimoHoras) || 0);
 }
 
 // ===========================================================================
