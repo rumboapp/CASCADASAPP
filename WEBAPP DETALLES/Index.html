@@ -87,11 +87,6 @@
     .btn-ghost { background: var(--surface); color: var(--tinta); box-shadow: inset 0 0 0 1px var(--borde); }
     .acciones { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
 
-    .instr { background: #F1EFEA; border: 1px solid var(--borde); border-radius: 14px; padding: 14px 16px; margin-top: 16px; font-size: 13px; color: var(--tinta-suave); line-height: 1.55; }
-    .instr b { color: var(--tinta); }
-    .instr ol { margin: 8px 0 0 18px; }
-    .instr li { margin-bottom: 3px; }
-
     .previa-wrap { display: flex; justify-content: center; margin-top: 4px; }
     .previa { width: 250px; border-radius: 6px; box-shadow: 0 12px 30px -12px rgba(30,26,20,.4); }
     .previa svg { display: block; width: 100%; height: auto; border-radius: 6px; }
@@ -149,8 +144,6 @@
           <button class="btn btn-ghost" onclick="volverInicio()"><i class="fa-solid fa-arrow-left"></i> <span data-t="btn_cambiar">Cambiar tipo</span></button>
           <button class="btn btn-dark" onclick="generarPDF()"><i class="fa-solid fa-file-arrow-down"></i> <span data-t="btn_pdf">Generar tarjeta (PDF)</span></button>
         </div>
-
-        <div class="instr" id="instrBox"></div>
       </div>
 
       <div class="paso-tit" style="margin-top:22px"><span class="n numVariante">4</span> <span data-t="paso3">Vista previa</span></div>
@@ -422,19 +415,6 @@
       es: { titulo: 'Detalles Cascadas', subtitulo: 'Tarjetas de atención · Cascadas Hotel', paso1: 'Elige el tipo de tarjeta',
         paso_variante: 'Elige el diseño', paso2: 'Completa los datos', paso3: 'Vista previa', lbl_mensaje: 'Mensaje (editable)',
         hint_mensaje: 'Viene un texto sugerido; puedes cambiarlo como quieras.', btn_cambiar: 'Cambiar tipo', btn_pdf: 'Generar PDF',
-        instr_tit: 'Cómo armarla (impecable, sin pegar):',
-        instr_t1: 'El PDF trae <b>2 páginas</b>: página 1 = interior (con guías de corte arriba y abajo), página 2 = reverso grafito sólido con el logo.',
-        instr_t2: 'Recorta por las 2 líneas de corte para separar la tarjeta del resto de la hoja.',
-        instr_t3: 'Imprime a <b>doble cara</b> (o imprime la página 1, da vuelta la hoja e imprime la página 2 — no importa de qué lado la voltees, el reverso es parejo).',
-        instr_t4: 'Dobla por la mitad (línea vertical) y marca el pliegue. Lista: por fuera el grafito con el logo, por dentro el mensaje.',
-        instr_c1: 'El PDF trae <b>4 cupones</b> idénticos en una sola página, listos para repartir.',
-        instr_c2: 'No lleva doblez: es una tarjeta plana. Solo recorta por las líneas punteadas entre cada cupón.',
-        instr_g1: 'El PDF es <b>1 sola hoja tamaño carta</b>, apaisada, lista para imprimir y entregar tal cual.',
-        instr_g2: 'No lleva corte ni doblez.',
-        instr_m1: 'El PDF trae <b>2 tarjetas horizontales</b> idénticas apiladas en una sola hoja A4.',
-        instr_m2: 'Es a <b>una sola cara</b>: imprime normal (sin doble cara) y recorta por la línea del medio. No lleva doblez.',
-        instr_s1: 'El PDF trae la tarjeta completa (portada + mensaje) en <b>una sola hoja, a una sola cara</b>.',
-        instr_s2: 'No lleva reverso ni doblez: imprime normal y listo. Puedes cortarla o dejarla tal cual, como una tarjeta plana ancha.',
         cupon: 'Cupón', tarjeta: 'Tarjeta', giftcardtag: 'Gift Card', previa_reverso: 'Reverso (color sólido, a sangre completa)',
         gc_historial: 'Gift Cards emitidas',
         var_reverso_nom: 'Clásica (con reverso)', var_reverso_desc: 'La tarjeta de libro de siempre: se dobla al medio, reverso grafito con el logo. Doble cara.',
@@ -443,19 +423,6 @@
       en: { titulo: 'Detalles Cascadas', subtitulo: 'Guest cards · Cascadas Hotel', paso1: 'Choose the card type',
         paso_variante: 'Choose the design', paso2: 'Fill in the details', paso3: 'Preview', lbl_mensaje: 'Message (editable)',
         hint_mensaje: 'A suggested text is prefilled; edit it however you like.', btn_cambiar: 'Change type', btn_pdf: 'Generate PDF',
-        instr_tit: 'How to assemble it (flawless, no glue):',
-        instr_t1: 'The PDF includes <b>2 pages</b>: page 1 = interior (with cut guides top and bottom), page 2 = solid graphite back with the logo.',
-        instr_t2: 'Cut along the 2 cut lines to separate the card from the rest of the sheet.',
-        instr_t3: 'Print <b>double-sided</b> (or print page 1, flip the sheet over and print page 2 — it does not matter which way you flip it, the back is uniform).',
-        instr_t4: 'Fold in half (vertical line) and crease it. Done: graphite with the logo outside, message inside.',
-        instr_c1: 'The PDF includes <b>4 identical vouchers</b> on a single page, ready to hand out.',
-        instr_c2: "There's no folding: it's a flat card. Just cut along the dashed lines between each voucher.",
-        instr_g1: 'The PDF is <b>1 single letter-size sheet</b>, landscape, ready to print and hand over as is.',
-        instr_g2: 'No cutting or folding needed.',
-        instr_m1: 'The PDF includes <b>2 identical landscape cards</b> stacked on a single A4 sheet.',
-        instr_m2: "It's <b>single-sided</b>: print normally (no duplex) and cut along the middle line. No folding.",
-        instr_s1: 'The PDF includes the whole card (cover + message) on <b>a single sheet, single-sided</b>.',
-        instr_s2: "No back page or folding: just print and go. You can cut it or leave it as a wide flat card.",
         cupon: 'Voucher', tarjeta: 'Card', giftcardtag: 'Gift Card', previa_reverso: 'Back (solid color, full bleed)',
         gc_historial: 'Issued Gift Cards',
         var_reverso_nom: 'Classic (with back)', var_reverso_desc: 'The usual book-fold card: folds in half, graphite back with the logo. Double-sided.',
@@ -474,20 +441,7 @@
     }
     function setIdioma(idi) {
       APP.idioma = idi; aplicarIdiomaUI(); pintarOcasiones();
-      if (APP.ocasion) { pintarCampos(); if (!APP.mensajeTocado) resetMensaje(); refrescarPrevia(); actualizarInstrucciones(); }
-    }
-
-    // Las instrucciones de armado cambian segun si es una tarjeta que se
-    // dobla o un cupon plano (sin doblez).
-    function actualizarInstrucciones() {
-      var o = T[APP.ocasion]; if (!o) return;
-      var pasos = APP.ocasion === 'giftcard' ? ['instr_g1', 'instr_g2']
-        : o.cupon ? ['instr_c1', 'instr_c2']
-        : APP.variante === 'grafito' ? ['instr_m1', 'instr_m2']
-        : APP.variante === 'color' ? ['instr_s1', 'instr_s2']
-        : ['instr_t1', 'instr_t2', 'instr_t3', 'instr_t4'];
-      document.getElementById('instrBox').innerHTML =
-        '<b>' + t('instr_tit') + '</b><ol>' + pasos.map(function (k) { return '<li>' + t(k) + '</li>'; }).join('') + '</ol>';
+      if (APP.ocasion) { pintarCampos(); if (!APP.mensajeTocado) resetMensaje(); refrescarPrevia(); }
     }
 
     // ---------------------------------------------------------------------
@@ -521,7 +475,6 @@
       pintarCampos();
       resetMensaje();
       refrescarPrevia();
-      actualizarInstrucciones();
       var seccionGC = document.getElementById('giftcardsSection');
       if (o.full) { seccionGC.classList.remove('oculto'); cargarGiftCardsEmitidas(); }
       else seccionGC.classList.add('oculto');
@@ -536,7 +489,7 @@
     //    (una sola cara, no hace falta doblar para que se vea bien).
     // ---------------------------------------------------------------------
     var VARIANTES = ['reverso', 'grafito', 'color'];
-    function elegirVariante(v) { APP.variante = v; pintarVariantes(); refrescarPrevia(); actualizarInstrucciones(); }
+    function elegirVariante(v) { APP.variante = v; pintarVariantes(); refrescarPrevia(); }
     function pintarVariantes() {
       var cont = document.getElementById('gridVariantes');
       var o = T[APP.ocasion];
@@ -884,11 +837,6 @@
       doc.line(6, offY + CARD_H, 204, offY + CARD_H);
       doc.line(CARD_W, offY + 4, CARD_W, offY + CARD_H - 4);
       if (doc.setLineDashPattern) doc.setLineDashPattern([], 0);
-      doc.setFontSize(6.5); doc.setTextColor(150, 150, 150); doc.setFont('helvetica', 'normal');
-      doc.text(APP.idioma === 'en' ? 'cut' : 'cortar', 4, offY - 2, { align: 'left' });
-      doc.text(APP.idioma === 'en' ? 'cut' : 'cortar', 4, offY + CARD_H + 4.5, { align: 'left' });
-      doc.text(APP.idioma === 'en' ? 'fold' : 'doblar', CARD_W, offY + 2.6, { align: 'center' });
-      doc.text(APP.idioma === 'en' ? 'fold' : 'doblar', CARD_W, offY + CARD_H - 1.4, { align: 'center' });
 
       // Pagina 2: reverso solido a sangre completa, con el logo centrado en
       // cada mitad (izq/der) para que quede bien puesto sea cual sea la tapa
@@ -903,80 +851,70 @@
     }
 
     // =====================================================================
-    //  VARIANTE "color, sin reverso": el mismo frente e interior de siempre
-    //  (portada + mensaje), pero SIN la pagina de reverso grafito ni las
-    //  guias de doblez — una sola cara, no hace falta doblar nada.
-    // =====================================================================
-    function construirHojaSinReverso(doc, o, d, mensaje, oscuroForzado) {
-      var offY = (297 - CARD_H) / 2;
-      var tfIzq = function (x, y) { return [x, offY + y]; };
-      var tfDer = function (x, y) { return [CARD_W + x, offY + y]; };
-      dibujarPagPortada(penFor(doc, tfIzq, false), o, d, oscuroForzado);
-      dibujarPagMensaje(penFor(doc, tfDer, false), o, d, mensaje, oscuroForzado);
-
-      doc.setDrawColor(185, 185, 185); doc.setLineWidth(.2);
-      if (doc.setLineDashPattern) doc.setLineDashPattern([1.4, 1.4], 0);
-      doc.line(6, offY, 204, offY);
-      doc.line(6, offY + CARD_H, 204, offY + CARD_H);
-      if (doc.setLineDashPattern) doc.setLineDashPattern([], 0);
-      doc.setFontSize(6.5); doc.setTextColor(150, 150, 150); doc.setFont('helvetica', 'normal');
-      doc.text(APP.idioma === 'en' ? 'cut' : 'cortar', 4, offY - 2, { align: 'left' });
-      doc.text(APP.idioma === 'en' ? 'cut' : 'cortar', 4, offY + CARD_H + 4.5, { align: 'left' });
-    }
-
-    // =====================================================================
-    //  VARIANTE "minimalista grafito": horizontal, monocromo (solo grafito y
-    //  crema, sin el color de acento de la ocasion), sin patrones decorativos
-    //  (a proposito, para que se sienta mas elegante/limpia), sin reverso ni
-    //  doblez. 2 copias apiladas en una hoja A4, a una sola cara.
+    //  VARIANTES "minimalista grafito" y "color, sin reverso": una sola
+    //  tarjeta horizontal y autocontenida (portada + mensaje juntos en un
+    //  solo marco), sin doblez ni pagina de reverso — a proposito con un
+    //  diseño bien distinto del de la variante clasica (que es un libro de
+    //  2 paneles separados). Comparten el mismo armado fisico; lo unico que
+    //  cambia entre ambas es la paleta: "oscuro" = solo grafito/crema (sin
+    //  el color de la ocasion), o los colores de siempre.
     // =====================================================================
     var MINI_W = 148.5, MINI_H = 105;
 
-    function dibujarTarjetaMinimalista(p, o, d, mensaje) {
-      var W = MINI_W, H = MINI_H;
-      var lineaCol = mezclar(CREMA, GRAFITO, .4); // solo para lineas/bordes finos
-      var textoSuave = mezclar(CREMA, GRAFITO, .68); // texto secundario, legible sobre grafito
-      p.bg(0, 0, W, H, GRAFITO);
-      p.rect(8, 8, W - 16, H - 16, lineaCol, .5);
+    function dibujarTarjetaUnica(p, o, d, mensaje, oscuro) {
+      var acc = o.acc, W = MINI_W, H = MINI_H;
+      var fondo = oscuro ? GRAFITO : mezclar(acc, PAPEL, .16);
+      var linea = oscuro ? mezclar(CREMA, GRAFITO, .4) : acc;
+      var textoFuerte = oscuro ? CREMA : acc;
+      var textoSuave = oscuro ? mezclar(CREMA, GRAFITO, .68) : INK_SOFT;
+      var textoBase = oscuro ? mezclar(CREMA, GRAFITO, .85) : INK;
 
-      var xDiv = 54, xIzq = xDiv / 2, xMsg = (xDiv + W) / 2;
-      p.line(xDiv, 14, xDiv, H - 14, lineaCol, .4);
+      var FL = 8, FT = 8, FR = W - 8, FB = H - 8;
+      p.bg(0, 0, W, H, fondo);
+      patronPuntos(p, FL + 1, FT + 1, FR - 1, FB - 1, mezclar(linea, fondo, .3), 8);
+      p.rect(FL, FT, W - 16, H - 16, linea, .8);
+      p.rect(FL + 2.5, FT + 2.5, W - 21, H - 21, mezclar(linea, fondo, .55), .3);
+      patronRombos(p, FL + 6, FR - 6, FT + 6, linea, 7);
+      patronRombos(p, FL + 6, FR - 6, FB - 6, linea, 7);
 
-      dibujarMarca(p, xIzq, 28, 19, CREMA, textoSuave, 42);
-      if (o.kicker) p.text(o.kicker[APP.idioma], xIzq, 44, 3.8, textoSuave, { font: 'helvetica', charSpace: 1.1 });
+      var xDiv = 58, xIzq = (FL + xDiv) / 2, xMsg = (xDiv + FR) / 2;
+      p.line(xDiv, FT + 10, xDiv, FB - 10, linea, .4);
 
-      var tit = o.tituloCampo ? wrapTexto(d.titulo || (APP.idioma === 'en' ? 'Special Event' : 'Evento Especial'), 11)
-        : wrapTexto((o.titulo[APP.idioma] || []).join(' '), 11);
-      var ty = 54;
-      tit.forEach(function (l, i) { p.text(l, xIzq, ty + i * 8, 10.5, CREMA, { font: 'times', style: 'italic' }); });
+      // Logo bien grande, centrado en la columna izquierda.
+      dibujarMarca(p, xIzq, 32, 32, textoFuerte, textoSuave, 64);
+
+      if (o.kicker) p.text(o.kicker[APP.idioma], xIzq, 55, 3.8, textoSuave, { font: 'helvetica', charSpace: 1.1 });
+
+      var tit = o.tituloCampo ? wrapTexto(d.titulo || (APP.idioma === 'en' ? 'Special Event' : 'Evento Especial'), 12)
+        : wrapTexto((o.titulo[APP.idioma] || []).join(' '), 12);
+      var ty = o.kicker ? 64 : 60;
+      tit.forEach(function (l, i) { p.text(l, xIzq, ty + i * 8, 11, textoFuerte, { font: 'times', style: 'italic' }); });
       var sub = o.sub ? o.sub(d) : '';
       if (sub) p.text(sub, xIzq, ty + tit.length * 8 + 6, 7.8, textoSuave, { font: 'times', style: 'italic' });
 
       var lineas = wrapTexto(mensaje, 40);
-      var y = 18, lh = 6.2;
+      var y = 22, lh = 5.6;
       lineas.forEach(function (l) {
         var esFirma = /^(con cari|con afecto|con respeto|warmly|with warmth|with respect)/i.test(l) ||
           /^(el equipo de cascadas hotel|the cascadas hotel team)\.?$/i.test(l.trim());
-        p.text(l, xMsg, y, esFirma ? 7.4 : 6.6, esFirma ? CREMA : mezclar(CREMA, GRAFITO, .85), { font: 'times', style: esFirma ? 'italic' : 'normal' });
+        p.text(l, xMsg, y, esFirma ? 7 : 6.3, esFirma ? textoFuerte : textoBase, { font: 'times', style: esFirma ? 'italic' : 'normal' });
         y += (l === '' ? lh * 0.5 : lh);
       });
     }
 
-    function construirHojaMinimalista(doc, o, d, mensaje) {
+    function construirHojaUnica(doc, o, d, mensaje, oscuro) {
       var left = (210 - MINI_W) / 2;
       var gap = 10, totalH = MINI_H * 2 + gap, topMargin = (297 - totalH) / 2;
       [0, 1].forEach(function (i) {
         var offY = topMargin + i * (MINI_H + gap);
         var tf = function (x, y) { return [left + x, offY + y]; };
-        dibujarTarjetaMinimalista(penFor(doc, tf, false), o, d, mensaje);
+        dibujarTarjetaUnica(penFor(doc, tf, false), o, d, mensaje, oscuro);
       });
       var yCorte = topMargin + MINI_H + gap / 2;
       doc.setDrawColor(185, 185, 185); doc.setLineWidth(.2);
       if (doc.setLineDashPattern) doc.setLineDashPattern([1.4, 1.4], 0);
       doc.line(left - 4, yCorte, left + MINI_W + 4, yCorte);
       if (doc.setLineDashPattern) doc.setLineDashPattern([], 0);
-      doc.setFontSize(6.5); doc.setTextColor(150, 150, 150); doc.setFont('helvetica', 'normal');
-      doc.text(APP.idioma === 'en' ? 'cut' : 'cortar', 105, yCorte - 3, { align: 'center' });
     }
 
     // =====================================================================
@@ -1035,8 +973,6 @@
           if (doc.setLineDashPattern) doc.setLineDashPattern([], 0);
         }
       }
-      doc.setFontSize(6.5); doc.setTextColor(150, 150, 150); doc.setFont('helvetica', 'normal');
-      doc.text(APP.idioma === 'en' ? 'cut along the dashed lines' : 'recorta por las lineas punteadas', 105, 291, { align: 'center' });
     }
 
     // =====================================================================
@@ -1120,10 +1056,10 @@
         construirHojaCupones(doc, o, d, mensaje);
       } else if (APP.variante === 'grafito') {
         doc = new jspdf.jsPDF('p', 'mm', 'a4');
-        construirHojaMinimalista(doc, o, d, mensaje);
+        construirHojaUnica(doc, o, d, mensaje, true);
       } else if (APP.variante === 'color') {
         doc = new jspdf.jsPDF('p', 'mm', 'a4');
-        construirHojaSinReverso(doc, o, d, mensaje, false);
+        construirHojaUnica(doc, o, d, mensaje, false);
       } else {
         doc = new jspdf.jsPDF('p', 'mm', 'a4');
         construirHojaTarjeta(doc, o, d, mensaje);
@@ -1197,24 +1133,19 @@
         svg.setAttribute('viewBox', '0 0 ' + CUPON_W + ' ' + CUPON_H);
         dibujarCupon(penSVG(svg), o, d, mensaje);
         document.getElementById('previaRevSection').classList.add('oculto');
-      } else if (APP.variante === 'grafito') {
+      } else if (APP.variante === 'grafito' || APP.variante === 'color') {
         svg.setAttribute('viewBox', '0 0 ' + MINI_W + ' ' + MINI_H);
-        dibujarTarjetaMinimalista(penSVG(svg), o, d, mensaje);
+        dibujarTarjetaUnica(penSVG(svg), o, d, mensaje, APP.variante === 'grafito');
         document.getElementById('previaRevSection').classList.add('oculto');
       } else {
         svg.setAttribute('viewBox', '0 0 ' + (CARD_W * 2) + ' ' + CARD_H);
-        var oscuroForzado = APP.variante === 'color' ? false : undefined;
         var pIzq = penSVGOffset(svg, 0, 0), pDer = penSVGOffset(svg, CARD_W, 0);
-        dibujarPagPortada(pIzq, o, d, oscuroForzado);
-        dibujarPagMensaje(pDer, o, d, mensaje, oscuroForzado);
+        dibujarPagPortada(pIzq, o, d);
+        dibujarPagMensaje(pDer, o, d, mensaje);
         svg.appendChild((function () { var l = document.createElementNS('http://www.w3.org/2000/svg', 'line'); l.setAttribute('x1', CARD_W); l.setAttribute('y1', 0); l.setAttribute('x2', CARD_W); l.setAttribute('y2', CARD_H); l.setAttribute('stroke', '#B9B9BC'); l.setAttribute('stroke-width', .6); l.setAttribute('stroke-dasharray', '2 2'); return l; })());
-        if (APP.variante === 'color') {
-          document.getElementById('previaRevSection').classList.add('oculto');
-        } else {
-          document.getElementById('previaRevSection').classList.remove('oculto');
-          var rev = document.getElementById('previaReverso');
-          rev.style.background = rgb(GRAFITO);
-        }
+        document.getElementById('previaRevSection').classList.remove('oculto');
+        var rev = document.getElementById('previaReverso');
+        rev.style.background = rgb(GRAFITO);
       }
       cont.innerHTML = ''; cont.appendChild(svg);
     }
