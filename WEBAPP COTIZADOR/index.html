@@ -636,6 +636,39 @@
     </div>
   </div>
 
+  <!-- ═══════ MODAL RECEPCIONISTA (correo Outlook) ═══════ -->
+  <div id="modal-recepcionista" class="modal-bg" style="display:none;">
+    <div class="modal-box" style="max-width:440px;">
+      <div class="rpt-header" style="padding:18px 24px 16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <div class="rpt-title" style="font-size:18px;">¿Quién envía este correo?</div>
+            <div class="rpt-subtitle">Se usa para firmar el mensaje</div>
+          </div>
+          <button onclick="cerrarModalRecepcionista()" class="btn-cerrar-modal"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+      <div class="rpt-body" style="padding:20px 24px;">
+        <select id="selRecepcionista" style="width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-size:14px;font-weight:700;color:#0f172a;outline:none;margin-bottom:14px;"></select>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <input type="text" id="nuevoRecepcionistaInput" placeholder="Agregar nombre nuevo..."
+                 style="flex:1;background:white;border:1px solid #e2e8f0;border-radius:10px;padding:9px 12px;font-size:13px;outline:none;"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();agregarRecepcionista();}">
+          <button onclick="agregarRecepcionista()" style="background:#0f172a;color:white;border:none;border-radius:10px;padding:9px 14px;font-size:12px;font-weight:700;cursor:pointer;">Agregar</button>
+        </div>
+        <button onclick="eliminarRecepcionistaSeleccionado()" style="background:none;border:none;color:#b91c1c;font-size:12px;font-weight:700;cursor:pointer;padding:4px 0;">
+          <i class="fa-solid fa-trash"></i> Eliminar seleccionado de la lista
+        </button>
+      </div>
+      <div style="padding:14px 20px;display:flex;gap:10px;justify-content:flex-end;background:#f8fafc;">
+        <button onclick="cerrarModalRecepcionista()" style="background:#e2e8f0;color:#334155;border:none;border-radius:10px;padding:11px 18px;font-size:12px;font-weight:700;cursor:pointer;">Cancelar</button>
+        <button onclick="continuarCorreoOutlook()" style="background:#0072C6;color:white;border:none;border-radius:10px;padding:11px 22px;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-envelope"></i> ABRIR CORREO
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Botón flotante Reportes -->
   <button id="btn-reportes-flotante" onclick="abrirReportes()">
     <span class="btn-flotante-icon"><i class="fa-solid fa-chart-pie"></i></span>
@@ -2736,36 +2769,78 @@ function refrescarDatosServidor() {
     // ═══════════════════════════════════════════════════════════
     //  ABRIR CORREO NUEVO EN OUTLOOK (mailto)
     // ═══════════════════════════════════════════════════════════
-    // Pide (y recuerda en este navegador) el nombre de quien firma el correo.
-    function obtenerNombreRecepcionista() {
-      let guardado = localStorage.getItem('cotizador_nombre_recepcionista') || '';
-      let nombre = prompt('¿Quién firma este correo? (se recuerda para la próxima vez)', guardado);
-      if (nombre === null) return null; // canceló
-      nombre = nombre.trim();
-      if (nombre) localStorage.setItem('cotizador_nombre_recepcionista', nombre);
-      return nombre;
+    // Lista de recepcionistas (se guarda en este navegador: agregar/quitar
+    // se hace desde el propio modal de "¿Quién envía este correo?").
+    function _listaRecepcionistas() {
+      try {
+        let lista = JSON.parse(localStorage.getItem('cotizador_recepcionistas') || '[]');
+        return Array.isArray(lista) ? lista : [];
+      } catch(e) { return []; }
+    }
+    function _guardarListaRecepcionistas(lista) {
+      localStorage.setItem('cotizador_recepcionistas', JSON.stringify(lista));
+    }
+    function _renderSelectRecepcionistas(seleccionar) {
+      let lista = _listaRecepcionistas();
+      let sel = document.getElementById('selRecepcionista');
+      if (!lista.length) {
+        sel.innerHTML = '<option value="">— agrega un nombre abajo —</option>';
+        return;
+      }
+      sel.innerHTML = lista.map(function(n) { return '<option value="' + escTx(n) + '">' + escTx(n) + '</option>'; }).join('');
+      if (seleccionar && lista.indexOf(seleccionar) !== -1) sel.value = seleccionar;
+    }
+    function agregarRecepcionista() {
+      let input = document.getElementById('nuevoRecepcionistaInput');
+      let nombre = (input.value || '').trim();
+      if (!nombre) return;
+      let lista = _listaRecepcionistas();
+      if (lista.indexOf(nombre) === -1) lista.push(nombre);
+      _guardarListaRecepcionistas(lista);
+      input.value = '';
+      _renderSelectRecepcionistas(nombre);
+    }
+    function eliminarRecepcionistaSeleccionado() {
+      let sel = document.getElementById('selRecepcionista');
+      let actual = sel.value;
+      if (!actual) return;
+      if (!confirm('¿Eliminar "' + actual + '" de la lista?')) return;
+      let lista = _listaRecepcionistas().filter(function(n) { return n !== actual; });
+      _guardarListaRecepcionistas(lista);
+      _renderSelectRecepcionistas();
     }
 
-    // Cuerpo del correo en texto plano (mailto no admite negrita/subrayado ni HTML).
-    // La firma con el logo/datos de contacto se deja a la firma predeterminada
-    // de Outlook para nuevos mensajes, que ya trae ese formato.
+    // Cuerpo del correo en texto plano (mailto no admite negrita/subrayado ni
+    // HTML). El aviso de vigencia se puede dejar en negrita/subrayado a mano
+    // seleccionándolo en Outlook, es solo una línea. La imagen de firma
+    // (Recepción/Front desk) es la firma predeterminada de Outlook y se
+    // agrega sola al fondo del correo — no se repite aquí.
     function cuerpoCorreoOutlookDe(payload, nombreRecepcionista) {
       return payload.saludo + ' ' + payload.nombre_cliente + ',\n\n' +
-        'Junto con saludar y agradeciendo su contacto, adjunto encontrará información acorde a servicios solicitados.\n\n' +
+        'Junto con saludar y agradeciendo su contacto, adjunto encontrará información acorde a servicios solicitados.\n' +
         'Esta cotización no garantiza el bloqueo de habitaciones, tiene una vigencia de 5 días y está sujeta a disponibilidad al momento de su envío.\n\n' +
-        'Quedo atento\n\n' +
+        'Quedamos atentos\n\n' +
         'Se despide cordialmente\n\n' +
         nombreRecepcionista + '.';
     }
 
     function abrirCorreoOutlook() {
       if (!payloadParaWhatsApp) return;
-      let nombreRecepcionista = obtenerNombreRecepcionista();
-      if (nombreRecepcionista === null) return; // canceló el prompt
+      _renderSelectRecepcionistas(localStorage.getItem('cotizador_recepcionista_actual') || '');
+      document.getElementById('modal-recepcionista').style.display = 'flex';
+    }
+    function cerrarModalRecepcionista() {
+      document.getElementById('modal-recepcionista').style.display = 'none';
+    }
+    function continuarCorreoOutlook() {
+      let nombre = document.getElementById('selRecepcionista').value || '';
+      if (!nombre) { mostrarToast('error', 'Agrega o elige un nombre de recepcionista primero.'); return; }
+      localStorage.setItem('cotizador_recepcionista_actual', nombre);
+      cerrarModalRecepcionista();
       let payload = payloadParaWhatsApp;
       let checkinTx = (payload.checkin || '').replace(/\//g, '-');
       let asunto = 'Cascadas Hotel / Cot. ' + checkinTx + ' ' + payload.nombre_cliente;
-      let cuerpo = cuerpoCorreoOutlookDe(payload, nombreRecepcionista || '');
+      let cuerpo = cuerpoCorreoOutlookDe(payload, nombre);
       let mailto = 'mailto:' +
         '?subject=' + encodeURIComponent(asunto) +
         '&cc=' + encodeURIComponent('npizarro@cascadashotel.cl,administracion@cascadashotel.cl') +
