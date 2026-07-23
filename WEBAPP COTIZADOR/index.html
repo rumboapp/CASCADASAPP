@@ -2815,13 +2815,40 @@ function refrescarDatosServidor() {
     // seleccionándolo en Outlook, es solo una línea. La imagen de firma
     // (Recepción/Front desk) es la firma predeterminada de Outlook y se
     // agrega sola al fondo del correo — no se repite aquí.
+    // El aviso de vigencia va en negrita+subrayado en el correo real, pero
+    // mailto solo admite texto plano (no hay forma de mandar HTML por ahí).
+    // Por eso el cuerpo deja un marcador de texto en ese lugar, y aparte se
+    // copia el aviso YA formateado (negrita+subrayado) al portapapeles para
+    // que baste un Ctrl+V encima del marcador.
+    var MARCADOR_AVISO = '[Pega aquí el aviso — ya está copiado, solo Ctrl+V]';
+    var TEXTO_AVISO = 'Esta cotización no garantiza el bloqueo de habitaciones, tiene una vigencia de 5 días y está sujeta a disponibilidad al momento de su envío.';
+
     function cuerpoCorreoOutlookDe(payload, nombreRecepcionista) {
       return payload.saludo + ' ' + payload.nombre_cliente + ',\n\n' +
         'Junto con saludar y agradeciendo su contacto, adjunto encontrará información acorde a servicios solicitados.\n' +
-        'Esta cotización no garantiza el bloqueo de habitaciones, tiene una vigencia de 5 días y está sujeta a disponibilidad al momento de su envío.\n\n' +
+        MARCADOR_AVISO + '\n\n' +
         'Quedamos atentos\n\n' +
         'Se despide cordialmente\n\n' +
         nombreRecepcionista + '.';
+    }
+
+    // Copia el aviso con negrita+subrayado real (HTML) al portapapeles.
+    // Si el navegador no soporta copiar HTML, copia el texto plano como respaldo.
+    function _copiarAvisoFormateado() {
+      var html = '<b><u>' + escTx(TEXTO_AVISO) + '</u></b>';
+      try {
+        if (navigator.clipboard && window.ClipboardItem) {
+          var item = new ClipboardItem({
+            'text/html': new Blob([html], { type: 'text/html' }),
+            'text/plain': new Blob([TEXTO_AVISO], { type: 'text/plain' })
+          });
+          return navigator.clipboard.write([item]);
+        }
+      } catch(e) { /* sigue al respaldo de texto plano */ }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(TEXTO_AVISO);
+      }
+      return Promise.resolve();
     }
 
     function abrirCorreoOutlook() {
@@ -2845,7 +2872,11 @@ function refrescarDatosServidor() {
         '?subject=' + encodeURIComponent(asunto) +
         '&cc=' + encodeURIComponent('npizarro@cascadashotel.cl,administracion@cascadashotel.cl') +
         '&body=' + encodeURIComponent(cuerpo);
-      window.location.href = mailto;
+      _copiarAvisoFormateado().then(function() {
+        mostrarToast('exito', 'Aviso copiado (negrita/subrayado): pega con Ctrl+V donde dice "' + MARCADOR_AVISO + '".');
+      }, function() {}).then(function() {
+        window.location.href = mailto;
+      });
     }
 
     // ═══════════════════════════════════════════════════════════
