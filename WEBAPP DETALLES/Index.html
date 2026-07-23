@@ -62,6 +62,8 @@
     .variante-op .miniatura { border-radius: 8px; height: 60px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
     .variante-op .nom { font-weight: 600; font-size: 14px; color: var(--tinta); }
     .variante-op .desc { font-size: 11.5px; color: var(--tinta-suave); line-height: 1.4; }
+    .copias-fila { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 16px; }
+    .copias-lbl { font-size: 13px; font-weight: 600; color: var(--tinta-suave); text-transform: uppercase; letter-spacing: .04em; }
 
     /* Formulario */
     .card { background: var(--surface); border: 1px solid var(--borde); border-radius: 18px; padding: 22px; box-shadow: var(--sombra); margin-top: 10px; }
@@ -130,6 +132,10 @@
       <div id="varianteSection" class="oculto">
         <div class="paso-tit" style="margin-top:26px"><span class="n">2</span> <span data-t="paso_variante">Elige el diseño</span></div>
         <div class="grid-variante" id="gridVariantes"></div>
+        <div class="copias-fila">
+          <span class="copias-lbl" data-t="copias_lbl">¿Cuántas tarjetas por hoja?</span>
+          <div class="chips" id="gridCopias" style="--acc-campo:var(--grafito)"></div>
+        </div>
       </div>
 
       <div class="paso-tit" style="margin-top:26px"><span class="n numVariante">3</span> <span data-t="paso2">Completa los datos</span></div>
@@ -167,7 +173,7 @@
   <div id="toast" class="toast"></div>
 
   <script>
-    var APP = { idioma: 'es', ocasion: null, mensajeTocado: false };
+    var APP = { idioma: 'es', ocasion: null, mensajeTocado: false, variante: 'reverso', copias: 1 };
     var LOGO_URL = 'https://lh3.googleusercontent.com/d/1l-GRXICSU6fHGe9uGsnGdZ6M0FKgKevJ';
 
     // Paleta base de las tarjetas
@@ -419,7 +425,8 @@
         gc_historial: 'Gift Cards emitidas',
         var_reverso_nom: 'Clásica (con reverso)', var_reverso_desc: 'La tarjeta de libro de siempre: se dobla al medio, reverso grafito con el logo. Doble cara.',
         var_grafito_nom: 'Minimalista grafito', var_grafito_desc: 'Horizontal, solo colores corporativos (grafito), sin reverso ni doblez. Una sola cara.',
-        var_color_nom: 'Con color, sin reverso', var_color_desc: 'El mismo frente a color de siempre, pero a una sola cara: no lleva reverso ni doblez.' },
+        var_color_nom: 'Con color, sin reverso', var_color_desc: 'El mismo frente a color de siempre, pero a una sola cara: no lleva reverso ni doblez.',
+        copias_lbl: '¿Cuántas tarjetas por hoja?', copias_1: '1 tarjeta', copias_2: '2 tarjetas' },
       en: { titulo: 'Detalles Cascadas', subtitulo: 'Guest cards · Cascadas Hotel', paso1: 'Choose the card type',
         paso_variante: 'Choose the design', paso2: 'Fill in the details', paso3: 'Preview', lbl_mensaje: 'Message (editable)',
         hint_mensaje: 'A suggested text is prefilled; edit it however you like.', btn_cambiar: 'Change type', btn_pdf: 'Generate PDF',
@@ -427,7 +434,8 @@
         gc_historial: 'Issued Gift Cards',
         var_reverso_nom: 'Classic (with back)', var_reverso_desc: 'The usual book-fold card: folds in half, graphite back with the logo. Double-sided.',
         var_grafito_nom: 'Minimalist graphite', var_grafito_desc: 'Landscape, corporate colors only (graphite), no back page or fold. Single-sided.',
-        var_color_nom: 'Color, no back', var_color_desc: 'The same colorful front as always, but single-sided: no back page or folding.' }
+        var_color_nom: 'Color, no back', var_color_desc: 'The same colorful front as always, but single-sided: no back page or folding.',
+        copias_lbl: 'How many cards per sheet?', copias_1: '1 card', copias_2: '2 cards' }
     };
     function t(k) { return (UI[APP.idioma] && UI[APP.idioma][k]) || UI.es[k] || k; }
 
@@ -463,7 +471,7 @@
     }
 
     function elegirOcasion(id) {
-      APP.ocasion = id; APP.mensajeTocado = false; APP.variante = 'reverso';
+      APP.ocasion = id; APP.mensajeTocado = false; APP.variante = 'reverso'; APP.copias = 1;
       pintarOcasiones();
       document.getElementById('panelForm').classList.remove('oculto');
       var o = T[id];
@@ -471,7 +479,7 @@
       var tieneVariantes = !o.cupon && !o.full;
       seccionVar.classList.toggle('oculto', !tieneVariantes);
       document.querySelectorAll('.numVariante').forEach(function (el, i) { el.textContent = tieneVariantes ? (i === 0 ? '3' : '4') : (i === 0 ? '2' : '3'); });
-      if (tieneVariantes) pintarVariantes();
+      if (tieneVariantes) { pintarVariantes(); pintarCopias(); }
       pintarCampos();
       resetMensaje();
       refrescarPrevia();
@@ -502,6 +510,16 @@
           : '<div class="miniatura" style="background:linear-gradient(90deg,' + acc + ' 50%,' + rgb(GRAFITO) + ' 50%)"></div>';
         return '<div class="variante-op' + (APP.variante === v ? ' sel' : '') + '" onclick="elegirVariante(\'' + v + '\')">' +
           mini + '<div class="nom">' + t('var_' + v + '_nom') + '</div><div class="desc">' + t('var_' + v + '_desc') + '</div></div>';
+      }).join('');
+    }
+
+    // Cuantas tarjetas identicas entran por hoja A4 (1 o 2, a eleccion).
+    function elegirCopias(n) { APP.copias = n; pintarCopias(); }
+    function pintarCopias() {
+      var cont = document.getElementById('gridCopias');
+      cont.innerHTML = [1, 2].map(function (n) {
+        return '<button type="button" class="chip' + (APP.copias === n ? ' act' : '') + '" onclick="elegirCopias(' + n + ')">' +
+          (n === 1 ? t('copias_1') : t('copias_2')) + '</button>';
       }).join('');
     }
     function volverInicio() {
@@ -784,7 +802,7 @@
       var ty = (o.kicker ? 96 : 90) - (tit.length > 1 ? 4 : 0);
       tit.forEach(function (l, i) { p.text(l, CARD_W / 2, ty + i * 12.5, 18, textoFuerte, { font: 'times', style: 'italic' }); });
       var sub = o.sub ? o.sub(d) : '';
-      if (sub) p.text(sub, CARD_W / 2, ty + (tit.length - 1) * 12.5 + 13, 13.5, textoSuave, { font: 'times', style: 'italic' });
+      if (sub) p.text(sub, CARD_W / 2, ty + (tit.length - 1) * 12.5 + 14.5, 17, textoSuave, { font: 'times', style: 'italic' });
     }
 
     // Pagina derecha (mensaje): encabezado ornamental + texto completo + firma.
@@ -821,33 +839,44 @@
       return 'Detalle_' + o.nombre.es.replace(/[^a-zA-Z0-9]/g, '_') + '_' + new Date().toISOString().slice(0, 10) + '.pdf';
     }
 
-    function construirHojaTarjeta(doc, o, d, mensaje) {
-      // Una sola copia, centrada verticalmente en la hoja A4.
-      var offY = (297 - CARD_H) / 2;
-      var tfIzq = function (x, y) { return [x, offY + y]; };
-      var tfDer = function (x, y) { return [CARD_W + x, offY + y]; };
-      dibujarPagPortada(penFor(doc, tfIzq, false), o, d);
-      dibujarPagMensaje(penFor(doc, tfDer, false), o, d, mensaje);
+    function construirHojaTarjeta(doc, o, d, mensaje, copias) {
+      // 1 o 2 copias (a eleccion), apiladas verticalmente en la hoja A4.
+      copias = copias === 2 ? 2 : 1;
+      var offsets = copias === 2 ? [0, CARD_H] : [(297 - CARD_H) / 2];
+      offsets.forEach(function (offY) {
+        var tfIzq = function (x, y) { return [x, offY + y]; };
+        var tfDer = function (x, y) { return [CARD_W + x, offY + y]; };
+        dibujarPagPortada(penFor(doc, tfIzq, false), o, d);
+        dibujarPagMensaje(penFor(doc, tfDer, false), o, d, mensaje);
+      });
 
-      // Guias: 2 cortes horizontales (separan la tarjeta del resto de la hoja)
-      // + 1 doblez vertical al medio.
+      // Guias: cortes horizontales (separan cada tarjeta del resto de la
+      // hoja / entre copias) + 1 doblez vertical al medio de cada una.
       doc.setDrawColor(185, 185, 185); doc.setLineWidth(.2);
       if (doc.setLineDashPattern) doc.setLineDashPattern([1.4, 1.4], 0);
-      doc.line(6, offY, 204, offY);
-      doc.line(6, offY + CARD_H, 204, offY + CARD_H);
-      doc.line(CARD_W, offY + 4, CARD_W, offY + CARD_H - 4);
+      if (copias === 2) {
+        doc.line(6, CARD_H, 204, CARD_H);
+        offsets.forEach(function (offY) { doc.line(CARD_W, offY + 4, CARD_W, offY + CARD_H - 4); });
+      } else {
+        var offY = offsets[0];
+        doc.line(6, offY, 204, offY);
+        doc.line(6, offY + CARD_H, 204, offY + CARD_H);
+        doc.line(CARD_W, offY + 4, CARD_W, offY + CARD_H - 4);
+      }
       if (doc.setLineDashPattern) doc.setLineDashPattern([], 0);
 
       // Pagina 2: reverso solido a sangre completa, con el logo centrado en
-      // cada mitad (izq/der) para que quede bien puesto sea cual sea la tapa
-      // que termine al frente despues de doblar.
+      // cada mitad (izq/der) de cada copia para que quede bien puesto sea
+      // cual sea la tapa que termine al frente despues de doblar.
       doc.addPage();
       doc.setFillColor(GRAFITO[0], GRAFITO[1], GRAFITO[2]);
       doc.rect(0, 0, 210, 297, 'F');
-      var tfLogoIzq = function (x, y) { return [x, offY + y]; };
-      var tfLogoDer = function (x, y) { return [CARD_W + x, offY + y]; };
-      dibujarMarca(penFor(doc, tfLogoIzq, false), CARD_W / 2, CARD_H / 2, 26, [235, 233, 230], [200, 197, 193], 78);
-      dibujarMarca(penFor(doc, tfLogoDer, false), CARD_W / 2, CARD_H / 2, 26, [235, 233, 230], [200, 197, 193], 78);
+      offsets.forEach(function (offY) {
+        var tfLogoIzq = function (x, y) { return [x, offY + y]; };
+        var tfLogoDer = function (x, y) { return [CARD_W + x, offY + y]; };
+        dibujarMarca(penFor(doc, tfLogoIzq, false), CARD_W / 2, CARD_H / 2, 26, [235, 233, 230], [200, 197, 193], 78);
+        dibujarMarca(penFor(doc, tfLogoDer, false), CARD_W / 2, CARD_H / 2, 26, [235, 233, 230], [200, 197, 193], 78);
+      });
     }
 
     // =====================================================================
@@ -890,7 +919,7 @@
       var ty = o.kicker ? 64 : 60;
       tit.forEach(function (l, i) { p.text(l, xIzq, ty + i * 8, 11, textoFuerte, { font: 'times', style: 'italic' }); });
       var sub = o.sub ? o.sub(d) : '';
-      if (sub) p.text(sub, xIzq, ty + tit.length * 8 + 6, 7.8, textoSuave, { font: 'times', style: 'italic' });
+      if (sub) p.text(sub, xIzq, ty + tit.length * 8 + 7, 10.5, textoSuave, { font: 'times', style: 'italic' });
 
       var lineas = wrapTexto(mensaje, 40);
       var y = 22, lh = 5.6;
@@ -902,19 +931,26 @@
       });
     }
 
-    function construirHojaUnica(doc, o, d, mensaje, oscuro) {
+    function construirHojaUnica(doc, o, d, mensaje, oscuro, copias) {
+      copias = copias === 2 ? 2 : 1;
       var left = (210 - MINI_W) / 2;
-      var gap = 10, totalH = MINI_H * 2 + gap, topMargin = (297 - totalH) / 2;
-      [0, 1].forEach(function (i) {
-        var offY = topMargin + i * (MINI_H + gap);
-        var tf = function (x, y) { return [left + x, offY + y]; };
-        dibujarTarjetaUnica(penFor(doc, tf, false), o, d, mensaje, oscuro);
-      });
-      var yCorte = topMargin + MINI_H + gap / 2;
-      doc.setDrawColor(185, 185, 185); doc.setLineWidth(.2);
-      if (doc.setLineDashPattern) doc.setLineDashPattern([1.4, 1.4], 0);
-      doc.line(left - 4, yCorte, left + MINI_W + 4, yCorte);
-      if (doc.setLineDashPattern) doc.setLineDashPattern([], 0);
+      if (copias === 2) {
+        var gap = 10, totalH = MINI_H * 2 + gap, topMargin = (297 - totalH) / 2;
+        [0, 1].forEach(function (i) {
+          var offY = topMargin + i * (MINI_H + gap);
+          var tf = function (x, y) { return [left + x, offY + y]; };
+          dibujarTarjetaUnica(penFor(doc, tf, false), o, d, mensaje, oscuro);
+        });
+        var yCorte = topMargin + MINI_H + gap / 2;
+        doc.setDrawColor(185, 185, 185); doc.setLineWidth(.2);
+        if (doc.setLineDashPattern) doc.setLineDashPattern([1.4, 1.4], 0);
+        doc.line(left - 4, yCorte, left + MINI_W + 4, yCorte);
+        if (doc.setLineDashPattern) doc.setLineDashPattern([], 0);
+      } else {
+        var offY1 = (297 - MINI_H) / 2;
+        var tf1 = function (x, y) { return [left + x, offY1 + y]; };
+        dibujarTarjetaUnica(penFor(doc, tf1, false), o, d, mensaje, oscuro);
+      }
     }
 
     // =====================================================================
@@ -1056,13 +1092,13 @@
         construirHojaCupones(doc, o, d, mensaje);
       } else if (APP.variante === 'grafito') {
         doc = new jspdf.jsPDF('p', 'mm', 'a4');
-        construirHojaUnica(doc, o, d, mensaje, true);
+        construirHojaUnica(doc, o, d, mensaje, true, APP.copias);
       } else if (APP.variante === 'color') {
         doc = new jspdf.jsPDF('p', 'mm', 'a4');
-        construirHojaUnica(doc, o, d, mensaje, false);
+        construirHojaUnica(doc, o, d, mensaje, false, APP.copias);
       } else {
         doc = new jspdf.jsPDF('p', 'mm', 'a4');
-        construirHojaTarjeta(doc, o, d, mensaje);
+        construirHojaTarjeta(doc, o, d, mensaje, APP.copias);
       }
       doc.save(nombreDeArchivo(o));
     }
