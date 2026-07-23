@@ -249,6 +249,51 @@ function buscarHuespedes(query, fechaFiltro) {
 }
 
 /* ============================================================
+   DUPLICADOS
+   Se llama antes de guardar un huésped nuevo, para avisar si ya existe
+   alguien con ese mismo nombre (comparación exacta, sin distinguir
+   mayúsculas/acentos) y mostrar sus datos ya cargados.
+   ============================================================ */
+function _normNombre(s) {
+  let t = String(s == null ? '' : s).trim().toLowerCase();
+  try { t = t.normalize('NFD').replace(/[̀-ͯ]/g, ''); } catch (e) {}
+  return t;
+}
+
+function buscarDuplicadosPorNombre(nombre) {
+  const objetivo = _normNombre(nombre);
+  if (!objetivo) return [];
+
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName(SHEET_HUESPEDES);
+  const data = sheet.getDataRange().getDisplayValues();
+  const headers = data[0];
+  const rows = data.slice(1);
+  const idx = name => getColumnIndex(headers, name);
+  const iNombre = idx('Nombre');
+  if (iNombre < 0) return [];
+
+  const resultados = [];
+  rows.forEach((r, i) => {
+    if (_normNombre(r[iNombre]) !== objetivo) return;
+    resultados.push({
+      rowIndex: i + 2,
+      nombre: r[iNombre] || '',
+      checkin: idx('Check_in') >= 0 ? r[idx('Check_in')] : '',
+      checkout: idx('Check_out') >= 0 ? r[idx('Check_out')] : '',
+      noches: idx('Noches') >= 0 ? r[idx('Noches')] : '',
+      tarifa: idx('Tarifa_por_Noche') >= 0 ? r[idx('Tarifa_por_Noche')] : '',
+      moneda: idx('Moneda') >= 0 ? (r[idx('Moneda')] || 'CLP') : 'CLP',
+      programa: idx('Programa') >= 0 ? r[idx('Programa')] : '',
+      medio: idx('Medio') >= 0 ? r[idx('Medio')] : '',
+      motivo: idx('Motivo') >= 0 ? r[idx('Motivo')] : '',
+      contacto: idx('Numero_contacto_o_Correo') >= 0 ? r[idx('Numero_contacto_o_Correo')] : ''
+    });
+  });
+  return resultados;
+}
+
+/* ============================================================
    PROGRAMAS  (persistidos y editables desde la app)
    ============================================================ */
 function getProgramasSheet_(ss) {

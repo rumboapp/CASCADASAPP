@@ -313,6 +313,12 @@
     .tag-blue { background: var(--accent-light); color: var(--accent); }
     .tag-green { background: #E0E9DD; color: #3C5A40; }
 
+    .dup-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; box-shadow: inset 0 1px 0 #fff, 0 1px 3px rgba(0,0,0,0.05); }
+    .dup-fecha { font-weight: 700; font-size: 13px; margin-bottom: 6px; color: var(--text); }
+    .dup-row { font-size: 12.5px; color: var(--text-sec); margin-bottom: 2px; }
+    .dup-row b { color: var(--text); font-weight: 600; }
+    .dup-footer { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+
     .loader { display: none; text-align: center; padding: 20px; }
     .loader.active { display: block; }
     .loader-spin { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 6px; }
@@ -678,6 +684,24 @@
           </table>
         </div>
         <div id="search_empty" class="search-empty" style="display:none;">No se encontraron huéspedes</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL HUÉSPED DUPLICADO ===== -->
+  <div class="overlay" id="modalDuplicado" onclick="cerrarModalDuplicado(event)">
+    <div class="sheet" style="max-width:520px;" onclick="event.stopPropagation()">
+      <div class="sheet-header">
+        <h2>⚠️ Huésped ya ingresado</h2>
+        <button class="sheet-close" onclick="cerrarModalDuplicado()">✕</button>
+      </div>
+      <div class="sheet-body">
+        <p id="dup_intro" style="font-size:14px; color:var(--text-sec); margin-bottom:14px;"></p>
+        <div id="dup_lista"></div>
+        <div class="dup-footer">
+          <button class="btn-guardar" onclick="confirmarAgregarDuplicado()">➕ Agregar de todas formas</button>
+          <button class="btn-cancelar show" onclick="cerrarModalDuplicado()">❌ Cancelar</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1112,6 +1136,22 @@
       msg.style.display = 'none';
 
       google.script.run
+        .withSuccessHandler(dups => {
+          btn.disabled = false;
+          if (dups && dups.length > 0) mostrarModalDuplicado(dups, data);
+          else guardarHuespedReal(data);
+        })
+        .withFailureHandler(() => { btn.disabled = false; guardarHuespedReal(data); })
+        .buscarDuplicadosPorNombre(data.nombre);
+    }
+
+    function guardarHuespedReal(data) {
+      const msg = document.getElementById('r_msg');
+      const btn = document.getElementById('btnGuardar');
+      btn.disabled = true;
+      msg.style.display = 'none';
+
+      google.script.run
         .withSuccessHandler(res => {
           btn.disabled = false; flashBtn(btn); showToast('Huésped guardado'); limpiarFormulario();
         })
@@ -1119,6 +1159,45 @@
           msg.className = 'msg error'; msg.innerHTML = '❌ ' + err; msg.style.display = 'block'; btn.disabled = false;
         })
         .guardarHuesped(data);
+    }
+
+    /* ============================================================
+       MODAL: HUÉSPED DUPLICADO
+       ============================================================ */
+    let duplicadoDataPendiente = null;
+    function mostrarModalDuplicado(dups, data) {
+      duplicadoDataPendiente = data;
+      document.getElementById('dup_intro').textContent =
+        (dups.length === 1 ? 'Ya existe un registro' : 'Ya existen ' + dups.length + ' registros') +
+        ' con el nombre "' + data.nombre + '". Estos son los datos ya cargados:';
+
+      document.getElementById('dup_lista').innerHTML = dups.map(d => {
+        const sym = (d.moneda === 'USD') ? 'US$' : '$';
+        return '<div class="dup-card">' +
+          '<div class="dup-fecha">📅 ' + (d.checkin || '-') + ' → ' + (d.checkout || '-') + (d.noches ? ' · ' + d.noches + ' noche(s)' : '') + '</div>' +
+          '<div class="dup-row"><b>Programa:</b> ' + (d.programa || 'Estándar') + '</div>' +
+          '<div class="dup-row"><b>Tarifa:</b> ' + (d.tarifa ? sym + Number(String(d.tarifa).replace(/[^0-9.]/g, '')).toLocaleString('es-CL') + ' / noche' : '-') + '</div>' +
+          '<div class="dup-row"><b>Medio:</b> ' + (d.medio || '-') + '</div>' +
+          '<div class="dup-row"><b>Motivo:</b> ' + (d.motivo || '-') + '</div>' +
+          '<div class="dup-row"><b>Contacto:</b> ' + (d.contacto || '-') + '</div>' +
+        '</div>';
+      }).join('');
+
+      document.getElementById('modalDuplicado').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+    function cerrarModalDuplicado(e) {
+      if (e && e.target !== e.currentTarget) return;
+      document.getElementById('modalDuplicado').classList.remove('active');
+      document.body.style.overflow = '';
+      duplicadoDataPendiente = null;
+    }
+    function confirmarAgregarDuplicado() {
+      const data = duplicadoDataPendiente;
+      document.getElementById('modalDuplicado').classList.remove('active');
+      document.body.style.overflow = '';
+      duplicadoDataPendiente = null;
+      if (data) guardarHuespedReal(data);
     }
 
     function actualizar() {
