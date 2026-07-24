@@ -2220,12 +2220,21 @@ function obtenerDatosOperaciones(fecha) {
   var todasReservas = _leerHojaComoObjetos(HOJAS.RESERVAS);
 
   var estadosProximas = [ESTADOS.SOLICITADA, ESTADOS.PENDIENTE, ESTADOS.CONFIRMADA];
+  // Rango de eventos "por venir": desde hoy hasta un ano hacia adelante. Es
+  // independiente del dia que este mirando el staff, para que el widget
+  // "Reservas por venir" muestre siempre los eventos futuros.
+  var hoy = _fechaISO(new Date());
+  var lejano = new Date();
+  lejano.setFullYear(lejano.getFullYear() + 1);
   return {
     centro: obtenerCentroOperaciones(fecha, todasReservas),
     agotados: obtenerProductosAgotados(),
     reservasProximas: _construirReservas({ estados: estadosProximas }, todasReservas),
-    // Bloqueos/eventos que caen en este dia, para mostrarlos como burbujas.
+    // Bloqueos/eventos que caen en el dia seleccionado, para las burbujas de "hoy".
     eventos: obtenerBloqueos(fecha, fecha, ''),
+    // Eventos futuros (desde hoy) para el widget "Reservas por venir", sin
+    // importar que dia se este mirando en el Centro de Operaciones.
+    eventosProximos: obtenerBloqueos(hoy, _fechaISO(lejano), ''),
     // Participantes por reserva/evento, para mostrarlos dentro de cada burbuja
     // sin una llamada extra por cada una.
     participantes: _mapaParticipantes()

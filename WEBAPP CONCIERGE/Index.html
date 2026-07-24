@@ -2586,8 +2586,9 @@ function cargarOpsContenido() {
       data.alertas.map(function (a) { return '<p class="text-sm opacity-80">· ' + escaparHTML(a) + '</p>'; }).join('') + '</div>' : '';
 
     APP.eventosOps = res.eventos || [];
+    APP.eventosProximos = res.eventosProximos || [];
     var agotadosHTML = widgetProductosAgotados(APP.productosAgotadosOps);
-    var proximasHTML = widgetProximasReservas(APP.reservasProximas, APP.eventosOps);
+    var proximasHTML = widgetProximasReservas(APP.reservasProximas, APP.eventosProximos);
     var eventosHTML = renderEventosOps(APP.eventosOps);
 
     // Guarda datos de cada reserva para el editor (sin otra llamada).
@@ -2794,7 +2795,10 @@ function widgetProximasReservas(lista, eventos) {
             '<p class="font-bold text-base leading-tight" style="color:var(--grafito)"><i class="fa-solid ' + meta.icono + '"></i> ' + escaparHTML(ev.Tipo || 'Evento') + '</p>' +
             '<span class="pill shrink-0" style="background:' + meta.color + '; color:#fff">Evento</span>' +
           '</div>' +
-          '<p class="text-sm font-semibold leading-tight mt-0.5" style="color:' + meta.color + '">' + horarioTxt + (ev.Motivo ? ' · ' + escaparHTML(ev.Motivo) : '') + '</p>' +
+          '<div class="flex items-center justify-between gap-2 mt-0.5">' +
+            '<p class="text-sm font-semibold leading-tight" style="color:' + meta.color + '">' + horarioTxt + (ev.Motivo ? ' · ' + escaparHTML(ev.Motivo) : '') + '</p>' +
+            '<button class="btn btn-outline !py-1 !px-2 text-xs shrink-0" onclick="renderOperaciones(\'' + ev.FechaInicio + '\')" title="Ir al dia"><i class="fa-solid fa-arrow-right"></i> Ir al dia</button>' +
+          '</div>' +
         '</div>';
       }
       var r = el.dato;
@@ -2805,7 +2809,10 @@ function widgetProximasReservas(lista, eventos) {
           '<p class="font-bold text-base leading-tight" style="color:var(--grafito)">' + etiquetaHab(r.Habitacion) + ' <span style="opacity:.7">· ' + r.Personas + ' pers.</span></p>' +
           '<span class="pill ' + claseEstado(r.Estado) + ' shrink-0">' + r.Estado + '</span>' +
         '</div>' +
-        '<p class="text-sm font-semibold leading-tight mt-0.5" style="color:' + col + '">' + escaparHTML(r.ServicioNombre) + ' · ' + r.HoraInicio + ' hrs</p>' +
+        '<div class="flex items-center justify-between gap-2 mt-0.5">' +
+          '<p class="text-sm font-semibold leading-tight" style="color:' + col + '">' + escaparHTML(r.ServicioNombre) + ' · ' + r.HoraInicio + ' hrs</p>' +
+          '<button class="btn btn-outline !py-1 !px-2 text-xs shrink-0" onclick="renderOperaciones(\'' + r.Fecha + '\')" title="Ir al dia"><i class="fa-solid fa-arrow-right"></i> Ir al dia</button>' +
+        '</div>' +
       '</div>';
     }).join('');
     return '<div class="mb-3"><p class="text-xs font-bold uppercase tracking-wide mb-1.5" style="color:' + AMBAR + '">' + nombreDia(f) + '</p>' + filas + '</div>';
@@ -2993,12 +3000,12 @@ function bloqueParticipantesOps(refID) {
   var lista = (APP.participantesOps || {})[refID] || [];
   if (!lista.length) return '';
   return '<div class="mt-2 pt-2 border-t text-sm" style="border-color:var(--borde)">' +
-    '<p class="font-semibold text-xs uppercase opacity-60 mb-1"><i class="fa-solid fa-users"></i> Participantes (' + lista.length + ')</p>' +
+    '<p class="font-semibold text-sm uppercase opacity-70 mb-1"><i class="fa-solid fa-users"></i> Participantes (' + lista.length + ')</p>' +
     lista.map(function (p) {
       var extra = [p.Telefono, p.Habitacion ? etiquetaHab(p.Habitacion) : ''].filter(Boolean).join(' · ');
-      return '<div style="font-size:1rem"><span class="font-semibold">' + escaparHTML(p.Nombre) + '</span>' +
-        (extra ? ' <span class="opacity-60 text-xs">' + escaparHTML(extra) + '</span>' : '') +
-        (p.Notas ? '<span class="opacity-70 text-xs"> · ' + escaparHTML(p.Notas) + '</span>' : '') + '</div>';
+      return '<div class="mb-0.5" style="font-size:1.05rem;line-height:1.35"><span class="font-semibold">' + escaparHTML(p.Nombre) + '</span>' +
+        (extra ? ' <span class="opacity-75" style="font-size:.95rem">' + escaparHTML(extra) + '</span>' : '') +
+        (p.Notas ? '<span class="opacity-80" style="font-size:.95rem"> · ' + escaparHTML(p.Notas) + '</span>' : '') + '</div>';
     }).join('') + '</div>';
 }
 
