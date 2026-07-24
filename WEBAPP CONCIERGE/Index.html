@@ -3291,23 +3291,68 @@ function renderReservasStaff() {
 }
 
 function aplicarFiltrosReservas() {
+  var desde = document.getElementById('filtroDesde').value || '';
+  var hasta = document.getElementById('filtroHasta').value || '';
+  var hab = document.getElementById('filtroHab').value || '';
+  var servicioID = document.getElementById('filtroServicio').value || '';
   var filtros = {
-    fechaDesde: document.getElementById('filtroDesde').value || '',
-    fechaHasta: document.getElementById('filtroHasta').value || '',
-    habitacion: document.getElementById('filtroHab').value || '',
-    servicioID: document.getElementById('filtroServicio').value || '',
+    fechaDesde: desde, fechaHasta: hasta, habitacion: hab, servicioID: servicioID,
     incluirInternas: true // panel de staff: recibe las notas internas
   };
   var tabla = document.getElementById('tablaReservas');
   tabla.innerHTML = '<div class="flex justify-center py-6"><div class="spinner"></div></div>';
-  llamarAPI('obtenerReservas', [filtros], { loader: false }).then(function (reservas) {
-    if (!reservas.length) { tabla.innerHTML = '<p class="text-sm opacity-60 py-4 text-center">Sin reservas.</p>'; return; }
+
+  // Rango amplio por defecto para traer tambien eventos pasados y futuros.
+  var evDesde = desde || '2000-01-01';
+  var evHasta = hasta || '2100-12-31';
+  // Los eventos no pertenecen a una habitacion: si se filtra por habitacion,
+  // no tiene sentido mostrarlos.
+  var pedirEventos = !hab;
+
+  Promise.all([
+    llamarAPI('obtenerReservas', [filtros], { loader: false }),
+    pedirEventos ? llamarAPI('obtenerBloqueos', [evDesde, evHasta, servicioID], { loader: false, silencioso: true }) : Promise.resolve([])
+  ]).then(function (res) {
+    var reservas = res[0] || [];
+    var eventos = res[1] || [];
+    // Cachea eventos para el editor/participantes.
+    APP.bloqueosCache = APP.bloqueosCache || {};
+    eventos.forEach(function (ev) { APP.bloqueosCache[ev.ID] = ev; });
+
+    // Une reservas y eventos en filas con clave de orden (fecha + hora), y
+    // ordena de mas NUEVO a mas antiguo (descendente).
+    var filas = [];
+    reservas.forEach(function (r) { filas.push({ clave: r.Fecha + (r.HoraInicio || ''), html: filaReservaStaff(r) }); });
+    eventos.forEach(function (ev) { filas.push({ clave: ev.FechaInicio + (ev.HoraInicio || ''), html: filaEventoStaff(ev) }); });
+    filas.sort(function (a, b) { return a.clave < b.clave ? 1 : (a.clave > b.clave ? -1 : 0); });
+
+    if (!filas.length) { tabla.innerHTML = '<p class="text-sm opacity-60 py-4 text-center">Sin reservas ni eventos.</p>'; return; }
     tabla.innerHTML = '<table class="tabla"><thead><tr>' +
-      '<th>Fecha</th><th>Hora</th><th>Hab</th><th>Servicio</th><th>Pers.</th><th>Estado</th><th>Acciones</th>' +
-      '</tr></thead><tbody>' + reservas.map(filaReservaStaff).join('') + '</tbody></table>';
+      '<th>Fecha</th><th>Hora</th><th>Hab</th><th>Servicio / Evento</th><th>Pers.</th><th>Estado</th><th>Acciones</th>' +
+      '</tr></thead><tbody>' + filas.map(function (f) { return f.html; }).join('') + '</tbody></table>';
   }).catch(function () {
     tabla.innerHTML = htmlError('No pudimos cargar las reservas.', 'aplicarFiltrosReservas()');
   });
+}
+
+/* Fila de un evento/bloqueo dentro de la tabla de Gestion de Reservas. Permite
+   consultar eventos pasados y ver quien participo. */
+function filaEventoStaff(ev) {
+  var meta = iconoTipoBloqueo(ev.Tipo);
+  var horario = (ev.HoraInicio || ev.HoraFin) ? ((ev.HoraInicio || '—') + ' - ' + (ev.HoraFin || '—')) : 'Todo el dia';
+  var titulo = escaparHTML(ev.Tipo || 'Evento') + (ev.Motivo ? ' · ' + escaparHTML(ev.Motivo) : '');
+  var acciones = '<button class="btn btn-outline !py-1 !px-2 text-xs mr-1" onclick="abrirEditorBloqueo(\'' + ev.ID + '\')" title="Editar"><i class="fa-solid fa-pen"></i></button>';
+  if (ev.Tipo === 'Evento privado') {
+    acciones += '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="abrirParticipantes(\'evento\',\'' + ev.ID + '\',\'' + escaparHTML(ev.Motivo || 'Evento') + '\')" title="Participantes"><i class="fa-solid fa-users"></i></button>';
+  }
+  return '<tr style="background:' + meta.color + '14">' +
+    '<td>' + ev.FechaInicio + (ev.FechaFin && ev.FechaFin !== ev.FechaInicio ? ' → ' + ev.FechaFin : '') + '</td>' +
+    '<td>' + horario + '</td><td>—</td>' +
+    '<td><i class="fa-solid ' + meta.icono + '" style="color:' + meta.color + '"></i> ' + titulo + '</td>' +
+    '<td>—</td>' +
+    '<td><span class="pill" style="background:' + meta.color + '; color:#fff">Evento</span></td>' +
+    '<td class="whitespace-nowrap">' + acciones + '</td>' +
+  '</tr>';
 }
 
 function filaReservaStaff(r) {
