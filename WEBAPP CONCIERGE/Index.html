@@ -2585,9 +2585,10 @@ function cargarOpsContenido() {
       '<div class="card p-4 mb-4" style="border-left:4px solid var(--dorado)"><p class="font-semibold mb-2"><i class="fa-solid fa-triangle-exclamation" style="color:var(--dorado)"></i> Alertas</p>' +
       data.alertas.map(function (a) { return '<p class="text-sm opacity-80">· ' + escaparHTML(a) + '</p>'; }).join('') + '</div>' : '';
 
+    APP.eventosOps = res.eventos || [];
     var agotadosHTML = widgetProductosAgotados(APP.productosAgotadosOps);
-    var proximasHTML = widgetProximasReservas(APP.reservasProximas);
-    var eventosHTML = renderEventosOps(res.eventos || []);
+    var proximasHTML = widgetProximasReservas(APP.reservasProximas, APP.eventosOps);
+    var eventosHTML = renderEventosOps(APP.eventosOps);
 
     // Guarda datos de cada reserva para el editor (sin otra llamada).
     APP.reservasCache = APP.reservasCache || {};
@@ -2759,27 +2760,44 @@ function toggleWidgetAgotados() {
    filtrando siempre "> hoy"), sin necesidad de marcarla ni limpiarla a mano.
    Asi el staff (ej. garzones) puede anticipar grupos grandes que vienen en
    dias, semanas o meses mas, sin tener que ir revisando fecha por fecha. */
-function widgetProximasReservas(lista) {
+function widgetProximasReservas(lista, eventos) {
   var hoy = hoyISO();
   var futuras = (lista || []).filter(function (r) { return r.Fecha > hoy; });
-  if (!futuras.length) return '';
-  // Orden explicito (ademas de venir ya ordenado del backend): de la fecha
-  // mas cercana a la mas lejana.
-  futuras.sort(function (a, b) { return (a.Fecha + a.HoraInicio) < (b.Fecha + b.HoraInicio) ? -1 : 1; });
-
-  // Agrupa por fecha, ya ordenada de mas cercana a mas lejana.
-  var porFecha = {}, ordenFechas = [];
-  futuras.forEach(function (r) {
-    if (!porFecha[r.Fecha]) { porFecha[r.Fecha] = []; ordenFechas.push(r.Fecha); }
-    porFecha[r.Fecha].push(r);
-  });
+  // Eventos por venir: los que empiezan despues de hoy. Se muestran como
+  // burbujas propias (moradas) dentro de la misma agrupacion por fecha.
+  var eventosFuturos = (eventos || []).filter(function (ev) { return ev.FechaInicio > hoy; });
+  if (!futuras.length && !eventosFuturos.length) return '';
 
   // Acento ambar calido para todo el widget (la paleta base es gris/grafito,
   // asi que este dorado hace que "Reservas por venir" resalte sin chocar).
   var AMBAR = '#B8860B';
 
+  // Agrupa reservas y eventos por fecha en una sola estructura.
+  var porFecha = {}, ordenFechas = [];
+  function bucket(fecha) {
+    if (!porFecha[fecha]) { porFecha[fecha] = []; ordenFechas.push(fecha); }
+    return porFecha[fecha];
+  }
+  futuras.forEach(function (r) { bucket(r.Fecha).push({ _tipo: 'reserva', hora: r.HoraInicio || '', dato: r }); });
+  eventosFuturos.forEach(function (ev) { bucket(ev.FechaInicio).push({ _tipo: 'evento', hora: ev.HoraInicio || '', dato: ev }); });
+  ordenFechas.sort();
+
   var itemsHTML = ordenFechas.map(function (f) {
-    var filas = porFecha[f].map(function (r) {
+    var elementos = porFecha[f].slice().sort(function (a, b) { return a.hora < b.hora ? -1 : (a.hora > b.hora ? 1 : 0); });
+    var filas = elementos.map(function (el) {
+      if (el._tipo === 'evento') {
+        var ev = el.dato;
+        var meta = iconoTipoBloqueo(ev.Tipo);
+        var horarioTxt = (ev.HoraInicio || ev.HoraFin) ? ((ev.HoraInicio || '—') + ' - ' + (ev.HoraFin || '—')) : 'Todo el dia';
+        return '<div class="rounded-xl px-3 py-2 mb-1.5" style="background:' + meta.color + '22; border-left:4px solid ' + meta.color + ';">' +
+          '<div class="flex items-center justify-between gap-2">' +
+            '<p class="font-bold text-base leading-tight" style="color:var(--grafito)"><i class="fa-solid ' + meta.icono + '"></i> ' + escaparHTML(ev.Tipo || 'Evento') + '</p>' +
+            '<span class="pill shrink-0" style="background:' + meta.color + '; color:#fff">Evento</span>' +
+          '</div>' +
+          '<p class="text-sm font-semibold leading-tight mt-0.5" style="color:' + meta.color + '">' + horarioTxt + (ev.Motivo ? ' · ' + escaparHTML(ev.Motivo) : '') + '</p>' +
+        '</div>';
+      }
+      var r = el.dato;
       var col = colorDeServicio(r.ServicioID, r.ServicioNombre);
       // Cada reserva es su propia burbuja con tinte ambar solido y fuente mas grande.
       return '<div class="rounded-xl px-3 py-2 mb-1.5" style="background:#F0E2A8; border-left:4px solid ' + AMBAR + ';">' +
@@ -2792,13 +2810,14 @@ function widgetProximasReservas(lista) {
     }).join('');
     return '<div class="mb-3"><p class="text-xs font-bold uppercase tracking-wide mb-1.5" style="color:' + AMBAR + '">' + nombreDia(f) + '</p>' + filas + '</div>';
   }).join('');
+  var totalItems = futuras.length + eventosFuturos.length;
 
   // Colapsado por defecto (solo se expande si el usuario lo abre a proposito).
   var colapsado = APP.proximasColapsado !== false;
 
   return '<div class="card p-4 mb-4 proximas-widget" style="border-left:4px solid ' + AMBAR + '; background:#FBF3D6">' +
     '<div class="flex items-center justify-between cursor-pointer" onclick="toggleWidgetProximas()">' +
-      '<p class="font-semibold text-lg"><i class="fa-solid fa-calendar-days" style="color:' + AMBAR + '"></i> Reservas por venir <span class="pill" style="background:' + AMBAR + '; color:#fff;">' + futuras.length + '</span></p>' +
+      '<p class="font-semibold text-lg"><i class="fa-solid fa-calendar-days" style="color:' + AMBAR + '"></i> Reservas por venir <span class="pill" style="background:' + AMBAR + '; color:#fff;">' + totalItems + '</span></p>' +
       '<i class="fa-solid fa-chevron-down text-sm opacity-60" id="proximasChevron" style="transform:' + (colapsado ? 'rotate(-90deg)' : '') + '"></i>' +
     '</div>' +
     '<div id="proximasBody" class="mt-3' + (colapsado ? ' oculto' : '') + '">' + itemsHTML + '</div>' +
@@ -2837,7 +2856,8 @@ function renderEventosOps(eventos) {
     APP.bloqueosCache[ev.ID] = ev;
     var meta = iconoTipoBloqueo(ev.Tipo);
     var col = meta.color;
-    var servTxt = ev.ServicioID ? (servNombre[ev.ServicioID] || ev.ServicioID) : 'Todos los servicios';
+    var alcanceEv = descripcionAlcanceBloqueo(ev.ServicioID);
+    var servTxt = alcanceEv === 'Todos' ? 'Todos los servicios' : (alcanceEv === 'Sin bloqueo' ? 'Sin bloqueo de servicios' : alcanceEv);
     var horarioTxt = (ev.HoraInicio || ev.HoraFin) ? ((ev.HoraInicio || '—') + ' - ' + (ev.HoraFin || '—')) : 'Todo el dia';
     var rangoTxt = (ev.FechaInicio !== ev.FechaFin) ? (' · ' + ev.FechaInicio + ' → ' + ev.FechaFin) : '';
     var esEventoConParticipantes = ev.Tipo === 'Evento privado';
@@ -3705,12 +3725,11 @@ function cargarTablaBloqueos() {
   llamarAPI('obtenerBloqueos', [hoy, enUnAno, ''], { loader: false }).then(function (bloqueos) {
     if (!bloqueos.length) { tabla.innerHTML = '<p class="text-sm opacity-60 py-4 text-center">Sin bloqueos ni eventos vigentes.</p>'; return; }
     APP.bloqueosCache = APP.bloqueosCache || {};
-    var servNombre = {}; APP.servicios.forEach(function (s) { servNombre[s.ID] = s.Nombre; });
     tabla.innerHTML = '<table class="tabla"><thead><tr><th>Tipo</th><th>Servicio</th><th>Desde</th><th>Hasta</th><th>Horario</th><th>Motivo</th><th>Acciones</th></tr></thead><tbody>' +
       bloqueos.map(function (b) {
         APP.bloqueosCache[b.ID] = b;
         var horario = (b.HoraInicio || b.HoraFin) ? ((b.HoraInicio || '—') + ' - ' + (b.HoraFin || '—')) : 'Todo el dia';
-        return '<tr><td>' + escaparHTML(b.Tipo) + '</td><td>' + escaparHTML(servNombre[b.ServicioID] || 'Todos') + '</td>' +
+        return '<tr><td>' + escaparHTML(b.Tipo) + '</td><td>' + escaparHTML(descripcionAlcanceBloqueo(b.ServicioID)) + '</td>' +
           '<td>' + b.FechaInicio + '</td><td>' + b.FechaFin + '</td>' +
           '<td>' + horario + '</td>' +
           '<td class="text-xs">' + escaparHTML(b.Motivo) + '</td>' +
@@ -3725,6 +3744,16 @@ function cargarTablaBloqueos() {
   });
 }
 
+/* Texto legible del alcance de un bloqueo segun su ServicioID:
+   '' = Todos | 'NINGUNO' = Sin bloqueo | "S001,S003" = nombres de servicios. */
+function descripcionAlcanceBloqueo(servicioID) {
+  var raw = servicioID ? String(servicioID).trim() : '';
+  if (raw === '') return 'Todos';
+  if (raw === 'NINGUNO') return 'Sin bloqueo';
+  var nombres = {}; (APP.servicios || []).forEach(function (s) { nombres[s.ID] = s.Nombre; });
+  return raw.split(',').map(function (id) { return nombres[id.trim()] || id.trim(); }).join(', ');
+}
+
 /* Editor de bloqueo/evento (modal). Si se pasa un id, edita ese bloqueo (los
    datos salen de APP.bloqueosCache, que llenan tanto la tabla como las burbujas
    del Centro de Operaciones); si no, crea uno nuevo. */
@@ -3736,9 +3765,16 @@ function abrirEditorBloqueo(id) {
   var tipoOpts = tipos.map(function (t) {
     return '<option value="' + t + '"' + (t === tipoActual ? ' selected' : '') + '>' + t + '</option>';
   }).join('');
-  var serviciosOpts = '<option value="">Todos los servicios</option>' + APP.servicios.map(function (s) {
-    var sel = (b && b.ServicioID === s.ID) ? ' selected' : '';
-    return '<option value="' + s.ID + '"' + sel + '>' + escaparHTML(s.Nombre) + '</option>';
+  // Alcance del bloqueo: todos / algunos / ninguno. Se deduce del ServicioID
+  // guardado ('' = todos, 'NINGUNO' = no bloquea, o lista "S001,S003").
+  var rawServ = b && b.ServicioID ? String(b.ServicioID).trim() : '';
+  var alcanceActual = rawServ === '' ? 'todos' : (rawServ === 'NINGUNO' ? 'ninguno' : 'algunos');
+  var idsMarcados = alcanceActual === 'algunos' ? rawServ.split(',').map(function (x) { return x.trim(); }) : [];
+  var alcanceOpts = [['todos', 'Todos los servicios'], ['algunos', 'Solo algunos servicios'], ['ninguno', 'Ninguno (evento sin bloqueo)']]
+    .map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === alcanceActual ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('');
+  var serviciosCheck = APP.servicios.map(function (s) {
+    var chk = idsMarcados.indexOf(s.ID) !== -1 ? 'checked' : '';
+    return '<label class="flex items-center gap-2 text-sm py-1"><input type="checkbox" class="blq-serv" value="' + s.ID + '" ' + chk + '> ' + escaparHTML(s.Nombre) + '</label>';
   }).join('');
 
   mostrarModal({
@@ -3746,15 +3782,19 @@ function abrirEditorBloqueo(id) {
     contenidoHTML:
       '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">' +
         '<div><label class="lbl">Tipo</label><select id="blqTipo" class="input">' + tipoOpts + '</select></div>' +
-        '<div><label class="lbl">Servicio afectado</label><select id="blqServicio" class="input">' + serviciosOpts + '</select></div>' +
+        '<div><label class="lbl">Servicios afectados</label><select id="blqAlcance" class="input" onchange="toggleAlcanceBloqueo()">' + alcanceOpts + '</select></div>' +
         '<div><label class="lbl">Fecha inicio</label><input id="blqFechaIni" class="input" value="' + (b ? b.FechaInicio : '') + '"></div>' +
         '<div><label class="lbl">Fecha fin</label><input id="blqFechaFin" class="input" value="' + (b ? b.FechaFin : '') + '"></div>' +
         '<div><label class="lbl">Hora inicio <span class="opacity-50 normal-case">(opcional)</span></label><input id="blqHoraIni" class="input" placeholder="HH:MM" value="' + (b && b.HoraInicio ? b.HoraInicio : '') + '"></div>' +
         '<div><label class="lbl">Hora fin <span class="opacity-50 normal-case">(opcional)</span></label><input id="blqHoraFin" class="input" placeholder="HH:MM" value="' + (b && b.HoraFin ? b.HoraFin : '') + '"></div>' +
       '</div>' +
+      '<div id="blqServiciosBox" class="mb-3' + (alcanceActual === 'algunos' ? '' : ' oculto') + '">' +
+        '<label class="lbl">Marca los servicios a bloquear</label>' +
+        '<div class="card p-3" style="max-height:180px;overflow-y:auto">' + serviciosCheck + '</div>' +
+      '</div>' +
       '<label class="lbl">Motivo</label>' +
       '<input id="blqMotivo" class="input" placeholder="Ej: Evento privado familia Perez" value="' + (b ? escaparHTML(b.Motivo || '') : '') + '">' +
-      '<p class="text-xs opacity-50 mt-2">Deja las horas vacias para un bloqueo/evento de todo el dia.</p>',
+      '<p class="text-xs opacity-50 mt-2">"Ninguno" crea un evento que aparece en el calendario pero no bloquea ninguna reserva. Deja las horas vacias para todo el dia.</p>',
     botones: [
       { texto: 'Cancelar', clase: 'btn-outline', accion: cerrarModal },
       { texto: id ? 'Guardar cambios' : 'Crear', clase: 'btn-primary', accion: guardarBloqueoDesdeEditor }
@@ -3764,11 +3804,29 @@ function abrirEditorBloqueo(id) {
   flatpickr('#blqFechaFin', { locale: 'es', dateFormat: 'Y-m-d', minDate: 'today', defaultDate: b ? b.FechaFin : null });
 }
 
+/* Muestra/oculta la lista de servicios segun el alcance elegido. */
+function toggleAlcanceBloqueo() {
+  var alcance = document.getElementById('blqAlcance').value;
+  var box = document.getElementById('blqServiciosBox');
+  if (box) box.classList.toggle('oculto', alcance !== 'algunos');
+}
+
 function guardarBloqueoDesdeEditor() {
+  // Traduce el alcance elegido al valor de ServicioID que espera el backend:
+  //  todos -> ''   |   ninguno -> 'NINGUNO'   |   algunos -> "S001,S003".
+  var alcance = document.getElementById('blqAlcance').value;
+  var servicioID = '';
+  if (alcance === 'ninguno') {
+    servicioID = 'NINGUNO';
+  } else if (alcance === 'algunos') {
+    var marcados = Array.prototype.slice.call(document.querySelectorAll('.blq-serv:checked')).map(function (c) { return c.value; });
+    if (!marcados.length) { mostrarToast('Marca al menos un servicio o elige otro alcance.', 'error'); return; }
+    servicioID = marcados.join(',');
+  }
   var datos = {
     id: APP.edicionBloqueoID || undefined,
     tipo: document.getElementById('blqTipo').value,
-    servicioID: document.getElementById('blqServicio').value,
+    servicioID: servicioID,
     motivo: document.getElementById('blqMotivo').value,
     fechaInicio: document.getElementById('blqFechaIni').value,
     fechaFin: document.getElementById('blqFechaFin').value,
@@ -3814,20 +3872,24 @@ function eliminarBloqueoStaff(id) {
    vez de esperar la respuesta del servidor antes de mostrar nada. Si ya
    tenemos la lista en memoria (del Centro de Operaciones) la pinta al toque. */
 function abrirParticipantes(tipo, refID, tituloRef, listaPrecargada) {
+  APP.participanteEditando = null;
   mostrarModal({
     titulo: 'Participantes' + (tituloRef ? ' · ' + tituloRef : ''),
     contenidoHTML:
       '<div id="listaParticipantes" class="mb-4">' +
         (listaPrecargada ? '' : '<div class="flex justify-center py-4"><div class="spinner"></div></div>') +
       '</div>' +
-      '<label class="lbl">Agregar participante</label>' +
+      '<label class="lbl" id="partFormTitulo">Agregar participante</label>' +
       '<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">' +
         '<input id="partNombre" class="input" placeholder="Nombre">' +
         '<input id="partTelefono" class="input" placeholder="Telefono (opcional)">' +
         '<input id="partHabitacion" class="input" placeholder="Habitacion (opcional)">' +
       '</div>' +
       '<input id="partNotas" class="input mb-1" placeholder="Notas (opcional): dieta, nivel, etc.">' +
-      '<p class="text-xs opacity-50 mb-1">Se va sumando gente de a poco al mismo horario (ej. salida de trekking).</p>',
+      '<div class="flex items-center justify-between mb-1">' +
+        '<p class="text-xs opacity-50">Se va sumando gente de a poco al mismo horario (ej. salida de trekking).</p>' +
+        '<button id="partCancelarEdicion" class="btn btn-outline !py-1 !px-2 text-xs oculto" onclick="cancelarEdicionParticipante()">Cancelar edicion</button>' +
+      '</div>',
     botones: [
       { texto: 'Cerrar', clase: 'btn-outline', accion: cerrarModal },
       { texto: 'Agregar', clase: 'btn-primary', accion: function () { agregarParticipanteStaff(tipo, refID, tituloRef); } }
@@ -3835,6 +3897,39 @@ function abrirParticipantes(tipo, refID, tituloRef, listaPrecargada) {
   });
   if (listaPrecargada) pintarListaParticipantes(tipo, refID, tituloRef, listaPrecargada);
   else refrescarListaParticipantes(tipo, refID, tituloRef);
+}
+
+/* Prepara el formulario para editar un participante ya agregado. */
+function iniciarEdicionParticipante(id, tipo, refID, tituloRef) {
+  var p = (APP.participantesActuales || []).filter(function (x) { return x.ID === id; })[0];
+  if (!p) return;
+  APP.participanteEditando = id;
+  document.getElementById('partNombre').value = p.Nombre || '';
+  document.getElementById('partTelefono').value = p.Telefono || '';
+  document.getElementById('partHabitacion').value = p.Habitacion || '';
+  document.getElementById('partNotas').value = p.Notas || '';
+  var titulo = document.getElementById('partFormTitulo');
+  if (titulo) titulo.textContent = 'Editar participante';
+  var cancelar = document.getElementById('partCancelarEdicion');
+  if (cancelar) cancelar.classList.remove('oculto');
+  // Cambia el texto del boton principal a "Guardar cambios".
+  var btnPrimario = document.querySelector('#modalOverlay [data-modal-btn="1"]');
+  if (btnPrimario) btnPrimario.textContent = 'Guardar cambios';
+  var nombreEl = document.getElementById('partNombre'); if (nombreEl) nombreEl.focus();
+}
+
+/* Vuelve el formulario al modo "agregar" (descarta la edicion en curso). */
+function cancelarEdicionParticipante() {
+  APP.participanteEditando = null;
+  ['partNombre', 'partTelefono', 'partHabitacion', 'partNotas'].forEach(function (id) {
+    var el = document.getElementById(id); if (el) el.value = '';
+  });
+  var titulo = document.getElementById('partFormTitulo');
+  if (titulo) titulo.textContent = 'Agregar participante';
+  var cancelar = document.getElementById('partCancelarEdicion');
+  if (cancelar) cancelar.classList.add('oculto');
+  var btnPrimario = document.querySelector('#modalOverlay [data-modal-btn="1"]');
+  if (btnPrimario) btnPrimario.textContent = 'Agregar';
 }
 
 function refrescarListaParticipantes(tipo, refID, tituloRef) {
@@ -3847,6 +3942,7 @@ function refrescarListaParticipantes(tipo, refID, tituloRef) {
 }
 
 function pintarListaParticipantes(tipo, refID, tituloRef, lista) {
+  APP.participantesActuales = lista;
   var cont = document.getElementById('listaParticipantes');
   if (!cont) return;
   if (!lista.length) { cont.innerHTML = '<p class="text-sm opacity-60 py-2 text-center">Aun no hay participantes.</p>'; return; }
@@ -3857,7 +3953,10 @@ function pintarListaParticipantes(tipo, refID, tituloRef, lista) {
         '<div><p class="font-semibold">' + escaparHTML(p.Nombre) + '</p>' +
         (linea2 ? '<p class="text-xs opacity-60">' + escaparHTML(linea2) + '</p>' : '') +
         (p.Notas ? '<p class="text-xs opacity-70"><i class="fa-solid fa-note-sticky"></i> ' + escaparHTML(p.Notas) + '</p>' : '') + '</div>' +
-        '<button class="btn btn-peligro !py-1 !px-2 text-xs shrink-0" onclick="eliminarParticipanteStaff(\'' + p.ID + '\',\'' + tipo + '\',\'' + refID + '\',\'' + (tituloRef || '') + '\')" title="Quitar"><i class="fa-solid fa-trash"></i></button>' +
+        '<div class="flex gap-1 shrink-0">' +
+          '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="iniciarEdicionParticipante(\'' + p.ID + '\',\'' + tipo + '\',\'' + refID + '\',\'' + (tituloRef || '') + '\')" title="Editar"><i class="fa-solid fa-pen"></i></button>' +
+          '<button class="btn btn-peligro !py-1 !px-2 text-xs" onclick="eliminarParticipanteStaff(\'' + p.ID + '\',\'' + tipo + '\',\'' + refID + '\',\'' + (tituloRef || '') + '\')" title="Quitar"><i class="fa-solid fa-trash"></i></button>' +
+        '</div>' +
       '</div>';
     }).join('');
 }
@@ -3865,20 +3964,26 @@ function pintarListaParticipantes(tipo, refID, tituloRef, lista) {
 function agregarParticipanteStaff(tipo, refID, tituloRef) {
   var nombre = (document.getElementById('partNombre').value || '').trim();
   if (!nombre) { mostrarToast('Escribe el nombre del participante.', 'error'); return; }
-  var datos = {
-    tipo: tipo, refID: refID, nombre: nombre,
+  var editandoID = APP.participanteEditando;
+  var base = {
+    nombre: nombre,
     telefono: (document.getElementById('partTelefono').value || '').trim(),
     habitacion: (document.getElementById('partHabitacion').value || '').trim(),
     notas: (document.getElementById('partNotas').value || '').trim(),
     email: APP.usuarioStaff.Email
   };
-  llamarAPI('agregarParticipante', [datos]).then(function (res) {
+  var fn, args;
+  if (editandoID) {
+    base.id = editandoID;
+    fn = 'editarParticipante'; args = [base];
+  } else {
+    base.tipo = tipo; base.refID = refID;
+    fn = 'agregarParticipante'; args = [base];
+  }
+  llamarAPI(fn, args).then(function (res) {
     mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
     if (res.success) {
-      // Limpia los campos y refresca solo la lista (sin cerrar el modal).
-      ['partNombre', 'partTelefono', 'partHabitacion', 'partNotas'].forEach(function (id) {
-        var el = document.getElementById(id); if (el) el.value = '';
-      });
+      cancelarEdicionParticipante(); // limpia campos y vuelve a modo "agregar"
       var nombreEl = document.getElementById('partNombre'); if (nombreEl) nombreEl.focus();
       refrescarListaParticipantes(tipo, refID, tituloRef);
       // Refresca las burbujas del Centro de Operaciones para reflejar el cambio.

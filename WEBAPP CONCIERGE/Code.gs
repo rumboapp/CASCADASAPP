@@ -1326,10 +1326,27 @@ function _personasOcupadasEnBloque(reservas, ini, fin) {
   return total;
 }
 
+/**
+ * Decide si un bloqueo/evento afecta a un servicio dado, segun su campo
+ * ServicioID (que ahora admite varios alcances):
+ *   - vacio          -> bloquea TODOS los servicios (compatibilidad + "todos").
+ *   - 'NINGUNO'      -> es solo un evento, no bloquea ningun servicio.
+ *   - 'S001,S003...' -> bloquea SOLO esos servicios (lista separada por comas).
+ * @param {string} bServicioID Valor crudo de la columna ServicioID del bloqueo.
+ * @param {string} servicioID  Servicio contra el que se evalua.
+ * @return {boolean}
+ */
+function _bloqueoAplicaAServicio(bServicioID, servicioID) {
+  var raw = bServicioID === null || bServicioID === undefined ? '' : String(bServicioID).trim();
+  if (raw === '') return true;          // todos
+  if (raw === 'NINGUNO') return false;  // evento que no bloquea nada
+  return raw.split(',').map(function (s) { return s.trim(); }).indexOf(servicioID) !== -1;
+}
+
 /** Bloqueos que aplican a un servicio (o a todos) en una fecha. */
 function _bloqueosDelDia(servicioID, fecha) {
   return _leerHojaComoObjetos(HOJAS.EVENTOS_BLOQUEOS).filter(function (b) {
-    var aplicaServicio = !b.ServicioID || b.ServicioID === servicioID;
+    var aplicaServicio = _bloqueoAplicaAServicio(b.ServicioID, servicioID);
     var desde = _fechaISO(b.FechaInicio);
     var hasta = _fechaISO(b.FechaFin || b.FechaInicio);
     return aplicaServicio && fecha >= desde && fecha <= hasta;
@@ -2404,13 +2421,13 @@ function obtenerBloqueos(fechaInicio, fechaFin, servicioID) {
     var bHasta = _fechaISO(b.FechaFin || b.FechaInicio);
     // Solapamiento de rangos.
     if (bHasta < desde || bDesde > hasta) return false;
-    if (servicioID && b.ServicioID && b.ServicioID !== servicioID) return false;
+    if (servicioID && !_bloqueoAplicaAServicio(b.ServicioID, servicioID)) return false;
     return true;
   }).map(function (b) {
     return {
       ID: b.ID,
       Tipo: b.Tipo,
-      ServicioID: b.ServicioID,
+      ServicioID: b.ServicioID ? String(b.ServicioID) : '',
       FechaInicio: _fechaISO(b.FechaInicio),
       FechaFin: _fechaISO(b.FechaFin || b.FechaInicio),
       HoraInicio: _horaATexto(b.HoraInicio),
@@ -2581,6 +2598,33 @@ function agregarParticipante(datos) {
   hoja.appendRow(fila);
   registrarLog('Agregar participante', datos.nombre, datos.habitacion || '');
   return { success: true, mensaje: 'Participante agregado.' };
+}
+
+/**
+ * Edita un participante existente. Solo personal.
+ * @param {Object} datos {id, nombre, telefono, habitacion, notas, email}
+ * @return {Object} {success, mensaje}
+ */
+function editarParticipante(datos) {
+  if (!_validarRolPermitido(datos.email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
+    return { success: false, mensaje: 'No tienes permisos para editar participantes.' };
+  }
+  if (!datos.id) return { success: false, mensaje: 'Falta el participante a editar.' };
+  if (!datos.nombre) return { success: false, mensaje: 'Falta el nombre del participante.' };
+  _asegurarHojaParticipantes();
+  var hoja = _hoja(HOJAS.PARTICIPANTES);
+  var fila = _leerHojaComoObjetos(HOJAS.PARTICIPANTES).filter(function (p) { return p.ID === datos.id; })[0];
+  if (!fila) return { success: false, mensaje: 'Participante no encontrado.' };
+  var set = function (col, val) {
+    var i = _indiceColumna(hoja, col);
+    if (i !== -1) hoja.getRange(fila._fila, i + 1).setValue(val);
+  };
+  set('Nombre', datos.nombre);
+  set('Telefono', datos.telefono || '');
+  set('Habitacion', datos.habitacion || '');
+  set('Notas', datos.notas || '');
+  registrarLog('Editar participante', datos.nombre, datos.habitacion || '');
+  return { success: true, mensaje: 'Participante actualizado.' };
 }
 
 /** Elimina un participante. Solo personal. */
