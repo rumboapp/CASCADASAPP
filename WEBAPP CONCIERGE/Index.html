@@ -1780,10 +1780,12 @@ function confirmarReserva() {
   };
   // Aviso configurable por servicio (ej. politica de cancelacion de Masajes /
   // Tinaja): el huesped debe leerlo y tocar "De acuerdo" antes de reservar.
-  if (s.AvisoReserva && String(s.AvisoReserva).trim()) {
+  // Usa la version en ingles si la app esta en ingles y esa version existe.
+  var avisoTxt = (APP.idioma === 'en' && s.AvisoReservaEN) ? s.AvisoReservaEN : s.AvisoReserva;
+  if (avisoTxt && String(avisoTxt).trim()) {
     mostrarModal({
       titulo: t('antes_de_confirmar'),
-      contenidoHTML: '<p class="text-sm" style="white-space:pre-line; line-height:1.5">' + escaparHTML(s.AvisoReserva) + '</p>',
+      contenidoHTML: '<p class="text-sm" style="white-space:pre-line; line-height:1.5">' + escaparHTML(avisoTxt) + '</p>',
       botones: [
         { texto: t('cancelar'), clase: 'btn-outline', accion: cerrarModal },
         { texto: t('de_acuerdo'), clase: 'btn-primary', accion: function () { cerrarModal(); ejecutarCreacionReserva(s, datos); } }
@@ -4291,7 +4293,7 @@ function abrirFormServicio(servicioID) {
   s = s || { ID: '', Nombre: '', Categoria: 'Bienestar', Descripcion: '', Icono: 'fa-bell-concierge',
     CostoBase: 0, Capacidad: 1, DuracionMinutos: 60, HorarioInicio: '10:00', HorarioFin: '20:00',
     RequiereAprobacion: false, PermitePrepedido: false, UsoExclusivo: false, Activo: true, Visible: true, Variantes: [],
-    AnticipoMinimoHoras: 0, PermiteParticipantes: false, AvisoReserva: '' };
+    AnticipoMinimoHoras: 0, PermiteParticipantes: false, AvisoReserva: '', AvisoReservaEN: '' };
 
   APP.formServicioID = servicioID || '';
   APP.formIcono = s.Icono || 'fa-bell-concierge';
@@ -4353,6 +4355,9 @@ function abrirFormServicio(servicioID) {
     '<div class="mt-3"><label class="lbl">Aviso al reservar (pop-up)</label>' +
       '<textarea id="fsAvisoReserva" class="input" rows="3" placeholder="Ej: Una vez confirmada esta reserva el cargo se hara a su habitacion. De cancelar con menos de 12 horas de anticipacion se aplicara un cargo del 50% del valor total.">' + escaparHTML(s.AvisoReserva || '') + '</textarea>' +
       '<p class="text-xs opacity-55 mt-1">Si lo llenas, el huesped debe leer este mensaje y tocar "De acuerdo" antes de confirmar la reserva de este servicio (ej. Masajes, Tinaja). Dejalo vacio para no mostrar ningun aviso.</p>' +
+      '<label class="lbl mt-2"><i class="fa-solid fa-language"></i> Aviso al reservar (ingles)</label>' +
+      '<textarea id="fsAvisoReservaEN" class="input" rows="3" placeholder="English version of the booking notice (e.g. cancellation policy).">' + escaparHTML(s.AvisoReservaEN || '') + '</textarea>' +
+      '<p class="text-xs opacity-55 mt-1">Si el huesped tiene la app en ingles, vera esta version. Si la dejas vacia, se le muestra la version en espanol.</p>' +
     '</div>' +
 
     // Variantes
@@ -4459,6 +4464,7 @@ function guardarFormServicio() {
     anticipoMinimoHoras: document.getElementById('fsAnticipo').value,
     permiteParticipantes: document.getElementById('fsParticipantes').checked,
     avisoReserva: document.getElementById('fsAvisoReserva').value,
+    avisoReservaEN: document.getElementById('fsAvisoReservaEN').value,
     variantes: variantes
   };
   if (!datos.nombre) { mostrarToast('El nombre es obligatorio.', 'error'); return; }

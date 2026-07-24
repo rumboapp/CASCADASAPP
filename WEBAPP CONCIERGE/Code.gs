@@ -478,7 +478,9 @@ function _asegurarColumnaParticipantesServicios() {
  * servicio. Vacio por defecto = sin aviso. Lo usan Masajes/Tinaja, etc.
  */
 function _asegurarColumnaAvisoServicios() {
-  _asegurarColumna(_hoja(HOJAS.SERVICIOS), 'AvisoReserva', '');
+  var hoja = _hoja(HOJAS.SERVICIOS);
+  _asegurarColumna(hoja, 'AvisoReserva', '');
+  _asegurarColumna(hoja, 'AvisoReservaEN', '');
 }
 
 /**
@@ -888,7 +890,8 @@ function _normalizarServicio(s) {
     Color: s.Color ? String(s.Color) : '',
     AnticipoMinimoHoras: Number(s.AnticipoMinimoHoras) || 0,
     PermiteParticipantes: _aBooleano(s.PermiteParticipantes),
-    AvisoReserva: s.AvisoReserva ? String(s.AvisoReserva) : ''
+    AvisoReserva: s.AvisoReserva ? String(s.AvisoReserva) : '',
+    AvisoReservaEN: s.AvisoReservaEN ? String(s.AvisoReservaEN) : ''
   };
 }
 
@@ -3198,6 +3201,7 @@ function _escribirCamposServicio(hoja, fila, datos) {
   if (datos.anticipoMinimoHoras !== undefined) set('AnticipoMinimoHoras', Number(datos.anticipoMinimoHoras) || 0);
   if (datos.permiteParticipantes !== undefined) set('PermiteParticipantes', datos.permiteParticipantes ? 'TRUE' : 'FALSE');
   if (datos.avisoReserva !== undefined) set('AvisoReserva', datos.avisoReserva || '');
+  if (datos.avisoReservaEN !== undefined) set('AvisoReservaEN', datos.avisoReservaEN || '');
 }
 
 // ===========================================================================
