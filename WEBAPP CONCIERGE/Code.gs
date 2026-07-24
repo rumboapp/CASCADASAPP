@@ -461,6 +461,17 @@ function _asegurarColumnaAnticipoServicios() {
 }
 
 /**
+ * Auto-reparacion: asegura que la hoja Servicios tenga la columna
+ * PermiteParticipantes (activa por servicio la opcion de ir sumando una lista
+ * de personas a la reserva, ej. una salida de trekking). FALSE por defecto:
+ * solo los servicios donde el hotel lo active mostraran el boton de
+ * participantes. No afecta a los servicios existentes.
+ */
+function _asegurarColumnaParticipantesServicios() {
+  _asegurarColumna(_hoja(HOJAS.SERVICIOS), 'PermiteParticipantes', 'FALSE');
+}
+
+/**
  * Escribe un valor en una columna por nombre, solo si la columna existe.
  * Evita romper hojas que aun no tengan la columna bilingue.
  */
@@ -832,6 +843,7 @@ function _recargoHabitacion() {
 function obtenerServiciosActivos() {
   _asegurarColumnaVisibleServicios();
   _asegurarColumnaAnticipoServicios();
+  _asegurarColumnaParticipantesServicios();
   return _leerHojaComoObjetos(HOJAS.SERVICIOS).filter(function (s) {
     return _aBooleano(s.Activo);
   }).map(_normalizarServicio);
@@ -863,7 +875,8 @@ function _normalizarServicio(s) {
     Variantes: _parsearVariantes(s.Variantes),
     UsoExclusivo: _aBooleano(s.UsoExclusivo),
     Color: s.Color ? String(s.Color) : '',
-    AnticipoMinimoHoras: Number(s.AnticipoMinimoHoras) || 0
+    AnticipoMinimoHoras: Number(s.AnticipoMinimoHoras) || 0,
+    PermiteParticipantes: _aBooleano(s.PermiteParticipantes)
   };
 }
 
@@ -908,6 +921,7 @@ function _serializarVariantes(variantes) {
 function _obtenerServicio(servicioID) {
   _asegurarColumnaVisibleServicios();
   _asegurarColumnaAnticipoServicios();
+  _asegurarColumnaParticipantesServicios();
   var filas = _leerHojaComoObjetos(HOJAS.SERVICIOS);
   for (var i = 0; i < filas.length; i++) {
     if (filas[i].ID === servicioID) return _normalizarServicio(filas[i]);
@@ -2194,7 +2208,10 @@ function obtenerDatosOperaciones(fecha) {
     agotados: obtenerProductosAgotados(),
     reservasProximas: _construirReservas({ estados: estadosProximas }, todasReservas),
     // Bloqueos/eventos que caen en este dia, para mostrarlos como burbujas.
-    eventos: obtenerBloqueos(fecha, fecha, '')
+    eventos: obtenerBloqueos(fecha, fecha, ''),
+    // Participantes por reserva/evento, para mostrarlos dentro de cada burbuja
+    // sin una llamada extra por cada una.
+    participantes: _mapaParticipantes()
   };
 }
 
@@ -2478,16 +2495,20 @@ function eliminarBloqueo(id, email) {
 // gente de a poco). Solo lo maneja el personal, el huesped no la ve ni la
 // edita. tipo: 'reserva' (Reservas.ID) o 'evento' (EventosBloqueos.ID).
 
-/** Auto-reparacion: crea la hoja Participantes si todavia no existe. */
+/** Auto-reparacion: crea la hoja Participantes si todavia no existe, y le
+ *  asegura la columna Notas (agregada despues de la primera version). */
 function _asegurarHojaParticipantes() {
   var ss = _ss();
   var hoja = ss.getSheetByName(HOJAS.PARTICIPANTES);
-  if (hoja) return;
-  hoja = ss.insertSheet(HOJAS.PARTICIPANTES);
-  hoja.getRange(1, 1, 1, 8).setValues([[
-    'ID', 'Tipo', 'RefID', 'Nombre', 'Telefono', 'Habitacion', 'AgregadoPor', 'Timestamp'
-  ]]);
-  hoja.setFrozenRows(1);
+  if (!hoja) {
+    hoja = ss.insertSheet(HOJAS.PARTICIPANTES);
+    hoja.getRange(1, 1, 1, 9).setValues([[
+      'ID', 'Tipo', 'RefID', 'Nombre', 'Telefono', 'Habitacion', 'Notas', 'AgregadoPor', 'Timestamp'
+    ]]);
+    hoja.setFrozenRows(1);
+    return;
+  }
+  _asegurarColumna(hoja, 'Notas', '');
 }
 
 /**
@@ -2502,14 +2523,41 @@ function obtenerParticipantes(tipo, refID, email) {
   _asegurarHojaParticipantes();
   return _leerHojaComoObjetos(HOJAS.PARTICIPANTES).filter(function (p) {
     return p.Tipo === tipo && p.RefID === refID;
-  }).map(function (p) {
-    return { ID: p.ID, Nombre: p.Nombre, Telefono: p.Telefono, Habitacion: p.Habitacion };
+  }).map(_normalizarParticipante);
+}
+
+/** Normaliza una fila de participante a objeto transferible al cliente. */
+function _normalizarParticipante(p) {
+  return {
+    ID: p.ID,
+    Nombre: p.Nombre ? String(p.Nombre) : '',
+    Telefono: p.Telefono ? String(p.Telefono) : '',
+    Habitacion: p.Habitacion ? String(p.Habitacion) : '',
+    Notas: p.Notas ? String(p.Notas) : ''
+  };
+}
+
+/**
+ * Mapa de TODOS los participantes agrupados por RefID (reserva o evento). Se usa
+ * para que el Centro de Operaciones muestre la lista dentro de cada burbuja sin
+ * una llamada por reserva. Clave = RefID. NO lee la hoja si aun no existe.
+ * @return {Object} { refID: [ {ID, Nombre, Telefono, Habitacion, Notas} ] }
+ */
+function _mapaParticipantes() {
+  var ss = _ss();
+  if (!ss.getSheetByName(HOJAS.PARTICIPANTES)) return {};
+  var mapa = {};
+  _leerHojaComoObjetos(HOJAS.PARTICIPANTES).forEach(function (p) {
+    if (!p.RefID) return;
+    if (!mapa[p.RefID]) mapa[p.RefID] = [];
+    mapa[p.RefID].push(_normalizarParticipante(p));
   });
+  return mapa;
 }
 
 /**
  * Agrega un participante a una reserva o evento. Solo personal.
- * @param {Object} datos {tipo, refID, nombre, telefono, habitacion, email}
+ * @param {Object} datos {tipo, refID, nombre, telefono, habitacion, notas, email}
  * @return {Object} {success, mensaje}
  */
 function agregarParticipante(datos) {
@@ -2519,10 +2567,18 @@ function agregarParticipante(datos) {
   if (!datos.tipo || !datos.refID) return { success: false, mensaje: 'Falta la reserva o el evento.' };
   if (!datos.nombre) return { success: false, mensaje: 'Falta el nombre del participante.' };
   _asegurarHojaParticipantes();
+  var hoja = _hoja(HOJAS.PARTICIPANTES);
   var id = generarID();
-  _hoja(HOJAS.PARTICIPANTES).appendRow([
-    id, datos.tipo, datos.refID, datos.nombre, datos.telefono || '', datos.habitacion || '', datos.email || '', new Date()
-  ]);
+  // Escribe respetando el orden real de columnas (la hoja puede haber sido
+  // creada antes de agregar "Notas", ya reparada por _asegurarHojaParticipantes).
+  var encabezados = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0];
+  var valores = {
+    ID: id, Tipo: datos.tipo, RefID: datos.refID, Nombre: datos.nombre,
+    Telefono: datos.telefono || '', Habitacion: datos.habitacion || '',
+    Notas: datos.notas || '', AgregadoPor: datos.email || '', Timestamp: new Date()
+  };
+  var fila = encabezados.map(function (col) { return valores[col] !== undefined ? valores[col] : ''; });
+  hoja.appendRow(fila);
   registrarLog('Agregar participante', datos.nombre, datos.habitacion || '');
   return { success: true, mensaje: 'Participante agregado.' };
 }
@@ -2969,6 +3025,7 @@ function actualizarConfiguracion(clave, valor, email) {
 function obtenerServiciosGestion() {
   _asegurarColumnaVisibleServicios();
   _asegurarColumnaAnticipoServicios();
+  _asegurarColumnaParticipantesServicios();
   return _leerHojaComoObjetos(HOJAS.SERVICIOS).map(_normalizarServicio);
 }
 
@@ -2986,6 +3043,7 @@ function guardarServicioConfig(datos, email) {
   }
   _asegurarColumnaVisibleServicios();
   _asegurarColumnaAnticipoServicios();
+  _asegurarColumnaParticipantesServicios();
   var hoja = _hoja(HOJAS.SERVICIOS);
   var filas = _leerHojaComoObjetos(HOJAS.SERVICIOS);
   for (var i = 0; i < filas.length; i++) {
@@ -3014,6 +3072,7 @@ function guardarServicioNuevo(datos, email) {
 
   _asegurarColumnaVisibleServicios();
   _asegurarColumnaAnticipoServicios();
+  _asegurarColumnaParticipantesServicios();
   var hoja = _hoja(HOJAS.SERVICIOS);
   // Genera el proximo ID S00X.
   var max = 0;
@@ -3068,6 +3127,7 @@ function _escribirCamposServicio(hoja, fila, datos) {
   if (datos.variantes !== undefined) setHora('Variantes', _serializarVariantes(datos.variantes));
   if (datos.color !== undefined) set('Color', datos.color || '');
   if (datos.anticipoMinimoHoras !== undefined) set('AnticipoMinimoHoras', Number(datos.anticipoMinimoHoras) || 0);
+  if (datos.permiteParticipantes !== undefined) set('PermiteParticipantes', datos.permiteParticipantes ? 'TRUE' : 'FALSE');
 }
 
 // ===========================================================================

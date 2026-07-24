@@ -849,10 +849,18 @@ function mostrarModal(config) {
     if (el) el.onclick = function () { if (b.accion) b.accion(); };
   });
 
-  // Cerrar al hacer click en el backdrop.
+  // Cerrar al hacer click en el backdrop, pero SOLO si el gesto empezo y
+  // termino sobre el fondo. Antes, al seleccionar texto dentro de un campo
+  // (arrastrar el mouse) y soltar fuera del recuadro, el "click" resultante
+  // caia en el fondo y cerraba la edicion a medias. Ahora exigimos que el
+  // mousedown tambien haya ocurrido sobre el fondo.
   if (cerrable) {
-    document.getElementById('modalOverlay').addEventListener('click', function (e) {
-      if (e.target.id === 'modalOverlay') cerrarModal();
+    var overlay = document.getElementById('modalOverlay');
+    var abajoEnFondo = false;
+    overlay.addEventListener('mousedown', function (e) { abajoEnFondo = (e.target.id === 'modalOverlay'); });
+    overlay.addEventListener('click', function (e) {
+      if (e.target.id === 'modalOverlay' && abajoEnFondo) cerrarModal();
+      abajoEnFondo = false;
     });
   }
 }
@@ -2571,6 +2579,8 @@ function cargarOpsContenido() {
     var data = res.centro || { bloques: [], alertas: [], pedidos: [] };
     APP.productosAgotadosOps = res.agotados || [];
     APP.reservasProximas = res.reservasProximas || [];
+    // Participantes por reserva/evento (para pintar la lista dentro de cada burbuja).
+    APP.participantesOps = res.participantes || {};
     var alertasHTML = (data.alertas || []).length ?
       '<div class="card p-4 mb-4" style="border-left:4px solid var(--dorado)"><p class="font-semibold mb-2"><i class="fa-solid fa-triangle-exclamation" style="color:var(--dorado)"></i> Alertas</p>' +
       data.alertas.map(function (a) { return '<p class="text-sm opacity-80">· ' + escaparHTML(a) + '</p>'; }).join('') + '</div>' : '';
@@ -2628,8 +2638,11 @@ function cargarOpsContenido() {
             }
             if (['Solicitada', 'Pendiente aprobacion', 'Confirmada', 'En curso'].indexOf(it.estado) !== -1) {
               acciones += '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="abrirEditarReserva(\'' + it.reservaID + '\',\'ops\')" title="Editar"><i class="fa-solid fa-pen"></i></button>';
-              // Participantes: lista libre que el personal va sumando (ej. salida de trekking).
-              acciones += '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="abrirParticipantes(\'reserva\',\'' + it.reservaID + '\',\'' + escaparHTML(it.servicioNombre) + '\')" title="Participantes"><i class="fa-solid fa-users"></i></button>';
+              // Participantes: solo para servicios que lo tengan activado en Config
+              // (ej. salida de trekking). Lista libre que el personal va sumando.
+              if (servicioPermiteParticipantes(it.servicioID)) {
+                acciones += '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="abrirParticipantes(\'reserva\',\'' + it.reservaID + '\',\'' + escaparHTML(it.servicioNombre) + '\',(APP.participantesOps||{})[\'' + it.reservaID + '\']||[])" title="Participantes"><i class="fa-solid fa-users"></i></button>';
+              }
               // Copia el aviso de la reserva para pegarlo en el grupo de WhatsApp.
               acciones += '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="copiarWhatsappOps(\'' + it.reservaID + '\')" title="Copiar aviso para WhatsApp"><i class="fa-brands fa-whatsapp" style="color:#25D366"></i></button>';
               // Agregar/editar pedido para servicios de comida (recepcion).
@@ -2673,7 +2686,7 @@ function cargarOpsContenido() {
                   // Nota interna: solo la ve el personal en Operaciones, resaltada.
                   (it.notasInternas ? '<p class="text-sm mt-1 px-2 py-1 rounded" style="background:#8B6B1E1A; color:#8B6B1E"><i class="fa-solid fa-lock"></i> ' + escaparHTML(it.notasInternas) + '</p>' : '') +
                 '</div>' +
-              '</div>' + pedidoHTML +
+              '</div>' + pedidoHTML + bloqueParticipantesOps(it.reservaID) +
               (acciones ? '<div class="flex flex-wrap gap-1 justify-end mt-2">' + acciones + '</div>' : '') +
             '</div>';
           }).join('') +
@@ -2827,10 +2840,11 @@ function renderEventosOps(eventos) {
     var servTxt = ev.ServicioID ? (servNombre[ev.ServicioID] || ev.ServicioID) : 'Todos los servicios';
     var horarioTxt = (ev.HoraInicio || ev.HoraFin) ? ((ev.HoraInicio || '—') + ' - ' + (ev.HoraFin || '—')) : 'Todo el dia';
     var rangoTxt = (ev.FechaInicio !== ev.FechaFin) ? (' · ' + ev.FechaInicio + ' → ' + ev.FechaFin) : '';
+    var esEventoConParticipantes = ev.Tipo === 'Evento privado';
     var acciones = puedeGestionar
       ? '<div class="flex gap-1 justify-end mt-2">' +
           '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="abrirEditorBloqueo(\'' + ev.ID + '\')" title="Editar"><i class="fa-solid fa-pen"></i></button>' +
-          (ev.Tipo === 'Evento privado' ? '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="abrirParticipantes(\'evento\',\'' + ev.ID + '\',\'' + escaparHTML(ev.Motivo || 'Evento') + '\')" title="Participantes"><i class="fa-solid fa-users"></i></button>' : '') +
+          (esEventoConParticipantes ? '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="abrirParticipantes(\'evento\',\'' + ev.ID + '\',\'' + escaparHTML(ev.Motivo || 'Evento') + '\',(APP.participantesOps||{})[\'' + ev.ID + '\']||[])" title="Participantes"><i class="fa-solid fa-users"></i></button>' : '') +
           '<button class="btn btn-peligro !py-1 !px-2 text-xs" onclick="eliminarBloqueoStaff(\'' + ev.ID + '\')" title="Eliminar"><i class="fa-solid fa-trash"></i></button>' +
         '</div>'
       : '';
@@ -2842,7 +2856,7 @@ function renderEventosOps(eventos) {
           '<p class="font-semibold text-sm leading-tight" style="color:' + col + '">' + escaparHTML(servTxt) + rangoTxt + '</p>' +
           '<p class="text-xs opacity-70 mt-0.5"><i class="fa-regular fa-clock"></i> ' + horarioTxt + (ev.Motivo ? ' · ' + escaparHTML(ev.Motivo) : '') + '</p>' +
         '</div>' +
-      '</div>' + acciones +
+      '</div>' + (esEventoConParticipantes ? bloqueParticipantesOps(ev.ID) : '') + acciones +
     '</div>';
   }).join('');
 
@@ -2944,6 +2958,28 @@ function colorDeServicio(servicioID, nombre) {
 function servicioPermitePedido(servicioID) {
   var s = (APP.servicios || []).filter(function (x) { return x.ID === servicioID; })[0];
   return s && s.PermitePrepedido;
+}
+
+/* True si el servicio tiene activada la opcion de participantes (se activa por
+   servicio en Config; ej. una salida de trekking). */
+function servicioPermiteParticipantes(servicioID) {
+  var s = (APP.servicios || []).filter(function (x) { return x.ID === servicioID; })[0];
+  return !!(s && s.PermiteParticipantes);
+}
+
+/* HTML de la lista de participantes para pintar dentro de una burbuja de
+   Operaciones (compacta). refID = ID de reserva o evento. */
+function bloqueParticipantesOps(refID) {
+  var lista = (APP.participantesOps || {})[refID] || [];
+  if (!lista.length) return '';
+  return '<div class="mt-2 pt-2 border-t text-sm" style="border-color:var(--borde)">' +
+    '<p class="font-semibold text-xs uppercase opacity-60 mb-1"><i class="fa-solid fa-users"></i> Participantes (' + lista.length + ')</p>' +
+    lista.map(function (p) {
+      var extra = [p.Telefono, p.Habitacion ? etiquetaHab(p.Habitacion) : ''].filter(Boolean).join(' · ');
+      return '<div style="font-size:1rem"><span class="font-semibold">' + escaparHTML(p.Nombre) + '</span>' +
+        (extra ? ' <span class="opacity-60 text-xs">' + escaparHTML(extra) + '</span>' : '') +
+        (p.Notas ? '<span class="opacity-70 text-xs"> · ' + escaparHTML(p.Notas) + '</span>' : '') + '</div>';
+    }).join('') + '</div>';
 }
 
 /* Abre el prepedido desde operaciones para una reserva (recepcion). */
@@ -3261,7 +3297,9 @@ function filaReservaStaff(r) {
   }
   if (['Solicitada', 'Pendiente aprobacion', 'Confirmada'].indexOf(r.Estado) !== -1) {
     acciones += '<button class="btn btn-outline !py-1 !px-2 text-xs mr-1" onclick="abrirEditarReserva(\'' + r.ID + '\')" title="Editar"><i class="fa-solid fa-pen"></i></button>';
-    acciones += '<button class="btn btn-outline !py-1 !px-2 text-xs mr-1" onclick="abrirParticipantes(\'reserva\',\'' + r.ID + '\',\'' + escaparHTML(r.ServicioNombre) + '\')" title="Participantes"><i class="fa-solid fa-users"></i></button>';
+    if (servicioPermiteParticipantes(r.ServicioID)) {
+      acciones += '<button class="btn btn-outline !py-1 !px-2 text-xs mr-1" onclick="abrirParticipantes(\'reserva\',\'' + r.ID + '\',\'' + escaparHTML(r.ServicioNombre) + '\')" title="Participantes"><i class="fa-solid fa-users"></i></button>';
+    }
     acciones += '<button class="btn btn-peligro !py-1 !px-2 text-xs mr-1" onclick="cancelarReservaStaff(\'' + r.ID + '\')" title="Cancelar"><i class="fa-solid fa-xmark"></i></button>';
   }
   if (r.PrepedidoID) {
@@ -3772,38 +3810,56 @@ function eliminarBloqueoStaff(id) {
 }
 
 /* ---------- Participantes (reservas de servicio y eventos, solo staff) ---------- */
-function abrirParticipantes(tipo, refID, tituloRef) {
-  llamarAPI('obtenerParticipantes', [tipo, refID, APP.usuarioStaff.Email], { loader: false }).then(function (lista) {
-    renderModalParticipantes(tipo, refID, tituloRef, lista || []);
-  });
-}
-
-function renderModalParticipantes(tipo, refID, tituloRef, lista) {
-  var filasHTML = lista.length ? lista.map(function (p) {
-    var linea2 = [p.Telefono, p.Habitacion ? etiquetaHab(p.Habitacion) : ''].filter(Boolean).join(' · ');
-    return '<div class="flex items-center justify-between gap-2 py-1.5 border-b text-sm" style="border-color:var(--borde)">' +
-      '<div><p class="font-semibold">' + escaparHTML(p.Nombre) + '</p>' +
-      (linea2 ? '<p class="text-xs opacity-60">' + escaparHTML(linea2) + '</p>' : '') + '</div>' +
-      '<button class="btn btn-peligro !py-1 !px-2 text-xs shrink-0" onclick="eliminarParticipanteStaff(\'' + p.ID + '\',\'' + tipo + '\',\'' + refID + '\',\'' + (tituloRef || '') + '\')" title="Quitar"><i class="fa-solid fa-trash"></i></button>' +
-    '</div>';
-  }).join('') : '<p class="text-sm opacity-60 py-2 text-center">Aun no hay participantes.</p>';
-
+/* Abre el modal de inmediato con un spinner y llena la lista cuando llega, en
+   vez de esperar la respuesta del servidor antes de mostrar nada. Si ya
+   tenemos la lista en memoria (del Centro de Operaciones) la pinta al toque. */
+function abrirParticipantes(tipo, refID, tituloRef, listaPrecargada) {
   mostrarModal({
     titulo: 'Participantes' + (tituloRef ? ' · ' + tituloRef : ''),
     contenidoHTML:
-      '<div class="mb-4">' + filasHTML + '</div>' +
+      '<div id="listaParticipantes" class="mb-4">' +
+        (listaPrecargada ? '' : '<div class="flex justify-center py-4"><div class="spinner"></div></div>') +
+      '</div>' +
       '<label class="lbl">Agregar participante</label>' +
-      '<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-1">' +
+      '<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">' +
         '<input id="partNombre" class="input" placeholder="Nombre">' +
         '<input id="partTelefono" class="input" placeholder="Telefono (opcional)">' +
         '<input id="partHabitacion" class="input" placeholder="Habitacion (opcional)">' +
       '</div>' +
-      '<p class="text-xs opacity-50 mb-2">Se va sumando gente de a poco al mismo horario (ej. salida de trekking).</p>',
+      '<input id="partNotas" class="input mb-1" placeholder="Notas (opcional): dieta, nivel, etc.">' +
+      '<p class="text-xs opacity-50 mb-1">Se va sumando gente de a poco al mismo horario (ej. salida de trekking).</p>',
     botones: [
       { texto: 'Cerrar', clase: 'btn-outline', accion: cerrarModal },
       { texto: 'Agregar', clase: 'btn-primary', accion: function () { agregarParticipanteStaff(tipo, refID, tituloRef); } }
     ]
   });
+  if (listaPrecargada) pintarListaParticipantes(tipo, refID, tituloRef, listaPrecargada);
+  else refrescarListaParticipantes(tipo, refID, tituloRef);
+}
+
+function refrescarListaParticipantes(tipo, refID, tituloRef) {
+  llamarAPI('obtenerParticipantes', [tipo, refID, APP.usuarioStaff.Email], { loader: false, silencioso: true })
+    .then(function (lista) { pintarListaParticipantes(tipo, refID, tituloRef, lista || []); })
+    .catch(function () {
+      var cont = document.getElementById('listaParticipantes');
+      if (cont) cont.innerHTML = '<p class="text-sm opacity-60 py-2 text-center">No pudimos cargar los participantes.</p>';
+    });
+}
+
+function pintarListaParticipantes(tipo, refID, tituloRef, lista) {
+  var cont = document.getElementById('listaParticipantes');
+  if (!cont) return;
+  if (!lista.length) { cont.innerHTML = '<p class="text-sm opacity-60 py-2 text-center">Aun no hay participantes.</p>'; return; }
+  cont.innerHTML = '<p class="text-xs opacity-60 mb-1">' + lista.length + ' participante' + (lista.length > 1 ? 's' : '') + '</p>' +
+    lista.map(function (p) {
+      var linea2 = [p.Telefono, p.Habitacion ? etiquetaHab(p.Habitacion) : ''].filter(Boolean).join(' · ');
+      return '<div class="flex items-center justify-between gap-2 py-1.5 border-b text-sm" style="border-color:var(--borde)">' +
+        '<div><p class="font-semibold">' + escaparHTML(p.Nombre) + '</p>' +
+        (linea2 ? '<p class="text-xs opacity-60">' + escaparHTML(linea2) + '</p>' : '') +
+        (p.Notas ? '<p class="text-xs opacity-70"><i class="fa-solid fa-note-sticky"></i> ' + escaparHTML(p.Notas) + '</p>' : '') + '</div>' +
+        '<button class="btn btn-peligro !py-1 !px-2 text-xs shrink-0" onclick="eliminarParticipanteStaff(\'' + p.ID + '\',\'' + tipo + '\',\'' + refID + '\',\'' + (tituloRef || '') + '\')" title="Quitar"><i class="fa-solid fa-trash"></i></button>' +
+      '</div>';
+    }).join('');
 }
 
 function agregarParticipanteStaff(tipo, refID, tituloRef) {
@@ -3813,18 +3869,31 @@ function agregarParticipanteStaff(tipo, refID, tituloRef) {
     tipo: tipo, refID: refID, nombre: nombre,
     telefono: (document.getElementById('partTelefono').value || '').trim(),
     habitacion: (document.getElementById('partHabitacion').value || '').trim(),
+    notas: (document.getElementById('partNotas').value || '').trim(),
     email: APP.usuarioStaff.Email
   };
   llamarAPI('agregarParticipante', [datos]).then(function (res) {
     mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
-    if (res.success) abrirParticipantes(tipo, refID, tituloRef);
+    if (res.success) {
+      // Limpia los campos y refresca solo la lista (sin cerrar el modal).
+      ['partNombre', 'partTelefono', 'partHabitacion', 'partNotas'].forEach(function (id) {
+        var el = document.getElementById(id); if (el) el.value = '';
+      });
+      var nombreEl = document.getElementById('partNombre'); if (nombreEl) nombreEl.focus();
+      refrescarListaParticipantes(tipo, refID, tituloRef);
+      // Refresca las burbujas del Centro de Operaciones para reflejar el cambio.
+      if (APP.staffVistaActual === 'Operaciones') cargarOpsContenido();
+    }
   });
 }
 
 function eliminarParticipanteStaff(participanteID, tipo, refID, tituloRef) {
   llamarAPI('eliminarParticipante', [participanteID, APP.usuarioStaff.Email]).then(function (res) {
     mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
-    if (res.success) abrirParticipantes(tipo, refID, tituloRef);
+    if (res.success) {
+      refrescarListaParticipantes(tipo, refID, tituloRef);
+      if (APP.staffVistaActual === 'Operaciones') cargarOpsContenido();
+    }
   });
 }
 
@@ -4016,7 +4085,7 @@ function abrirFormServicio(servicioID) {
   s = s || { ID: '', Nombre: '', Categoria: 'Bienestar', Descripcion: '', Icono: 'fa-bell-concierge',
     CostoBase: 0, Capacidad: 1, DuracionMinutos: 60, HorarioInicio: '10:00', HorarioFin: '20:00',
     RequiereAprobacion: false, PermitePrepedido: false, UsoExclusivo: false, Activo: true, Visible: true, Variantes: [],
-    AnticipoMinimoHoras: 0 };
+    AnticipoMinimoHoras: 0, PermiteParticipantes: false };
 
   APP.formServicioID = servicioID || '';
   APP.formIcono = s.Icono || 'fa-bell-concierge';
@@ -4069,8 +4138,10 @@ function abrirFormServicio(servicioID) {
       switchLinea('Requiere aprobacion', 'fsAprob', s.RequiereAprobacion) +
       switchLinea('Permite pedido (restaurant)', 'fsPedido', s.PermitePrepedido) +
       switchLinea('Uso exclusivo (1 a la vez)', 'fsExcl', s.UsoExclusivo) +
+      switchLinea('Lista de participantes', 'fsParticipantes', s.PermiteParticipantes) +
     '</div>' +
     '<p class="text-xs opacity-55 -mt-1 mb-1">Si apagas "Visible para el huesped" el servicio no aparece en la lista que ve el huesped, pero sigue disponible para que recepcion reserve manualmente desde el Centro de Operaciones. Sirve para promos exclusivas (ej: Instagram).</p>' +
+    '<p class="text-xs opacity-55 -mt-1 mb-1">Activa "Lista de participantes" solo en servicios donde el hotel necesita ir anotando gente que se suma de a poco (ej: salida de trekking). Ahi aparece un boton para agregar nombre, telefono, habitacion y notas. Solo lo ve el personal.</p>' +
 
     // Variantes
     '<div class="mt-4"><div class="flex items-center justify-between mb-1"><label class="lbl !mb-0">Opciones / variantes (precio distinto)</label>' +
@@ -4174,6 +4245,7 @@ function guardarFormServicio() {
     visible: document.getElementById('fsVisible').checked,
     color: APP.formColor,
     anticipoMinimoHoras: document.getElementById('fsAnticipo').value,
+    permiteParticipantes: document.getElementById('fsParticipantes').checked,
     variantes: variantes
   };
   if (!datos.nombre) { mostrarToast('El nombre es obligatorio.', 'error'); return; }
