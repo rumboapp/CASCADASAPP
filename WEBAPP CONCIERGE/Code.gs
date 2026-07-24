@@ -536,6 +536,7 @@ var HOJAS = {
   DETALLE_PEDIDOS: 'DetallePedidos',
   USUARIOS: 'Usuarios',
   EVENTOS_BLOQUEOS: 'EventosBloqueos',
+  PARTICIPANTES: 'Participantes',
   NOTIFICACIONES: 'Notificaciones',
   DISPONIBILIDAD_PERSONAL: 'DisponibilidadPersonal',
   LOG: 'LogActividad',
@@ -2467,6 +2468,77 @@ function eliminarBloqueo(id, email) {
   hoja.deleteRow(fila._fila);
   registrarLog('Eliminar bloqueo', id, '');
   return { success: true, mensaje: 'Bloqueo eliminado.' };
+}
+
+// ===========================================================================
+// 6.6.b PARTICIPANTES (reservas de servicios y eventos)
+// ===========================================================================
+// Lista libre de personas que se van sumando a una reserva de servicio o a un
+// evento (ej. una salida de trekking agendada a cierta hora, donde se anota
+// gente de a poco). Solo lo maneja el personal, el huesped no la ve ni la
+// edita. tipo: 'reserva' (Reservas.ID) o 'evento' (EventosBloqueos.ID).
+
+/** Auto-reparacion: crea la hoja Participantes si todavia no existe. */
+function _asegurarHojaParticipantes() {
+  var ss = _ss();
+  var hoja = ss.getSheetByName(HOJAS.PARTICIPANTES);
+  if (hoja) return;
+  hoja = ss.insertSheet(HOJAS.PARTICIPANTES);
+  hoja.getRange(1, 1, 1, 8).setValues([[
+    'ID', 'Tipo', 'RefID', 'Nombre', 'Telefono', 'Habitacion', 'AgregadoPor', 'Timestamp'
+  ]]);
+  hoja.setFrozenRows(1);
+}
+
+/**
+ * Devuelve los participantes de una reserva o evento. Solo personal.
+ * @param {string} tipo 'reserva' o 'evento'.
+ * @param {string} refID ID de la reserva o del evento/bloqueo.
+ * @param {string} email
+ * @return {Array<Object>}
+ */
+function obtenerParticipantes(tipo, refID, email) {
+  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) return [];
+  _asegurarHojaParticipantes();
+  return _leerHojaComoObjetos(HOJAS.PARTICIPANTES).filter(function (p) {
+    return p.Tipo === tipo && p.RefID === refID;
+  }).map(function (p) {
+    return { ID: p.ID, Nombre: p.Nombre, Telefono: p.Telefono, Habitacion: p.Habitacion };
+  });
+}
+
+/**
+ * Agrega un participante a una reserva o evento. Solo personal.
+ * @param {Object} datos {tipo, refID, nombre, telefono, habitacion, email}
+ * @return {Object} {success, mensaje}
+ */
+function agregarParticipante(datos) {
+  if (!_validarRolPermitido(datos.email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
+    return { success: false, mensaje: 'No tienes permisos para agregar participantes.' };
+  }
+  if (!datos.tipo || !datos.refID) return { success: false, mensaje: 'Falta la reserva o el evento.' };
+  if (!datos.nombre) return { success: false, mensaje: 'Falta el nombre del participante.' };
+  _asegurarHojaParticipantes();
+  var id = generarID();
+  _hoja(HOJAS.PARTICIPANTES).appendRow([
+    id, datos.tipo, datos.refID, datos.nombre, datos.telefono || '', datos.habitacion || '', datos.email || '', new Date()
+  ]);
+  registrarLog('Agregar participante', datos.nombre, datos.habitacion || '');
+  return { success: true, mensaje: 'Participante agregado.' };
+}
+
+/** Elimina un participante. Solo personal. */
+function eliminarParticipante(participanteID, email) {
+  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
+    return { success: false, mensaje: 'No tienes permisos para quitar participantes.' };
+  }
+  _asegurarHojaParticipantes();
+  var hoja = _hoja(HOJAS.PARTICIPANTES);
+  var fila = _leerHojaComoObjetos(HOJAS.PARTICIPANTES).filter(function (p) { return p.ID === participanteID; })[0];
+  if (!fila) return { success: false, mensaje: 'Participante no encontrado.' };
+  hoja.deleteRow(fila._fila);
+  registrarLog('Quitar participante', participanteID, '');
+  return { success: true, mensaje: 'Participante eliminado.' };
 }
 
 // ===========================================================================

@@ -2628,6 +2628,8 @@ function cargarOpsContenido() {
             }
             if (['Solicitada', 'Pendiente aprobacion', 'Confirmada', 'En curso'].indexOf(it.estado) !== -1) {
               acciones += '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="abrirEditarReserva(\'' + it.reservaID + '\',\'ops\')" title="Editar"><i class="fa-solid fa-pen"></i></button>';
+              // Participantes: lista libre que el personal va sumando (ej. salida de trekking).
+              acciones += '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="abrirParticipantes(\'reserva\',\'' + it.reservaID + '\',\'' + escaparHTML(it.servicioNombre) + '\')" title="Participantes"><i class="fa-solid fa-users"></i></button>';
               // Copia el aviso de la reserva para pegarlo en el grupo de WhatsApp.
               acciones += '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="copiarWhatsappOps(\'' + it.reservaID + '\')" title="Copiar aviso para WhatsApp"><i class="fa-brands fa-whatsapp" style="color:#25D366"></i></button>';
               // Agregar/editar pedido para servicios de comida (recepcion).
@@ -2645,13 +2647,13 @@ function cargarOpsContenido() {
               var badgeEntrega = esHab
                 ? '<span class="pill" style="background:#8B3A3A;color:#fff;font-size:.7rem"><i class="fa-solid fa-bell-concierge"></i> A LA HABITACION</span>'
                 : '<span class="pill estado-Finalizada"><i class="fa-solid fa-utensils"></i> En restaurant</span>';
-              pedidoHTML = '<div class="mt-2 pt-2 border-t text-xs" style="border-color:var(--borde)' + (esHab ? ';background:#8B3A3A14;border-radius:8px;padding:8px' : '') + '">' +
+              pedidoHTML = '<div class="mt-2 pt-2 border-t text-sm" style="border-color:var(--borde)' + (esHab ? ';background:#8B3A3A14;border-radius:8px;padding:8px' : '') + '">' +
                 '<div class="flex items-center justify-between mb-1"><p class="font-semibold"><i class="fa-solid fa-utensils" style="color:var(--dorado)"></i> Pedido</p>' + badgeEntrega + '</div>' +
                 pedido.Detalles.map(function (d) {
-                  return '<div class="flex justify-between" style="font-size:.92rem"><span>' + d.Cantidad + 'x ' + escaparHTML(d.Nombre) + (d.Notas ? ' <i class="opacity-50">(' + escaparHTML(d.Notas) + ')</i>' : '') + '</span><span>' + fmtMoneda(d.Subtotal) + '</span></div>';
+                  return '<div class="flex justify-between" style="font-size:1.05rem">' + '<span>' + d.Cantidad + 'x ' + escaparHTML(d.Nombre) + (d.Notas ? ' <i class="opacity-70">(' + escaparHTML(d.Notas) + ')</i>' : '') + '</span><span>' + fmtMoneda(d.Subtotal) + '</span></div>';
                 }).join('') +
-                (pedido.Notas ? '<p class="opacity-70 mt-1"><i class="fa-solid fa-note-sticky"></i> ' + escaparHTML(pedido.Notas) + '</p>' : '') +
-                '<div class="flex justify-between font-semibold mt-1"><span>Total</span><span>' + fmtMoneda(pedido.Total) + '</span></div>' + '</div>';
+                (pedido.Notas ? '<p class="opacity-80 mt-1" style="font-size:1.05rem"><i class="fa-solid fa-note-sticky"></i> ' + escaparHTML(pedido.Notas) + '</p>' : '') +
+                '<div class="flex justify-between font-semibold mt-1" style="font-size:1.05rem"><span>Total</span><span>' + fmtMoneda(pedido.Total) + '</span></div>' + '</div>';
             }
 
             // Identificacion visual del servicio: color propio + icono en circulo.
@@ -2667,9 +2669,9 @@ function cargarOpsContenido() {
                     '<span class="pill ' + claseEstado(it.estado) + '">' + it.estado + '</span>' +
                   '</div>' +
                   '<p class="font-semibold text-base leading-tight" style="color:' + col + '">' + escaparHTML(it.servicioNombre) + (it.variante ? ' · ' + escaparHTML(it.variante) : '') + '</p>' +
-                  (it.notas ? '<p class="text-xs opacity-70 mt-0.5">' + escaparHTML(it.notas) + '</p>' : '') +
+                  (it.notas ? '<p class="text-sm opacity-80 mt-0.5">' + escaparHTML(it.notas) + '</p>' : '') +
                   // Nota interna: solo la ve el personal en Operaciones, resaltada.
-                  (it.notasInternas ? '<p class="text-xs mt-1 px-2 py-1 rounded" style="background:#8B6B1E1A; color:#8B6B1E"><i class="fa-solid fa-lock"></i> ' + escaparHTML(it.notasInternas) + '</p>' : '') +
+                  (it.notasInternas ? '<p class="text-sm mt-1 px-2 py-1 rounded" style="background:#8B6B1E1A; color:#8B6B1E"><i class="fa-solid fa-lock"></i> ' + escaparHTML(it.notasInternas) + '</p>' : '') +
                 '</div>' +
               '</div>' + pedidoHTML +
               (acciones ? '<div class="flex flex-wrap gap-1 justify-end mt-2">' + acciones + '</div>' : '') +
@@ -3165,10 +3167,13 @@ function crearReservaDesdeStaff() {
     habitacion = (tipo === 'grupo' ? 'Grupo: ' : 'Pasante: ') + nombre;
   }
 
+  var servicioID = document.getElementById('nrServicio').value;
+  var servicio = (APP.servicios || []).filter(function (s) { return s.ID === servicioID; })[0];
+
   var datos = {
     habitacion: habitacion,
     tipoCliente: tipo,
-    servicioID: document.getElementById('nrServicio').value,
+    servicioID: servicioID,
     variante: variante,
     fecha: document.getElementById('nrFecha').value,
     horaInicio: hora,
@@ -3180,7 +3185,22 @@ function crearReservaDesdeStaff() {
   };
   llamarAPI('crearReserva', [datos]).then(function (res) {
     mostrarToast(res.mensaje + (res.estado ? ' Estado: ' + res.estado + '.' : ''), res.success ? 'exito' : 'error');
-    if (res.success) { cerrarModal(); renderOperaciones(); }
+    if (!res.success) return;
+    renderOperaciones();
+    // Si el servicio admite pedido (ej. Restaurant), sigue directo al pedido
+    // en vez de cerrar el modal: evita el paso extra de ir a buscar la
+    // reserva recien creada para recien ahi armar el pedido y elegir a
+    // donde se entrega.
+    if (servicio && servicio.PermitePrepedido && prepedidoDisponible()) {
+      APP.prepedidoOrigen = 'ops';
+      var entregaPreferida = tipo === 'habitacion' ? 'Habitacion' : 'Restaurant';
+      abrirPrepedido(res.id, {
+        ID: res.id, ServicioID: servicio.ID, ServicioNombre: servicio.Nombre, Estado: res.estado,
+        Fecha: datos.fecha, HoraInicio: datos.horaInicio, Personas: datos.personas, PrepedidoID: ''
+      }, entregaPreferida);
+    } else {
+      cerrarModal();
+    }
   });
 }
 
@@ -3240,6 +3260,7 @@ function filaReservaStaff(r) {
   }
   if (['Solicitada', 'Pendiente aprobacion', 'Confirmada'].indexOf(r.Estado) !== -1) {
     acciones += '<button class="btn btn-outline !py-1 !px-2 text-xs mr-1" onclick="abrirEditarReserva(\'' + r.ID + '\')" title="Editar"><i class="fa-solid fa-pen"></i></button>';
+    acciones += '<button class="btn btn-outline !py-1 !px-2 text-xs mr-1" onclick="abrirParticipantes(\'reserva\',\'' + r.ID + '\',\'' + escaparHTML(r.ServicioNombre) + '\')" title="Participantes"><i class="fa-solid fa-users"></i></button>';
     acciones += '<button class="btn btn-peligro !py-1 !px-2 text-xs mr-1" onclick="cancelarReservaStaff(\'' + r.ID + '\')" title="Cancelar"><i class="fa-solid fa-xmark"></i></button>';
   }
   if (r.PrepedidoID) {
@@ -3656,6 +3677,7 @@ function cargarTablaBloqueos() {
           '<td class="text-xs">' + escaparHTML(b.Motivo) + '</td>' +
           '<td class="whitespace-nowrap">' +
             '<button class="btn btn-outline !py-1 !px-2 text-xs mr-1" onclick="abrirEditorBloqueo(\'' + b.ID + '\')" title="Editar"><i class="fa-solid fa-pen"></i></button>' +
+            (b.Tipo === 'Evento privado' ? '<button class="btn btn-outline !py-1 !px-2 text-xs mr-1" onclick="abrirParticipantes(\'evento\',\'' + b.ID + '\',\'' + escaparHTML(b.Motivo || 'Evento') + '\')" title="Participantes"><i class="fa-solid fa-users"></i></button>' : '') +
             '<button class="btn btn-peligro !py-1 !px-2 text-xs" onclick="eliminarBloqueoStaff(\'' + b.ID + '\')" title="Eliminar"><i class="fa-solid fa-trash"></i></button>' +
           '</td></tr>';
       }).join('') + '</tbody></table>';
@@ -3745,6 +3767,63 @@ function eliminarBloqueoStaff(id) {
         });
       } }
     ]
+  });
+}
+
+/* ---------- Participantes (reservas de servicio y eventos, solo staff) ---------- */
+function abrirParticipantes(tipo, refID, tituloRef) {
+  llamarAPI('obtenerParticipantes', [tipo, refID, APP.usuarioStaff.Email], { loader: false }).then(function (lista) {
+    renderModalParticipantes(tipo, refID, tituloRef, lista || []);
+  });
+}
+
+function renderModalParticipantes(tipo, refID, tituloRef, lista) {
+  var filasHTML = lista.length ? lista.map(function (p) {
+    var linea2 = [p.Telefono, p.Habitacion ? etiquetaHab(p.Habitacion) : ''].filter(Boolean).join(' · ');
+    return '<div class="flex items-center justify-between gap-2 py-1.5 border-b text-sm" style="border-color:var(--borde)">' +
+      '<div><p class="font-semibold">' + escaparHTML(p.Nombre) + '</p>' +
+      (linea2 ? '<p class="text-xs opacity-60">' + escaparHTML(linea2) + '</p>' : '') + '</div>' +
+      '<button class="btn btn-peligro !py-1 !px-2 text-xs shrink-0" onclick="eliminarParticipanteStaff(\'' + p.ID + '\',\'' + tipo + '\',\'' + refID + '\',\'' + (tituloRef || '') + '\')" title="Quitar"><i class="fa-solid fa-trash"></i></button>' +
+    '</div>';
+  }).join('') : '<p class="text-sm opacity-60 py-2 text-center">Aun no hay participantes.</p>';
+
+  mostrarModal({
+    titulo: 'Participantes' + (tituloRef ? ' · ' + tituloRef : ''),
+    contenidoHTML:
+      '<div class="mb-4">' + filasHTML + '</div>' +
+      '<label class="lbl">Agregar participante</label>' +
+      '<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-1">' +
+        '<input id="partNombre" class="input" placeholder="Nombre">' +
+        '<input id="partTelefono" class="input" placeholder="Telefono (opcional)">' +
+        '<input id="partHabitacion" class="input" placeholder="Habitacion (opcional)">' +
+      '</div>' +
+      '<p class="text-xs opacity-50 mb-2">Se va sumando gente de a poco al mismo horario (ej. salida de trekking).</p>',
+    botones: [
+      { texto: 'Cerrar', clase: 'btn-outline', accion: cerrarModal },
+      { texto: 'Agregar', clase: 'btn-primary', accion: function () { agregarParticipanteStaff(tipo, refID, tituloRef); } }
+    ]
+  });
+}
+
+function agregarParticipanteStaff(tipo, refID, tituloRef) {
+  var nombre = (document.getElementById('partNombre').value || '').trim();
+  if (!nombre) { mostrarToast('Escribe el nombre del participante.', 'error'); return; }
+  var datos = {
+    tipo: tipo, refID: refID, nombre: nombre,
+    telefono: (document.getElementById('partTelefono').value || '').trim(),
+    habitacion: (document.getElementById('partHabitacion').value || '').trim(),
+    email: APP.usuarioStaff.Email
+  };
+  llamarAPI('agregarParticipante', [datos]).then(function (res) {
+    mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+    if (res.success) abrirParticipantes(tipo, refID, tituloRef);
+  });
+}
+
+function eliminarParticipanteStaff(participanteID, tipo, refID, tituloRef) {
+  llamarAPI('eliminarParticipante', [participanteID, APP.usuarioStaff.Email]).then(function (res) {
+    mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+    if (res.success) abrirParticipantes(tipo, refID, tituloRef);
   });
 }
 
