@@ -2431,6 +2431,12 @@ function marcarTodasNotificacionesLeidas(rol) {
 // 6.6. BLOQUEOS Y EVENTOS
 // ===========================================================================
 
+/** Auto-reparacion: asegura la columna Notas en EventosBloqueos (nota o
+ *  descripcion libre del evento/bloqueo). Vacia por defecto. */
+function _asegurarColumnaNotasEventos() {
+  _asegurarColumna(_hoja(HOJAS.EVENTOS_BLOQUEOS), 'Notas', '');
+}
+
 /**
  * Devuelve bloqueos en un rango que afecten a un servicio (o todos).
  * @param {string} fechaInicio
@@ -2439,6 +2445,7 @@ function marcarTodasNotificacionesLeidas(rol) {
  * @return {Array<Object>}
  */
 function obtenerBloqueos(fechaInicio, fechaFin, servicioID) {
+  _asegurarColumnaNotasEventos();
   var desde = _fechaISO(fechaInicio);
   var hasta = _fechaISO(fechaFin);
   return _leerHojaComoObjetos(HOJAS.EVENTOS_BLOQUEOS).filter(function (b) {
@@ -2458,6 +2465,7 @@ function obtenerBloqueos(fechaInicio, fechaFin, servicioID) {
       HoraInicio: _horaATexto(b.HoraInicio),
       HoraFin: _horaATexto(b.HoraFin),
       Motivo: b.Motivo,
+      Notas: b.Notas ? String(b.Notas) : '',
       CreadoPor: b.CreadoPor,
       Timestamp: _fechaHoraTexto(b.Timestamp)
     };
@@ -2475,12 +2483,20 @@ function crearBloqueo(datos) {
   }
   if (!datos.fechaInicio) return { success: false, mensaje: 'Falta la fecha de inicio.' };
 
+  _asegurarColumnaNotasEventos();
+  var hoja = _hoja(HOJAS.EVENTOS_BLOQUEOS);
   var id = generarID();
-  _hoja(HOJAS.EVENTOS_BLOQUEOS).appendRow([
+  hoja.appendRow([
     id, datos.tipo || 'Bloqueo', datos.servicioID || '', _fechaISO(datos.fechaInicio),
     _fechaISO(datos.fechaFin || datos.fechaInicio), datos.horaInicio || '', datos.horaFin || '',
     datos.motivo || '', datos.email || '', new Date()
   ]);
+  // La nota va por nombre de columna (la columna Notas se agrego despues del
+  // orden posicional original de la hoja).
+  if (datos.notas) {
+    var colNotas = _indiceColumna(hoja, 'Notas');
+    if (colNotas !== -1) hoja.getRange(hoja.getLastRow(), colNotas + 1).setValue(datos.notas);
+  }
   registrarLog('Crear bloqueo', datos.tipo + ' ' + (datos.servicioID || 'TODOS'), '');
   return { success: true, id: id, mensaje: 'Bloqueo creado.' };
 }
@@ -2496,6 +2512,7 @@ function editarBloqueo(datos) {
   if (!datos.id) return { success: false, mensaje: 'Falta el bloqueo a editar.' };
   if (!datos.fechaInicio) return { success: false, mensaje: 'Falta la fecha de inicio.' };
 
+  _asegurarColumnaNotasEventos();
   var hoja = _hoja(HOJAS.EVENTOS_BLOQUEOS);
   var filas = _leerHojaComoObjetos(HOJAS.EVENTOS_BLOQUEOS);
   var fila = filas.filter(function (b) { return b.ID === datos.id; })[0];
@@ -2512,6 +2529,7 @@ function editarBloqueo(datos) {
   set('HoraInicio', datos.horaInicio || '');
   set('HoraFin', datos.horaFin || '');
   set('Motivo', datos.motivo || '');
+  set('Notas', datos.notas || '');
   registrarLog('Editar bloqueo', datos.tipo + ' ' + (datos.servicioID || 'TODOS'), '');
   return { success: true, mensaje: 'Bloqueo actualizado.' };
 }

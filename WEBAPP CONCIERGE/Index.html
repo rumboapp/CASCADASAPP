@@ -2905,6 +2905,7 @@ function renderEventosOps(eventos) {
           '<p class="font-bold text-xl leading-tight" style="color:var(--grafito)">' + escaparHTML(ev.Tipo || 'Bloqueo') + '</p>' +
           '<p class="font-semibold text-sm leading-tight" style="color:' + col + '">' + escaparHTML(servTxt) + rangoTxt + '</p>' +
           '<p class="text-xs opacity-70 mt-0.5"><i class="fa-regular fa-clock"></i> ' + horarioTxt + (ev.Motivo ? ' · ' + escaparHTML(ev.Motivo) : '') + '</p>' +
+          (ev.Notas ? '<p class="text-sm mt-1" style="white-space:pre-line"><i class="fa-solid fa-note-sticky opacity-60"></i> ' + escaparHTML(ev.Notas) + '</p>' : '') +
         '</div>' +
       '</div>' + (esEventoConParticipantes ? bloqueParticipantesOps(ev.ID) : '') + acciones +
     '</div>';
@@ -3835,7 +3836,7 @@ function cargarTablaBloqueos() {
         return '<tr><td>' + escaparHTML(b.Tipo) + '</td><td>' + escaparHTML(descripcionAlcanceBloqueo(b.ServicioID)) + '</td>' +
           '<td>' + b.FechaInicio + '</td><td>' + b.FechaFin + '</td>' +
           '<td>' + horario + '</td>' +
-          '<td class="text-xs">' + escaparHTML(b.Motivo) + '</td>' +
+          '<td class="text-xs">' + escaparHTML(b.Motivo) + (b.Notas ? '<span class="block opacity-60 mt-0.5"><i class="fa-solid fa-note-sticky"></i> ' + escaparHTML(b.Notas) + '</span>' : '') + '</td>' +
           '<td class="whitespace-nowrap">' +
             '<button class="btn btn-outline !py-1 !px-2 text-xs mr-1" onclick="abrirEditorBloqueo(\'' + b.ID + '\')" title="Editar"><i class="fa-solid fa-pen"></i></button>' +
             (b.Tipo === 'Evento privado' ? '<button class="btn btn-outline !py-1 !px-2 text-xs mr-1" onclick="abrirParticipantes(\'evento\',\'' + b.ID + '\',\'' + escaparHTML(b.Motivo || 'Evento') + '\')" title="Participantes"><i class="fa-solid fa-users"></i></button>' : '') +
@@ -3897,6 +3898,8 @@ function abrirEditorBloqueo(id) {
       '</div>' +
       '<label class="lbl">Motivo</label>' +
       '<input id="blqMotivo" class="input" placeholder="Ej: Evento privado familia Perez" value="' + (b ? escaparHTML(b.Motivo || '') : '') + '">' +
+      '<label class="lbl mt-3">Notas / descripcion <span class="opacity-50 normal-case">(opcional)</span></label>' +
+      '<textarea id="blqNotas" class="input" rows="3" placeholder="Detalles del evento o bloqueo: contacto, requerimientos, observaciones, etc.">' + (b ? escaparHTML(b.Notas || '') : '') + '</textarea>' +
       '<p class="text-xs opacity-50 mt-2">"Ninguno" crea un evento que aparece en el calendario pero no bloquea ninguna reserva. Deja las horas vacias para todo el dia.</p>',
     botones: [
       { texto: 'Cancelar', clase: 'btn-outline', accion: cerrarModal },
@@ -3931,6 +3934,7 @@ function guardarBloqueoDesdeEditor() {
     tipo: document.getElementById('blqTipo').value,
     servicioID: servicioID,
     motivo: document.getElementById('blqMotivo').value,
+    notas: document.getElementById('blqNotas').value,
     fechaInicio: document.getElementById('blqFechaIni').value,
     fechaFin: document.getElementById('blqFechaFin').value,
     horaInicio: document.getElementById('blqHoraIni').value,
