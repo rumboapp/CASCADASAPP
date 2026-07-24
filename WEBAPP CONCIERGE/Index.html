@@ -999,6 +999,8 @@ var I18N = {
     hab_no_disponible: 'El pedido a la habitacion no esta disponible hoy.',
     aviso_anticipacion: 'Solo se puede hacer un pedido con {min} minutos de anticipacion a la hora seleccionada.',
     aviso_anticipacion_servicio: 'Este servicio solo se puede reservar con al menos {horas} horas de anticipacion.',
+    antes_de_confirmar: 'Antes de confirmar',
+    de_acuerdo: 'De acuerdo',
     aviso_no_modificable: 'Este pedido no se puede modificar dentro de los {min} minutos previos a la hora de la reserva.',
     notas_pedido: 'Notas del pedido (opcional)',
     notas_pedido_ph: 'Ej: filete a punto, sin cebolla, alergia a frutos secos...',
@@ -1065,6 +1067,8 @@ var I18N = {
     hab_no_disponible: 'Room delivery is not available today.',
     aviso_anticipacion: 'Orders can only be placed at least {min} minutes ahead of the selected time.',
     aviso_anticipacion_servicio: 'This service can only be booked at least {horas} hours in advance.',
+    antes_de_confirmar: 'Before confirming',
+    de_acuerdo: 'I agree',
     aviso_no_modificable: 'This order cannot be changed within {min} minutes of the reservation time.',
     notas_pedido: 'Order notes (optional)',
     notas_pedido_ph: 'e.g. steak medium, no onion, nut allergy...',
@@ -1774,6 +1778,23 @@ function confirmarReserva() {
     notas: document.getElementById('resNotas').value,
     solicitadoPor: 'Huesped Hab ' + APP.habitacion
   };
+  // Aviso configurable por servicio (ej. politica de cancelacion de Masajes /
+  // Tinaja): el huesped debe leerlo y tocar "De acuerdo" antes de reservar.
+  if (s.AvisoReserva && String(s.AvisoReserva).trim()) {
+    mostrarModal({
+      titulo: t('antes_de_confirmar'),
+      contenidoHTML: '<p class="text-sm" style="white-space:pre-line; line-height:1.5">' + escaparHTML(s.AvisoReserva) + '</p>',
+      botones: [
+        { texto: t('cancelar'), clase: 'btn-outline', accion: cerrarModal },
+        { texto: t('de_acuerdo'), clase: 'btn-primary', accion: function () { cerrarModal(); ejecutarCreacionReserva(s, datos); } }
+      ]
+    });
+    return;
+  }
+  ejecutarCreacionReserva(s, datos);
+}
+
+function ejecutarCreacionReserva(s, datos) {
   llamarAPI('crearReserva', [datos]).then(function (res) {
     if (!res.success) { mostrarToast(res.mensaje, 'error'); return; }
 
@@ -2996,17 +3017,45 @@ function servicioPermiteParticipantes(servicioID) {
 
 /* HTML de la lista de participantes para pintar dentro de una burbuja de
    Operaciones (compacta). refID = ID de reserva o evento. */
+var PARTICIPANTES_TOPE_COLAPSO = 15; // sobre esta cantidad, la lista arranca colapsada
+
 function bloqueParticipantesOps(refID) {
   var lista = (APP.participantesOps || {})[refID] || [];
   if (!lista.length) return '';
-  return '<div class="mt-2 pt-2 border-t text-sm" style="border-color:var(--borde)">' +
-    '<p class="font-semibold text-sm uppercase opacity-70 mb-1"><i class="fa-solid fa-users"></i> Participantes (' + lista.length + ')</p>' +
-    lista.map(function (p) {
-      var extra = [p.Telefono, p.Habitacion ? etiquetaHab(p.Habitacion) : ''].filter(Boolean).join(' · ');
-      return '<div class="mb-0.5" style="font-size:1.05rem;line-height:1.35"><span class="font-semibold">' + escaparHTML(p.Nombre) + '</span>' +
-        (extra ? ' <span class="opacity-75" style="font-size:.95rem">' + escaparHTML(extra) + '</span>' : '') +
-        (p.Notas ? '<span class="opacity-80" style="font-size:.95rem"> · ' + escaparHTML(p.Notas) + '</span>' : '') + '</div>';
-    }).join('') + '</div>';
+  var filas = lista.map(function (p) {
+    var extra = [p.Telefono, p.Habitacion ? etiquetaHab(p.Habitacion) : ''].filter(Boolean).join(' · ');
+    return '<div class="mb-0.5" style="font-size:1.05rem;line-height:1.35"><span class="font-semibold">' + escaparHTML(p.Nombre) + '</span>' +
+      (extra ? ' <span class="opacity-75" style="font-size:.95rem">' + escaparHTML(extra) + '</span>' : '') +
+      (p.Notas ? '<span class="opacity-80" style="font-size:.95rem"> · ' + escaparHTML(p.Notas) + '</span>' : '') + '</div>';
+  }).join('');
+
+  var colapsable = lista.length > PARTICIPANTES_TOPE_COLAPSO;
+  // Estado recordado por reserva/evento para que el refresco automatico (cada
+  // 20s) no vuelva a cerrar lo que el usuario dejo abierto.
+  APP.participantesExpandido = APP.participantesExpandido || {};
+  var expandido = !colapsable || APP.participantesExpandido[refID];
+  var idBody = 'partOpsBody_' + refID;
+
+  var encabezado = '<p class="font-semibold text-sm uppercase opacity-70 mb-1">' +
+    '<i class="fa-solid fa-users"></i> Participantes (' + lista.length + ')' +
+    (colapsable ? ' <button class="btn btn-outline !py-0.5 !px-2 text-xs ml-1" onclick="toggleParticipantesOps(\'' + refID + '\')">' +
+      '<span id="partOpsTxt_' + refID + '">' + (expandido ? 'Ocultar' : 'Ver todos') + '</span></button>' : '') +
+    '</p>';
+
+  return '<div class="mt-2 pt-2 border-t text-sm" style="border-color:var(--borde)">' + encabezado +
+    '<div id="' + idBody + '" class="' + (expandido ? '' : 'oculto') + '">' + filas + '</div>' +
+  '</div>';
+}
+
+/* Muestra/oculta la lista larga de participantes dentro de una burbuja de Operaciones. */
+function toggleParticipantesOps(refID) {
+  APP.participantesExpandido = APP.participantesExpandido || {};
+  var abierto = !APP.participantesExpandido[refID];
+  APP.participantesExpandido[refID] = abierto;
+  var body = document.getElementById('partOpsBody_' + refID);
+  var txt = document.getElementById('partOpsTxt_' + refID);
+  if (body) body.classList.toggle('oculto', !abierto);
+  if (txt) txt.textContent = abierto ? 'Ocultar' : 'Ver todos';
 }
 
 /* Abre el prepedido desde operaciones para una reserva (recepcion). */
@@ -4242,7 +4291,7 @@ function abrirFormServicio(servicioID) {
   s = s || { ID: '', Nombre: '', Categoria: 'Bienestar', Descripcion: '', Icono: 'fa-bell-concierge',
     CostoBase: 0, Capacidad: 1, DuracionMinutos: 60, HorarioInicio: '10:00', HorarioFin: '20:00',
     RequiereAprobacion: false, PermitePrepedido: false, UsoExclusivo: false, Activo: true, Visible: true, Variantes: [],
-    AnticipoMinimoHoras: 0, PermiteParticipantes: false };
+    AnticipoMinimoHoras: 0, PermiteParticipantes: false, AvisoReserva: '' };
 
   APP.formServicioID = servicioID || '';
   APP.formIcono = s.Icono || 'fa-bell-concierge';
@@ -4299,6 +4348,12 @@ function abrirFormServicio(servicioID) {
     '</div>' +
     '<p class="text-xs opacity-55 -mt-1 mb-1">Si apagas "Visible para el huesped" el servicio no aparece en la lista que ve el huesped, pero sigue disponible para que recepcion reserve manualmente desde el Centro de Operaciones. Sirve para promos exclusivas (ej: Instagram).</p>' +
     '<p class="text-xs opacity-55 -mt-1 mb-1">Activa "Lista de participantes" solo en servicios donde el hotel necesita ir anotando gente que se suma de a poco (ej: salida de trekking). Ahi aparece un boton para agregar nombre, telefono, habitacion y notas. Solo lo ve el personal.</p>' +
+
+    // Aviso pop-up al reservar (ej. politica de cancelacion). Vacio = sin aviso.
+    '<div class="mt-3"><label class="lbl">Aviso al reservar (pop-up)</label>' +
+      '<textarea id="fsAvisoReserva" class="input" rows="3" placeholder="Ej: Una vez confirmada esta reserva el cargo se hara a su habitacion. De cancelar con menos de 12 horas de anticipacion se aplicara un cargo del 50% del valor total.">' + escaparHTML(s.AvisoReserva || '') + '</textarea>' +
+      '<p class="text-xs opacity-55 mt-1">Si lo llenas, el huesped debe leer este mensaje y tocar "De acuerdo" antes de confirmar la reserva de este servicio (ej. Masajes, Tinaja). Dejalo vacio para no mostrar ningun aviso.</p>' +
+    '</div>' +
 
     // Variantes
     '<div class="mt-4"><div class="flex items-center justify-between mb-1"><label class="lbl !mb-0">Opciones / variantes (precio distinto)</label>' +
@@ -4403,6 +4458,7 @@ function guardarFormServicio() {
     color: APP.formColor,
     anticipoMinimoHoras: document.getElementById('fsAnticipo').value,
     permiteParticipantes: document.getElementById('fsParticipantes').checked,
+    avisoReserva: document.getElementById('fsAvisoReserva').value,
     variantes: variantes
   };
   if (!datos.nombre) { mostrarToast('El nombre es obligatorio.', 'error'); return; }

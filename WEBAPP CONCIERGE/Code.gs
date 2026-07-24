@@ -472,6 +472,16 @@ function _asegurarColumnaParticipantesServicios() {
 }
 
 /**
+ * Auto-reparacion: asegura la columna AvisoReserva en Servicios. Es un texto
+ * opcional (ej. politica de cancelacion) que, si esta lleno, se le muestra al
+ * huesped como pop-up "De acuerdo" antes de confirmar la reserva de ese
+ * servicio. Vacio por defecto = sin aviso. Lo usan Masajes/Tinaja, etc.
+ */
+function _asegurarColumnaAvisoServicios() {
+  _asegurarColumna(_hoja(HOJAS.SERVICIOS), 'AvisoReserva', '');
+}
+
+/**
  * Escribe un valor en una columna por nombre, solo si la columna existe.
  * Evita romper hojas que aun no tengan la columna bilingue.
  */
@@ -844,6 +854,7 @@ function obtenerServiciosActivos() {
   _asegurarColumnaVisibleServicios();
   _asegurarColumnaAnticipoServicios();
   _asegurarColumnaParticipantesServicios();
+  _asegurarColumnaAvisoServicios();
   return _leerHojaComoObjetos(HOJAS.SERVICIOS).filter(function (s) {
     return _aBooleano(s.Activo);
   }).map(_normalizarServicio);
@@ -876,7 +887,8 @@ function _normalizarServicio(s) {
     UsoExclusivo: _aBooleano(s.UsoExclusivo),
     Color: s.Color ? String(s.Color) : '',
     AnticipoMinimoHoras: Number(s.AnticipoMinimoHoras) || 0,
-    PermiteParticipantes: _aBooleano(s.PermiteParticipantes)
+    PermiteParticipantes: _aBooleano(s.PermiteParticipantes),
+    AvisoReserva: s.AvisoReserva ? String(s.AvisoReserva) : ''
   };
 }
 
@@ -922,6 +934,7 @@ function _obtenerServicio(servicioID) {
   _asegurarColumnaVisibleServicios();
   _asegurarColumnaAnticipoServicios();
   _asegurarColumnaParticipantesServicios();
+  _asegurarColumnaAvisoServicios();
   var filas = _leerHojaComoObjetos(HOJAS.SERVICIOS);
   for (var i = 0; i < filas.length; i++) {
     if (filas[i].ID === servicioID) return _normalizarServicio(filas[i]);
@@ -3079,6 +3092,7 @@ function obtenerServiciosGestion() {
   _asegurarColumnaVisibleServicios();
   _asegurarColumnaAnticipoServicios();
   _asegurarColumnaParticipantesServicios();
+  _asegurarColumnaAvisoServicios();
   return _leerHojaComoObjetos(HOJAS.SERVICIOS).map(_normalizarServicio);
 }
 
@@ -3097,6 +3111,7 @@ function guardarServicioConfig(datos, email) {
   _asegurarColumnaVisibleServicios();
   _asegurarColumnaAnticipoServicios();
   _asegurarColumnaParticipantesServicios();
+  _asegurarColumnaAvisoServicios();
   var hoja = _hoja(HOJAS.SERVICIOS);
   var filas = _leerHojaComoObjetos(HOJAS.SERVICIOS);
   for (var i = 0; i < filas.length; i++) {
@@ -3126,6 +3141,7 @@ function guardarServicioNuevo(datos, email) {
   _asegurarColumnaVisibleServicios();
   _asegurarColumnaAnticipoServicios();
   _asegurarColumnaParticipantesServicios();
+  _asegurarColumnaAvisoServicios();
   var hoja = _hoja(HOJAS.SERVICIOS);
   // Genera el proximo ID S00X.
   var max = 0;
@@ -3181,6 +3197,7 @@ function _escribirCamposServicio(hoja, fila, datos) {
   if (datos.color !== undefined) set('Color', datos.color || '');
   if (datos.anticipoMinimoHoras !== undefined) set('AnticipoMinimoHoras', Number(datos.anticipoMinimoHoras) || 0);
   if (datos.permiteParticipantes !== undefined) set('PermiteParticipantes', datos.permiteParticipantes ? 'TRUE' : 'FALSE');
+  if (datos.avisoReserva !== undefined) set('AvisoReserva', datos.avisoReserva || '');
 }
 
 // ===========================================================================
