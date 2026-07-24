@@ -2568,6 +2568,7 @@ function renderOperaciones(fecha) {
     '<div class="flex flex-wrap items-center justify-between gap-3 mb-4">' +
       '<h2 class="text-2xl" style="color:var(--verde-bosque)">Centro de Operaciones</h2>' +
       '<div class="flex items-center gap-2 flex-wrap">' +
+        '<button class="btn btn-dorado !py-2 !px-3 text-sm" onclick="abrirPedidoRapidoHabitacion()"><i class="fa-solid fa-bell-concierge"></i> Pedido a la habitacion</button>' +
         '<button class="btn btn-primary !py-2 !px-3 text-sm" onclick="abrirNuevaReservaStaff()"><i class="fa-solid fa-plus"></i> Nueva Reserva</button>' +
         '<button class="btn btn-outline !py-2 !px-3" onclick="cambiarDiaOps(-1)" title="Dia anterior"><i class="fa-solid fa-chevron-left"></i></button>' +
         '<input id="fechaOps" class="input !w-40 text-center cursor-pointer" readonly>' +
@@ -3317,6 +3318,112 @@ function crearReservaDesdeStaff() {
     } else {
       cerrarModal();
     }
+  });
+}
+
+/* ==========================================================================
+   PEDIDO RAPIDO A LA HABITACION (atajo de recepcion)
+   Cuando un huesped llama para pedir comida a la habitacion, en vez de: nueva
+   reserva -> tipo -> servicio -> hora -> crear -> ir a la reserva -> icono de
+   pedido -> elegir "a la habitacion", este atajo hace todo en un modal: elige
+   habitacion, ya trae el servicio de restaurant y el proximo horario libre
+   seleccionado, y al confirmar crea la reserva y abre el pedido directo con
+   "A la habitacion" ya elegido.
+   ========================================================================== */
+function _serviciosConPrepedido() {
+  return (APP.servicios || []).filter(function (s) { return s.PermitePrepedido; });
+}
+
+function abrirPedidoRapidoHabitacion() {
+  if (!prepedidoDisponible()) { mostrarToast(t('prepedido_no_disponible') || 'El restaurant no acepta pedidos ahora.', 'error'); return; }
+  var servs = _serviciosConPrepedido();
+  if (!servs.length) { mostrarToast('No hay ningun servicio con "Permite pedido" activado.', 'error'); return; }
+
+  function pintar() {
+    var habOpts = APP.habitacionesStaff.map(function (h) { return '<option value="' + h.Numero + '">' + h.Numero + '</option>'; }).join('');
+    var servOpts = servs.map(function (s) { return '<option value="' + s.ID + '">' + escaparHTML(s.Nombre) + '</option>'; }).join('');
+    APP.horaPR = '';
+    mostrarModal({
+      titulo: 'Pedido a la habitacion',
+      contenidoHTML:
+        '<div class="grid grid-cols-2 gap-4 mb-3">' +
+          '<div><label class="lbl">Habitacion</label><select id="prHab" class="input" onchange="buscarHorariosPedidoRapido()">' + habOpts + '</select></div>' +
+          '<div><label class="lbl">Personas</label><input id="prPersonas" type="number" min="1" value="1" class="input"></div>' +
+          (servs.length > 1 ? '<div class="col-span-2"><label class="lbl">Servicio</label><select id="prServicio" class="input" onchange="buscarHorariosPedidoRapido()">' + servOpts + '</select></div>' : '<input type="hidden" id="prServicio" value="' + servs[0].ID + '">') +
+        '</div>' +
+        '<label class="lbl">Horario <span class="opacity-50 normal-case">(se elige el proximo disponible)</span></label>' +
+        '<div id="prHorarios" class="grid grid-cols-3 gap-2 mb-3"></div>' +
+        '<label class="lbl">Nota interna <span class="opacity-50 normal-case">(solo personal)</span></label>' +
+        '<textarea id="prNotasInternas" class="input" rows="2" placeholder="Ej: cargar a la habitacion, alergias, etc."></textarea>' +
+        '<p class="text-xs opacity-50 mt-2">Al continuar se crea la reserva y se abre el pedido con "A la habitacion" ya seleccionado.</p>',
+      botones: [
+        { texto: 'Cancelar', clase: 'btn-outline', accion: cerrarModal },
+        { texto: 'Ir al pedido', clase: 'btn-primary', accion: crearPedidoRapidoHabitacion }
+      ]
+    });
+    buscarHorariosPedidoRapido();
+  }
+  if (APP.habitacionesStaff) { pintar(); }
+  else { llamarAPI('obtenerHabitaciones', [], { loader: true }).then(function (habs) { APP.habitacionesStaff = habs || []; pintar(); }); }
+}
+
+function seleccionarHoraPR(el, hora) {
+  document.querySelectorAll('#prHorarios button').forEach(function (b) { b.classList.remove('btn-dorado'); b.classList.add('btn-outline'); });
+  el.classList.remove('btn-outline'); el.classList.add('btn-dorado');
+  APP.horaPR = hora;
+}
+
+function buscarHorariosPedidoRapido() {
+  var cont = document.getElementById('prHorarios');
+  if (!cont) return;
+  var servicioID = document.getElementById('prServicio').value;
+  var personas = document.getElementById('prPersonas') ? document.getElementById('prPersonas').value : 1;
+  APP.horaPR = '';
+  cont.innerHTML = '<div class="col-span-3 flex justify-center py-2"><div class="spinner"></div></div>';
+  // Siempre para HOY (un pedido a la habitacion es del momento).
+  llamarAPI('consultarDisponibilidad', [servicioID, hoyISO(), personas, ''], { loader: false, silencioso: true })
+    .then(function (res) {
+      if (!res.success || !res.bloques.length) {
+        cont.innerHTML = '<p class="col-span-3 text-xs opacity-60 text-center py-2">Sin horarios disponibles hoy para este servicio.</p>';
+        return;
+      }
+      cont.innerHTML = res.bloques.map(function (b) {
+        return '<button type="button" class="btn btn-outline !py-2 text-sm" onclick="seleccionarHoraPR(this,\'' + b.hora + '\')">' + b.hora + '</button>';
+      }).join('');
+      // Auto-selecciona el primer horario disponible (el proximo).
+      var primero = cont.querySelector('button');
+      if (primero) seleccionarHoraPR(primero, res.bloques[0].hora);
+    })
+    .catch(function () { cont.innerHTML = '<p class="col-span-3 text-xs opacity-60 text-center py-2">No pudimos consultar horarios.</p>'; });
+}
+
+function crearPedidoRapidoHabitacion() {
+  var hora = APP.horaPR || '';
+  if (!hora) { mostrarToast('No hay un horario disponible para el pedido.', 'error'); return; }
+  var servicioID = document.getElementById('prServicio').value;
+  var servicio = (APP.servicios || []).filter(function (s) { return s.ID === servicioID; })[0];
+  var datos = {
+    habitacion: document.getElementById('prHab').value,
+    tipoCliente: 'habitacion',
+    servicioID: servicioID,
+    variante: '',
+    fecha: hoyISO(),
+    horaInicio: hora,
+    personas: document.getElementById('prPersonas').value,
+    notas: '',
+    notasInternas: document.getElementById('prNotasInternas').value,
+    solicitadoPor: 'Recepcion (' + (APP.usuarioStaff.Nombre || APP.usuarioStaff.Email) + ')',
+    emailStaff: APP.usuarioStaff.Email
+  };
+  llamarAPI('crearReserva', [datos]).then(function (res) {
+    if (!res.success) { mostrarToast(res.mensaje, 'error'); return; }
+    renderOperaciones();
+    APP.prepedidoOrigen = 'ops';
+    // Abre el pedido directo con "A la habitacion" preseleccionado.
+    abrirPrepedido(res.id, {
+      ID: res.id, ServicioID: servicio.ID, ServicioNombre: servicio.Nombre, Estado: res.estado,
+      Fecha: datos.fecha, HoraInicio: datos.horaInicio, Personas: datos.personas, PrepedidoID: ''
+    }, 'Habitacion');
   });
 }
 
