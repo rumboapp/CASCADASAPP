@@ -2830,6 +2830,7 @@ function renderEventosOps(eventos) {
     var acciones = puedeGestionar
       ? '<div class="flex gap-1 justify-end mt-2">' +
           '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="abrirEditorBloqueo(\'' + ev.ID + '\')" title="Editar"><i class="fa-solid fa-pen"></i></button>' +
+          (ev.Tipo === 'Evento privado' ? '<button class="btn btn-outline !py-1 !px-2 text-xs" onclick="abrirParticipantes(\'evento\',\'' + ev.ID + '\',\'' + escaparHTML(ev.Motivo || 'Evento') + '\')" title="Participantes"><i class="fa-solid fa-users"></i></button>' : '') +
           '<button class="btn btn-peligro !py-1 !px-2 text-xs" onclick="eliminarBloqueoStaff(\'' + ev.ID + '\')" title="Eliminar"><i class="fa-solid fa-trash"></i></button>' +
         '</div>'
       : '';
