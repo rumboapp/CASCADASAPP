@@ -587,12 +587,19 @@ function registrarEnHistorial(ss, datos, linkPdf) {
 
     } else {
       if (datos.habitaciones && datos.habitaciones.length > 0) {
+        // Solo se suman filas que además del tipo y el precio cubran las mismas
+        // noches: una cotización puede traer tramos con tarifas distintas y cada
+        // uno debe quedar como su propia línea del historial, con sus fechas.
         var consolidadas = [];
         datos.habitaciones.forEach(function(h) {
           var tipoBase = h.tipo.replace(/\s*\(x\d+\)$/, '').trim();
-          var ex = consolidadas.find(function(e){ return e.tipoBase === tipoBase && e.precio === h.precio; });
+          var ex = consolidadas.find(function(e){
+            return e.tipoBase === tipoBase && e.precio === h.precio &&
+                   e.checkin === h.checkin && e.checkout === h.checkout;
+          });
           if (ex) { ex.cantidad += (h.cantidad || 1); ex.total += h.total; }
-          else { consolidadas.push({ tipoBase: tipoBase, precio: h.precio, cantidad: h.cantidad || 1, total: h.total }); }
+          else { consolidadas.push({ tipoBase: tipoBase, precio: h.precio, cantidad: h.cantidad || 1,
+                                     total: h.total, checkin: h.checkin, checkout: h.checkout, noches: h.noches }); }
         });
 
         consolidadas.forEach(function(h) {
@@ -600,7 +607,8 @@ function registrarEnHistorial(ss, datos, linkPdf) {
           var netoFila  = h.total;
           var totalFila = Math.round(netoFila * factorIva);
           var fila = [ahora, datos.nombre_cliente || "", "Estándar",
-                      etiqueta, checkin, checkout, noches, netoFila, totalFila, link, monedaTxt];
+                      etiqueta, h.checkin || checkin, h.checkout || checkout,
+                      h.noches != null ? h.noches : noches, netoFila, totalFila, link, monedaTxt];
           sheet.appendRow(fila);
           var uf = sheet.getLastRow();
           sheet.getRange(uf, 8).setNumberFormat("0");

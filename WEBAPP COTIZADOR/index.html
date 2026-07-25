@@ -361,6 +361,17 @@
               </button>
             </div>
             <div id="room-container" class="space-y-3"></div>
+
+            <!-- Tramos con tarifa distinta: para promociones que no son acumulables
+                 y obligan a cobrar las noches siguientes a otro valor. Mientras no
+                 se agregue ninguno, esta zona es solo el enlace de abajo. -->
+            <div id="tramos-extra" class="space-y-3"></div>
+            <div class="px-2">
+              <button type="button" onclick="agregarTramoExtra()"
+                      class="text-xs font-bold text-slate-400 hover:text-slate-900 transition cursor-pointer">
+                <i class="fa-solid fa-calendar-plus mr-1.5"></i> Noches con otra tarifa
+              </button>
+            </div>
           </div>
 
           <!-- Amenidades y Servicios (colapsable para no tener que scrollear) -->
@@ -1549,6 +1560,8 @@ function refrescarDatosServidor() {
       document.getElementById('lbl-checkout').innerText = "--/--/----";
       document.getElementById('night-count').innerText = "0";
       datesSelected = { checkin: null, checkout: null };
+      tramosExtra = [];
+      document.getElementById('tramos-extra').innerHTML = "";
       document.getElementById('room-container').innerHTML = "";
       addRoom();
       document.getElementById('lista-adicionales-costo').innerHTML = "";
@@ -1579,9 +1592,13 @@ function refrescarDatosServidor() {
     // ─────────────────────────────────────────────────────────
     //  HABITACIONES
     // ─────────────────────────────────────────────────────────
-    function addRoom() {
-      let id = Date.now();
-            document.getElementById('room-container').insertAdjacentHTML('beforeend', `
+    /* addRoom() agrega una fila de habitación. Sin argumento va al bloque
+       principal; con idContenedor va al de un tramo con tarifa distinta. */
+    function addRoom(idContenedor) {
+      let cont = document.getElementById(idContenedor || 'room-container');
+      if (!cont) return;
+      let id = Date.now() + Math.floor(Math.random() * 1000);
+            cont.insertAdjacentHTML('beforeend', `
         <div id="r-${id}" class="grid grid-cols-12 gap-3 bg-slate-50 p-3 rounded-2xl items-center">
           <div class="col-span-12 md:col-span-6">
             <select class="w-full bg-white border border-slate-200 rounded-xl p-4 text-base font-bold sel-tipo outline-none">
@@ -1598,11 +1615,118 @@ function refrescarDatosServidor() {
             <button type="button" onclick="document.getElementById('r-${id}').remove()" class="text-slate-300 hover:text-red-600 transition cursor-pointer text-lg"><i class="fa-solid fa-trash"></i></button>
           </div>
         </div>`);
-      let rows = document.querySelectorAll('#room-container > div');
-      let last = rows[rows.length - 1];
+      let last = cont.lastElementChild;
       let sel = last.querySelector('.sel-tipo');
       last.querySelector('.inp-custom-precio').value = precioBaseHabitacion(sel.value);
       sel.onchange = e => { last.querySelector('.inp-custom-precio').value = precioBaseHabitacion(e.target.value); };
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  TRAMOS CON TARIFA DISTINTA
+    //  ------------------------------------------------------
+    //  Una promoción que no es acumulable cubre solo ciertas noches; si el
+    //  huésped se queda más, esas noches van a otro valor. Cada tramo tiene su
+    //  propio rango de fechas y sus propias habitaciones, y sale como filas
+    //  aparte en la tabla del documento (que ya trae columnas de fechas).
+    // ─────────────────────────────────────────────────────────
+    let tramosExtra = [];   // [{ id, checkin, checkout, noches }]
+
+    function _isoAFecha(iso) { let p = String(iso || '').split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+    function _fechaAIso(d) {
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    function _nochesEntre(isoA, isoB) {
+      if (!isoA || !isoB) return 0;
+      return Math.round((_isoAFecha(isoB) - _isoAFecha(isoA)) / 86400000);
+    }
+    /* Última fecha ya comprometida: el tramo nuevo arranca ahí, de modo que las
+       noches se encadenan sin dejar huecos ni superponerse. */
+    function _finDeEstadia() {
+      let fin = datesSelected.checkout || null;
+      tramosExtra.forEach(function(t) {
+        if (t.checkout && (!fin || _isoAFecha(t.checkout) > _isoAFecha(fin))) fin = t.checkout;
+      });
+      return fin;
+    }
+
+    function agregarTramoExtra() {
+      if (!datesSelected.checkin || !datesSelected.checkout) {
+        mostrarToast('error', 'Primero elige la estadía principal en el calendario.');
+        return;
+      }
+      let inicio = _finDeEstadia();
+      let sig = _isoAFecha(inicio); sig.setDate(sig.getDate() + 1);
+      let tramo = { id: 'tx' + Date.now(), checkin: inicio, checkout: _fechaAIso(sig), noches: 1 };
+      tramosExtra.push(tramo);
+
+      document.getElementById('tramos-extra').insertAdjacentHTML('beforeend', `
+        <div id="${tramo.id}" class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-4 space-y-3">
+          <div class="flex justify-between items-center gap-3">
+            <div class="flex items-baseline gap-3 flex-wrap">
+              <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest">
+                <i class="fa-solid fa-calendar-plus mr-1.5 text-slate-500"></i> Noches con otra tarifa
+              </h4>
+              <span class="text-xs font-bold text-slate-500">
+                <span id="${tramo.id}-noches">1</span> noche(s) ·
+                <span id="${tramo.id}-rango" class="font-mono"></span>
+              </span>
+            </div>
+            <button type="button" onclick="eliminarTramoExtra('${tramo.id}')" class="text-slate-300 hover:text-red-600 transition cursor-pointer"><i class="fa-solid fa-trash"></i></button>
+          </div>
+          <div class="relative">
+            <input type="text" id="${tramo.id}-cal" placeholder="Fechas de estas noches"
+                   class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 pr-10 text-sm font-bold outline-none cursor-pointer">
+            <i class="fa-solid fa-calendar-days absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+          </div>
+          <div id="${tramo.id}-rooms" class="space-y-3"></div>
+          <button type="button" onclick="addRoom('${tramo.id}-rooms')"
+                  class="text-xs font-bold text-slate-400 hover:text-slate-900 transition cursor-pointer">
+            <i class="fa-solid fa-plus mr-1.5"></i> Añadir habitación a este tramo
+          </button>
+        </div>`);
+
+      flatpickr('#' + tramo.id + '-cal', {
+        locale: 'es', mode: 'range', dateFormat: 'Y-m-d', minDate: inicio,
+        defaultDate: [tramo.checkin, tramo.checkout],
+        onChange: function(sel) {
+          if (sel.length === 1) {
+            let nd = new Date(sel[0]); nd.setDate(nd.getDate() + 1);
+            tramo.checkin = _fechaAIso(sel[0]); tramo.checkout = _fechaAIso(nd);
+          } else if (sel.length === 2) {
+            tramo.checkin = _fechaAIso(sel[0]); tramo.checkout = _fechaAIso(sel[1]);
+          } else return;
+          tramo.noches = _nochesEntre(tramo.checkin, tramo.checkout);
+          _pintarTramo(tramo);
+        }
+      });
+
+      addRoom(tramo.id + '-rooms');
+      _pintarTramo(tramo);
+    }
+
+    function _pintarTramo(tramo) {
+      let n = document.getElementById(tramo.id + '-noches');
+      let r = document.getElementById(tramo.id + '-rango');
+      if (n) n.innerText = tramo.noches;
+      if (r) r.innerText = fl(tramo.checkin) + ' → ' + fl(tramo.checkout);
+    }
+
+    function eliminarTramoExtra(id) {
+      tramosExtra = tramosExtra.filter(function(t) { return t.id !== id; });
+      let el = document.getElementById(id);
+      if (el) el.remove();
+    }
+
+    /* Lee las habitaciones de un contenedor y les cuelga las fechas del tramo. */
+    function _habitacionesDe(idContenedor, checkin, checkout, noches) {
+      return Array.from(document.querySelectorAll('#' + idContenedor + ' > div')).map(function(row) {
+        let p = parseInt(row.querySelector('.inp-custom-precio').value) || 0;
+        let c = parseInt(row.querySelector('.inp-cant').value) || 1;
+        return {
+          tipo: row.querySelector('.sel-tipo').value, cantidad: c, precio: p,
+          total: p * c * noches, checkin: checkin, checkout: checkout, noches: noches
+        };
+      });
     }
 
     // ─────────────────────────────────────────────────────────
@@ -2194,13 +2318,22 @@ function refrescarDatosServidor() {
       return tk.b && tk.i ? 'bolditalic' : tk.b ? 'bold' : tk.i ? 'italic' : 'normal';
     }
 
+    /* Junta filas equivalentes. Dos habitaciones solo se suman si además de ser
+       del mismo tipo y precio cubren las mismas noches: si no, un tramo con
+       tarifa distinta se fusionaría con el principal y se perdería el detalle. */
     function consolidarHabitacionesCliente(habitaciones) {
       let consolidadas = [];
       (habitaciones || []).forEach(function(h) {
         let tipoBase = h.tipo.replace(/\s*\(x\d+\)$/, '').trim();
-        let ex = consolidadas.find(function(e) { return e.tipoBase === tipoBase && e.precio === h.precio; });
+        let ex = consolidadas.find(function(e) {
+          return e.tipoBase === tipoBase && e.precio === h.precio &&
+                 e.checkin === h.checkin && e.checkout === h.checkout;
+        });
         if (ex) { ex.cantidad += (h.cantidad || 1); ex.total += h.total; }
-        else { consolidadas.push({ tipoBase: tipoBase, precio: h.precio, cantidad: h.cantidad || 1, total: h.total }); }
+        else {
+          consolidadas.push({ tipoBase: tipoBase, precio: h.precio, cantidad: h.cantidad || 1,
+            total: h.total, checkin: h.checkin, checkout: h.checkout, noches: h.noches });
+        }
       });
       return consolidadas;
     }
@@ -2376,7 +2509,8 @@ function refrescarDatosServidor() {
           consolidarHabitacionesCliente(payload.habitaciones).forEach(function(h) {
             filas.push({ celdas: [
               { texto: traducirTipoHab(h.tipoBase, payload.idioma), align: 'izq' }, { texto: String(h.cantidad) },
-              { texto: payload.checkin }, { texto: payload.checkout }, { texto: String(payload.noches) },
+              { texto: h.checkin || payload.checkin }, { texto: h.checkout || payload.checkout },
+              { texto: String(h.noches != null ? h.noches : payload.noches) },
               { texto: fm(h.precio) }, { texto: fm(h.total) }
             ]});
           });
@@ -2728,8 +2862,18 @@ function refrescarDatosServidor() {
       let simb = (payload.moneda === 'USD') ? 'US$ ' : '$';
       let fmm = function(v) { return simb + Math.round(v || 0).toLocaleString('es-CL'); };
       if (payload.tipo_cotizacion === 'estandar') {
+        // El mensaje no lleva precios ni fechas por línea, así que aquí las
+        // habitaciones se agrupan solo por tipo: si no, un mismo tipo repartido
+        // en varios tramos aparecería listado dos veces.
+        let porTipo = [];
         consolidarHabitacionesCliente(payload.habitaciones).forEach(function(h) {
-          items.push(traducirTipoHab(h.tipoBase, payload.idioma) + (h.cantidad > 1 ? ' x' + h.cantidad : ''));
+          let nom = traducirTipoHab(h.tipoBase, payload.idioma);
+          let ex = porTipo.find(function(e) { return e.nombre === nom; });
+          if (ex) ex.cantidad = Math.max(ex.cantidad, h.cantidad);
+          else porTipo.push({ nombre: nom, cantidad: h.cantidad });
+        });
+        porTipo.forEach(function(h) {
+          items.push(h.nombre + (h.cantidad > 1 ? ' x' + h.cantidad : ''));
         });
         (payload.amenidades_predefinidas || []).forEach(function(a) {
           items.push(a.nombre + (a.cantidad > 1 ? ' x' + a.cantidad : ''));
@@ -3284,7 +3428,8 @@ function refrescarDatosServidor() {
           consolidarHabitacionesCliente(payload.habitaciones).forEach(function(h) {
             filas.push({ celdas: [
               { texto: traducirTipoHab(h.tipoBase, payload.idioma), align: 'izq' }, { texto: String(h.cantidad) },
-              { texto: payload.checkin }, { texto: payload.checkout }, { texto: String(payload.noches) },
+              { texto: h.checkin || payload.checkin }, { texto: h.checkout || payload.checkout },
+              { texto: String(h.noches != null ? h.noches : payload.noches) },
               { texto: fm(h.precio) }, { texto: fm(h.total) }
             ]});
           });
@@ -3520,13 +3665,40 @@ function refrescarDatosServidor() {
         let sub = 0;
         let roomRows = document.querySelectorAll('#room-container > div');
         if (!roomRows.length) { alert("Debe añadir al menos una habitación."); return null; }
-        payload.habitaciones = Array.from(roomRows).map(row => {
-          let p = parseInt(row.querySelector('.inp-custom-precio').value) || 0;
-          let c = parseInt(row.querySelector('.inp-cant').value) || 1;
-          let t = p * c * noches;
-          sub += t;
-          return { tipo: row.querySelector('.sel-tipo').value, cantidad: c, precio: p, total: t };
-        });
+
+        // Tramo principal + los tramos con tarifa distinta, en una sola lista.
+        // Cada habitación lleva sus propias fechas, así la tabla del documento
+        // muestra una línea por tramo.
+        payload.habitaciones = _habitacionesDe('room-container', payload.checkin, payload.checkout, noches);
+        let finAnterior = datesSelected.checkout;
+        for (let i = 0; i < tramosExtra.length; i++) {
+          let t = tramosExtra[i];
+          if (!t.noches || t.noches <= 0) { alert("El tramo de noches adicionales tiene un rango de fechas inválido."); return null; }
+          // Si se movió el calendario principal después de crear el tramo, las
+          // fechas pueden haber quedado superpuestas o con un hueco.
+          if (_isoAFecha(t.checkin) < _isoAFecha(finAnterior)) {
+            alert("Las noches del tramo que parte el " + fl(t.checkin) + " se superponen con las anteriores (que terminan el " +
+                  fl(finAnterior) + "). Corrige las fechas de ese tramo.");
+            return null;
+          }
+          if (_nochesEntre(finAnterior, t.checkin) > 0 &&
+              !confirm("Queda un hueco entre el " + fl(finAnterior) + " y el " + fl(t.checkin) +
+                       ": esas noches no se están cobrando.\n\n¿Continuar de todas formas?")) {
+            return null;
+          }
+          finAnterior = t.checkout;
+          let habs = _habitacionesDe(t.id + '-rooms', fl(t.checkin), fl(t.checkout), t.noches);
+          if (!habs.length) { alert("El tramo de " + fl(t.checkin) + " a " + fl(t.checkout) + " no tiene habitaciones."); return null; }
+          payload.habitaciones = payload.habitaciones.concat(habs);
+        }
+        payload.habitaciones.forEach(h => { sub += h.total; });
+
+        // La cabecera del documento y el historial usan la estadía completa.
+        if (tramosExtra.length) {
+          let finIso = _finDeEstadia();
+          payload.checkout = fl(finIso);
+          payload.noches = _nochesEntre(datesSelected.checkin, finIso);
+        }
 
         // Amenidades predefinidas (catálogo dinámico)
         let mapaAmen = {};
