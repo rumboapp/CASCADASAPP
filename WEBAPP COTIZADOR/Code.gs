@@ -2,16 +2,13 @@
 // CONFIGURACIÓN DE IDS GLOBALE
 // =================================================================
 const ID_PLANTILLA = "1CrI7WhSfXKDw1S86opgTJYKpAi1mDjXFrsKr2lEOeyY";
-// Plantilla en INGLÉS: crea una copia de tu plantilla en Google Docs, tradúcela
-// y pega aquí su ID (lo que va entre /d/ y /edit en la URL del documento).
-// Mientras esté vacío, las cotizaciones en inglés usan la plantilla en español
-// (la tabla de valores y las coberturas sí salen traducidas igualmente).
-const ID_PLANTILLA_EN = "";
-// Plantilla en PORTUGUÉS: crea una copia de tu plantilla en Google Docs,
-// tradúcela y pega aquí su ID. Mientras esté vacío, las cotizaciones en
-// portugués usan la plantilla en español (la tabla de valores y las coberturas
-// sí salen traducidas igualmente).
-const ID_PLANTILLA_PT = "";
+// Plantilla en INGLÉS: es el ID del documento de Google Docs, o sea lo que va
+// entre /d/ y /edit en su URL. Si se deja vacío, las cotizaciones en inglés
+// caen de vuelta en la plantilla en español (la tabla de valores y las
+// coberturas sí salen traducidas igualmente).
+const ID_PLANTILLA_EN = "1I3TGjrU2iYqADooMJkGKNrm1CPfeQNVY9VZYihNBDBM";
+// Plantilla en PORTUGUÉS: mismo criterio que la anterior.
+const ID_PLANTILLA_PT = "1LFwQGgM9UTfsQlT4GtgtXiAzus2gY7E0bAfgP2PS-2E";
 const ID_PLANILLA_SHEETS = "164qlshfA21LK2hIAcVlrv8rdNIamupZfF5_gSTW6zWo";
 const NOMBRE_CARPETA_COTIZACIONES = "Cotizaciones Temporales";
 
@@ -814,9 +811,16 @@ function generarDocumento(datos) {
 
   vaciarCarpetaPorCompleto(carpetaDestino);
 
-  var nombreArchivo = "Cotizacion Cascadas Hotel " + datos.nombre_cliente + " " + datos.checkin.replace(/\//g, "-");
+  var idiomaDoc = String(datos.idioma || "ES").toUpperCase();
+  var prefijoNombre = idiomaDoc === "EN" ? "Quotation Cascadas Hotel "
+                    : idiomaDoc === "PT" ? "Orcamento Cascadas Hotel "
+                    : "Cotizacion Cascadas Hotel ";
+  var nombreArchivo = prefijoNombre + datos.nombre_cliente + " " + datos.checkin.replace(/\//g, "-");
 
-  var plantillaFile = DriveApp.getFileById(ID_PLANTILLA);
+  // La copia debe salir de la plantilla del idioma pedido: si aquí se toma
+  // siempre ID_PLANTILLA, el documento sale con el texto fijo en español
+  // por más que las plantillas EN/PT estén configuradas.
+  var plantillaFile = DriveApp.getFileById(_idPlantilla(idiomaDoc));
   var copiaFile = plantillaFile.makeCopy(nombreArchivo, carpetaDestino);
   var docId = copiaFile.getId();
 
