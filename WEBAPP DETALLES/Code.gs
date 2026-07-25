@@ -32,7 +32,7 @@ function include(filename) {
 var GIFTCARDS_HOJA = 'GiftCards';
 var GIFTCARDS_ENCABEZADOS = [
   'Codigo', 'FechaEmision', 'Noches', 'VigenciaMeses', 'MesesValidos', 'Inclusiones',
-  'Para', 'De', 'Idioma', 'Mensaje'
+  'Para', 'De', 'Idioma', 'Mensaje', 'FechaDesde', 'FechaHasta', 'EstadoReserva'
 ];
 
 function _ssDetalles() {
@@ -59,7 +59,20 @@ function _hojaGiftCards() {
     var hojaDefault = ss.getSheetByName('Hoja 1') || ss.getSheetByName('Sheet1');
     if (hojaDefault && ss.getSheets().length > 1) ss.deleteSheet(hojaDefault);
   }
+  _asegurarColumnasGiftCards(hoja);
   return hoja;
+}
+
+/* La planilla puede venir de una version anterior con menos columnas: las que
+   falten se agregan al final sin tocar lo ya registrado. */
+function _asegurarColumnasGiftCards(hoja) {
+  var ancho = Math.max(hoja.getLastColumn(), 1);
+  var actuales = hoja.getRange(1, 1, 1, ancho).getValues()[0].map(function (c) { return String(c).trim(); });
+  var faltan = GIFTCARDS_ENCABEZADOS.filter(function (h) { return actuales.indexOf(h) === -1; });
+  if (!faltan.length) return actuales;
+  hoja.getRange(1, actuales.length + 1, 1, faltan.length).setValues([faltan])
+      .setFontWeight('bold').setBackground('#414143').setFontColor('#FFFFFF');
+  return actuales.concat(faltan);
 }
 
 /**
@@ -69,11 +82,21 @@ function _hojaGiftCards() {
  */
 function guardarGiftCard(datos) {
   var hoja = _hojaGiftCards();
-  hoja.appendRow([
-    datos.codigo || '', new Date(), datos.noches || '', datos.vigencia || '', datos.mesesValidos || '',
-    datos.inclusiones || '', datos.destinatario || '', datos.remitente || '',
-    datos.idioma || '', datos.mensaje || ''
-  ]);
+  var valores = {
+    'Codigo': datos.codigo || '', 'FechaEmision': new Date(), 'Noches': datos.noches || '',
+    'VigenciaMeses': datos.vigencia || '', 'MesesValidos': datos.mesesValidos || '',
+    'Inclusiones': datos.inclusiones || '', 'Para': datos.destinatario || '', 'De': datos.remitente || '',
+    'Idioma': datos.idioma || '', 'Mensaje': datos.mensaje || '',
+    'FechaDesde': datos.fechaDesde || '', 'FechaHasta': datos.fechaHasta || '',
+    'EstadoReserva': datos.estadoReserva || ''
+  };
+  // Se escribe por nombre de columna: si la planilla tenía otro orden o
+  // columnas extra, cada dato igual cae donde corresponde.
+  var encabezados = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0]
+                        .map(function (c) { return String(c).trim(); });
+  hoja.appendRow(encabezados.map(function (h) {
+    return Object.prototype.hasOwnProperty.call(valores, h) ? valores[h] : '';
+  }));
   return { ok: true };
 }
 

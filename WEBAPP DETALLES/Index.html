@@ -257,6 +257,37 @@
       }
     }
 
+    /* 'AAAA-MM-DD' (lo que entrega un input de fecha) a texto legible.
+       Se arma la fecha por partes: new Date('2027-03-12') se interpreta en UTC
+       y en Chile mostraría el día anterior. */
+    function fechaLarga(iso) {
+      var p = String(iso || '').split('-');
+      if (p.length !== 3) return iso || '';
+      var dt = new Date(+p[0], +p[1] - 1, +p[2]);
+      if (isNaN(dt)) return iso;
+      return (APP.idioma === 'en')
+        ? dt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        : dt.toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    /* Rango de fechas sin repetir mes ni año cuando coinciden:
+       "12 al 15 de marzo de 2027" en vez de "12 de marzo de 2027 al 15 de
+       marzo de 2027". */
+    function rangoFechaLargo(iso1, iso2) {
+      var a = String(iso1 || '').split('-'), b = String(iso2 || '').split('-');
+      if (a.length !== 3 || b.length !== 3) return fechaLarga(iso1) + ' — ' + fechaLarga(iso2);
+      var mismoMes = a[0] === b[0] && a[1] === b[1];
+      if (!mismoMes) return (APP.idioma === 'en')
+        ? fechaLarga(iso1) + ' to ' + fechaLarga(iso2)
+        : fechaLarga(iso1) + ' al ' + fechaLarga(iso2);
+      var d1 = String(+a[2]), d2 = String(+b[2]);
+      if (APP.idioma === 'en') {
+        var completa = fechaLarga(iso2);                       // "March 15, 2027"
+        return completa.replace(/\s\d+,/, ' ' + d1 + '–' + d2 + ',');
+      }
+      return d1 + ' al ' + fechaLarga(iso2);                   // "12 al 15 de marzo de 2027"
+    }
+
     // Meses del año, para la burbuja de "meses validos" de la Gift Card
     // (ej. restringirla a temporada baja).
     var MESES = {
@@ -370,6 +401,16 @@
           { key: 'vigencia', label: { es: 'Vigencia (meses)', en: 'Validity (months)' }, ph: '12', type: 'number', chips: ['3', '6', '12', '24'] },
           { key: 'mesesValidos', label: { es: 'Meses válidos (opcional, p.ej. temporada baja)', en: 'Valid months (optional, e.g. low season)' }, ph: '', chipsMulti: true,
             chips: { es: MESES.es, en: MESES.en } },
+          // Para cuando quien regala ya sabe cuándo viaja el destinatario: si se
+          // llenan, la letra chica deja de hablar de vigencia en meses y pasa a
+          // nombrar la estadía concreta.
+          { key: 'fechaDesde', label: { es: 'Fecha de la estadía — desde (opcional)', en: 'Stay dates — from (optional)' }, ph: '', type: 'date' },
+          { key: 'fechaHasta', label: { es: 'Hasta', en: 'To' }, ph: '', type: 'date' },
+          { key: 'estadoReserva', label: { es: 'Estado de esas fechas', en: 'Status of those dates' },
+            opciones: [
+              { v: 'pendiente',  es: 'Sujeta a confirmación',   en: 'Subject to confirmation' },
+              { v: 'confirmada', es: 'Reserva ya confirmada',   en: 'Booking already confirmed' }
+            ] },
           { key: 'inclusiones', label: { es: 'Incluye (opcional)', en: 'Includes (optional)' }, ph: 'Tinaja y cena', chipsMulti: true,
             chips: { es: ['Tinaja', 'Cena', 'Desayuno', 'Masaje', 'Traslado'], en: ['Hot tub', 'Dinner', 'Breakfast', 'Massage', 'Transfer'] } },
           { key: 'destinatario', label: { es: 'Para (opcional)', en: 'To (optional)' }, ph: '' },
@@ -389,9 +430,13 @@
         },
         // Letra chica fija (NO editable): siempre se imprime, con las
         // condiciones reales de la cortesia.
+        // Los sufijos cambian según se haya fijado o no una fecha de estadía:
+        // con fecha fija, hablar de vigencia en meses y de meses válidos sería
+        // contradictorio, y si además la reserva está confirmada tampoco
+        // corresponde la advertencia de disponibilidad.
         letraChica: {
-          es: 'Válida por {noches} noche(s) de estadía en Cascadas Hotel{inclSuf}. Vigencia de {vigencia} mes(es) desde la fecha de emisión.{mesesSuf} Esta Gift Card está sujeta a disponibilidad y no garantiza disponibilidad en la fecha específica solicitada. Debe presentarse (impresa o digital) al momento de realizar el check-in.',
-          en: 'Valid for {noches} night(s) at Cascadas Hotel{inclSuf}. Valid for {vigencia} month(s) from the date of issue.{mesesSuf} This Gift Card is subject to availability and does not guarantee availability on the specific date requested. It must be presented (printed or digital) at check-in.'
+          es: 'Válida por {noches} noche(s) de estadía en Cascadas Hotel{inclSuf}.{vigenciaSuf}{mesesSuf}{fechaSuf}{dispSuf} Debe presentarse (impresa o digital) al momento de realizar el check-in.',
+          en: 'Valid for {noches} night(s) at Cascadas Hotel{inclSuf}.{vigenciaSuf}{mesesSuf}{fechaSuf}{dispSuf} It must be presented (printed or digital) at check-in.'
         }
       },
       welcomedrink: {
@@ -546,6 +591,16 @@
               return "<button type=\"button\" class=\"chip\" onclick='elegirChip(" + JSON.stringify(cc.key) + ',' + JSON.stringify(op) + ',' + !!cc.chipsMulti + ")'>" + op + '</button>';
             }).join('') + '</div>';
           }
+          // Campos con lista cerrada (p.ej. el estado de las fechas) van como
+          // desplegable: no tiene sentido dejar escribir cualquier cosa.
+          if (cc.opciones) {
+            return '<div class="campo"><label>' + cc.label[APP.idioma] + '</label>' +
+              '<select id="f_' + cc.key + '" onchange="onCampo()">' +
+              cc.opciones.map(function (op) {
+                return '<option value="' + op.v + '">' + op[APP.idioma] + '</option>';
+              }).join('') +
+              '</select></div>';
+          }
           return '<div class="campo"><label>' + cc.label[APP.idioma] + '</label>' +
             '<input id="f_' + cc.key + '" type="' + (cc.type || 'text') + '" placeholder="' + (cc.ph || '') + '" oninput="onCampo()">' + chipsHtml + '</div>';
         }
@@ -614,7 +669,38 @@
       var trago = d.trago ? d.trago : (APP.idioma === 'en' ? 'water, juice or a glass of sparkling wine' : 'agua, jugo o copa de espumante');
       var meses = (d.mesesValidos || '').trim();
       var mesesSuf = meses ? (APP.idioma === 'en' ? ' Valid only during: ' + meses + '.' : ' Válida únicamente durante: ' + meses + '.') : '';
+
+      // ---- Fecha de estadía ya decidida por quien regala ----
+      var f1 = (d.fechaDesde || '').trim(), f2 = (d.fechaHasta || '').trim();
+      var hayFecha = !!(f1 && f2);
+      var confirmada = hayFecha && d.estadoReserva === 'confirmada';
+      var fechaSuf = '', vigenciaSuf = '', dispSuf = '';
+      if (hayFecha) {
+        var rango = rangoFechaLargo(f1, f2);
+        if (confirmada) {
+          fechaSuf = (APP.idioma === 'en')
+            ? ' The stay is booked for ' + rango + '.'
+            : ' La estadía se encuentra reservada para el ' + rango + '.';
+        } else {
+          fechaSuf = (APP.idioma === 'en')
+            ? ' Intended for the stay of ' + rango + '.'
+            : ' Prevista para la estadía del ' + rango + '.';
+          dispSuf = (APP.idioma === 'en')
+            ? ' These dates are subject to confirmation by the hotel.'
+            : ' Estas fechas están sujetas a confirmación por parte del hotel.';
+        }
+        mesesSuf = '';   // con fecha fija, restringir por meses no aplica
+      } else {
+        vigenciaSuf = (APP.idioma === 'en')
+          ? ' Valid for ' + (d.vigencia || '12') + ' month(s) from the date of issue.'
+          : ' Vigencia de ' + (d.vigencia || '12') + ' mes(es) desde la fecha de emisión.';
+        dispSuf = (APP.idioma === 'en')
+          ? ' This Gift Card is subject to availability and does not guarantee availability on the specific date requested.'
+          : ' Esta Gift Card está sujeta a disponibilidad y no garantiza disponibilidad en la fecha específica solicitada.';
+      }
+
       return s
+        .replace(/\{fechaSuf\}/g, fechaSuf).replace(/\{vigenciaSuf\}/g, vigenciaSuf).replace(/\{dispSuf\}/g, dispSuf)
         .replace(/\{n1\}/g, d.n1 || '').replace(/\{n2\}/g, d.n2 || '')
         .replace(/\{nombre\}/g, d.nombre || '').replace(/\{remitente\}/g, d.remitente || (APP.idioma === 'en' ? 'someone special' : 'alguien especial'))
         .replace(/\{destinatario\}/g, d.destinatario || '').replace(/\{noches\}/g, d.noches || '—')
@@ -1114,7 +1200,10 @@
         .guardarGiftCard({
           codigo: codigoGiftCard(), noches: d.noches, vigencia: d.vigencia, mesesValidos: d.mesesValidos,
           inclusiones: d.inclusiones, destinatario: d.destinatario, remitente: d.remitente,
-          idioma: APP.idioma, mensaje: mensaje
+          idioma: APP.idioma, mensaje: mensaje,
+          fechaDesde: d.fechaDesde || '', fechaHasta: d.fechaHasta || '',
+          // El estado solo tiene sentido si efectivamente se fijaron fechas.
+          estadoReserva: (d.fechaDesde && d.fechaHasta) ? (d.estadoReserva || 'pendiente') : ''
         });
       APP.codigoGift = null; // la proxima Gift Card que se genere tendra su propio codigo
     }
@@ -1140,14 +1229,23 @@
       if (!cont) return;
       if (!filas.length) { cont.innerHTML = '<p class="hint">' + (APP.idioma === 'en' ? 'No Gift Cards issued yet.' : 'Todavía no se ha emitido ninguna Gift Card.') + '</p>'; return; }
       var cab = APP.idioma === 'en'
-        ? ['Code', 'Issued', 'Nights', 'Validity', 'Valid months', 'To', 'From']
-        : ['Código', 'Emitida', 'Noches', 'Vigencia', 'Meses válidos', 'Para', 'De'];
+        ? ['Code', 'Issued', 'Nights', 'Validity', 'Valid months', 'Stay dates', 'To', 'From']
+        : ['Código', 'Emitida', 'Noches', 'Vigencia', 'Meses válidos', 'Fechas de estadía', 'Para', 'De'];
       var html = '<div style="overflow-x:auto"><table class="tabla-gc"><thead><tr>' +
         cab.map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr></thead><tbody>' +
         filas.map(function (f) {
+          // Con fecha fija se muestra el rango y su estado; si no, un guion.
+          var estadia = '—';
+          if (f.FechaDesde && f.FechaHasta) {
+            var marca = f.EstadoReserva === 'confirmada'
+              ? (APP.idioma === 'en' ? ' · booked' : ' · reservada')
+              : (APP.idioma === 'en' ? ' · to confirm' : ' · por confirmar');
+            estadia = fechaLarga(f.FechaDesde) + ' → ' + fechaLarga(f.FechaHasta) + marca;
+          }
           return '<tr><td>' + (f.Codigo || '') + '</td><td>' + (f.FechaEmision || '') + '</td><td>' + (f.Noches || '') +
             '</td><td>' + (f.VigenciaMeses || '') + (f.VigenciaMeses ? (APP.idioma === 'en' ? ' mo.' : ' m.') : '') +
             '</td><td>' + (f.MesesValidos || '—') +
+            '</td><td>' + estadia +
             '</td><td>' + (f.Para || '') + '</td><td>' + (f.De || '') + '</td></tr>';
         }).join('') + '</tbody></table></div>';
       cont.innerHTML = html;
