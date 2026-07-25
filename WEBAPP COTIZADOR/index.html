@@ -2927,17 +2927,48 @@ function refrescarDatosServidor() {
       '</p>';
 
     // Cuerpo del correo en HTML, con el mismo formato que se usa a mano.
+    /* Textos del correo en los tres idiomas de la app. El párrafo de vigencia
+       va en negrita y subrayado en todos, igual que en español.
+       El saludo ("Estimado/Dear/Prezado(a)") viene ya traducido en payload.saludo. */
+    const TEXTOS_CORREO = {
+      ES: {
+        asunto: 'Cot.',
+        intro: 'Junto con saludar y agradeciendo su contacto, adjunto encontrará información acorde a servicios solicitados.',
+        aviso: 'Esta cotización no garantiza el bloqueo de habitaciones, tiene una vigencia de 5 días y está sujeta a disponibilidad al momento de su envío.',
+        atentos: 'Quedamos atentos',
+        despedida: 'Se despide cordialmente'
+      },
+      EN: {
+        asunto: 'Quotation',
+        intro: 'Thank you for contacting us. Attached you will find the information corresponding to the services requested.',
+        aviso: 'This quotation does not guarantee that rooms will be held; it is valid for 5 days and is subject to availability at the time it is sent.',
+        atentos: 'We remain at your service',
+        despedida: 'Kind regards'
+      },
+      PT: {
+        asunto: 'Orçamento',
+        intro: 'Agradecemos o seu contato. Em anexo, encontrará as informações referentes aos serviços solicitados.',
+        aviso: 'Este orçamento não garante o bloqueio de quartos, tem validade de 5 dias e está sujeito à disponibilidade no momento do envio.',
+        atentos: 'Permanecemos à disposição',
+        despedida: 'Atenciosamente'
+      }
+    };
+    function _textosCorreo(payload) {
+      return TEXTOS_CORREO[(payload && payload.idioma) || 'ES'] || TEXTOS_CORREO.ES;
+    }
+
     function cuerpoCorreoHTML(payload, nombreRecepcionista) {
+      let t = _textosCorreo(payload);
       let firma = FIRMA_IMG_B64
         ? '<p style="margin:0;"><img src="cid:firmacascadas" alt="Cascadas Hotel — Recepción" width="569" style="width:569px;max-width:100%;height:auto;border:0;display:block;"></p>'
         : FIRMA_TEXTO_HTML;
       return '<html><head><meta charset="utf-8"></head><body style="margin:0;">' +
         '<div style="font-family:Aptos,Calibri,\'Segoe UI\',sans-serif;font-size:11pt;color:#000000;">' +
           '<p style="margin:0 0 11pt 0;">' + escTx(payload.saludo) + ' ' + escTx(payload.nombre_cliente) + ',</p>' +
-          '<p style="margin:0;">Junto con saludar y agradeciendo su contacto, adjunto encontrará información acorde a servicios solicitados.</p>' +
-          '<p style="margin:0 0 11pt 0;"><b><u>Esta cotización no garantiza el bloqueo de habitaciones, tiene una vigencia de 5 días y está sujeta a disponibilidad al momento de su envío.</u></b></p>' +
-          '<p style="margin:0 0 11pt 0;">Quedamos atentos</p>' +
-          '<p style="margin:0 0 11pt 0;">Se despide cordialmente</p>' +
+          '<p style="margin:0;">' + escTx(t.intro) + '</p>' +
+          '<p style="margin:0 0 11pt 0;"><b><u>' + escTx(t.aviso) + '</u></b></p>' +
+          '<p style="margin:0 0 11pt 0;">' + escTx(t.atentos) + '</p>' +
+          '<p style="margin:0 0 11pt 0;">' + escTx(t.despedida) + '</p>' +
           '<p style="margin:0 0 14pt 0;">' + escTx(nombreRecepcionista) + '.</p>' +
           firma +
         '</div></body></html>';
@@ -2946,11 +2977,12 @@ function refrescarDatosServidor() {
     // Cuerpo en texto plano; se conserva por si alguna vez se necesita volver
     // al método anterior con mailto.
     function cuerpoCorreoOutlookDe(payload, nombreRecepcionista) {
+      let t = _textosCorreo(payload);
       return payload.saludo + ' ' + payload.nombre_cliente + ',\n\n' +
-        'Junto con saludar y agradeciendo su contacto, adjunto encontrará información acorde a servicios solicitados.\n' +
-        'Esta cotización no garantiza el bloqueo de habitaciones, tiene una vigencia de 5 días y está sujeta a disponibilidad al momento de su envío.\n\n' +
-        'Quedamos atentos\n\n' +
-        'Se despide cordialmente\n\n' +
+        t.intro + '\n' +
+        t.aviso + '\n\n' +
+        t.atentos + '\n\n' +
+        t.despedida + '\n\n' +
         nombreRecepcionista + '.';
     }
 
@@ -3057,7 +3089,7 @@ function refrescarDatosServidor() {
       cerrarModalRecepcionista();
       let payload = payloadParaWhatsApp;
       let checkinTx = (payload.checkin || '').replace(/\//g, '-');
-      let asunto = 'Cascadas Hotel / Cot. ' + checkinTx + ' ' + payload.nombre_cliente;
+      let asunto = 'Cascadas Hotel / ' + _textosCorreo(payload).asunto + ' ' + checkinTx + ' ' + payload.nombre_cliente;
 
       let eml;
       try {
@@ -3071,7 +3103,8 @@ function refrescarDatosServidor() {
         mostrarToast('error', 'No se pudo generar el correo: ' + e);
         return;
       }
-      descargarEml(eml, 'Correo cotizacion ' + _nombreAscii(payload.nombre_cliente || 'cliente') + '.eml');
+      let nombreEml = payload.idioma === 'EN' ? 'Quotation email ' : payload.idioma === 'PT' ? 'Email orcamento ' : 'Correo cotizacion ';
+      descargarEml(eml, nombreEml + _nombreAscii(payload.nombre_cliente || 'cliente') + '.eml');
       mostrarToast('exito', 'Correo generado. Abre el archivo descargado: Outlook lo mostrará listo para enviar.');
       // La primera vez explicamos cómo dejar que el navegador lo abra solo.
       if (localStorage.getItem('cotizador_tip_eml_visto') !== '1') {
