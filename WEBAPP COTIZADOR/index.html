@@ -636,6 +636,39 @@
     </div>
   </div>
 
+  <!-- ═══════ MODAL RECEPCIONISTA (correo Outlook) ═══════ -->
+  <div id="modal-recepcionista" class="modal-bg" style="display:none;">
+    <div class="modal-box" style="max-width:440px;">
+      <div class="rpt-header" style="padding:18px 24px 16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <div class="rpt-title" style="font-size:18px;">¿Quién envía este correo?</div>
+            <div class="rpt-subtitle">Se usa para firmar el mensaje. Al continuar se descarga el correo; ábrelo y Outlook lo mostrará listo para enviar.</div>
+          </div>
+          <button onclick="cerrarModalRecepcionista()" class="btn-cerrar-modal"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+      <div class="rpt-body" style="padding:20px 24px;">
+        <select id="selRecepcionista" style="width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-size:14px;font-weight:700;color:#0f172a;outline:none;margin-bottom:14px;"></select>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <input type="text" id="nuevoRecepcionistaInput" placeholder="Agregar nombre nuevo..."
+                 style="flex:1;background:white;border:1px solid #e2e8f0;border-radius:10px;padding:9px 12px;font-size:13px;outline:none;"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();agregarRecepcionista();}">
+          <button onclick="agregarRecepcionista()" style="background:#0f172a;color:white;border:none;border-radius:10px;padding:9px 14px;font-size:12px;font-weight:700;cursor:pointer;">Agregar</button>
+        </div>
+        <button onclick="eliminarRecepcionistaSeleccionado()" style="background:none;border:none;color:#b91c1c;font-size:12px;font-weight:700;cursor:pointer;padding:4px 0;">
+          <i class="fa-solid fa-trash"></i> Eliminar seleccionado de la lista
+        </button>
+      </div>
+      <div style="padding:14px 20px;display:flex;gap:10px;justify-content:flex-end;background:#f8fafc;">
+        <button onclick="cerrarModalRecepcionista()" style="background:#e2e8f0;color:#334155;border:none;border-radius:10px;padding:11px 18px;font-size:12px;font-weight:700;cursor:pointer;">Cancelar</button>
+        <button onclick="continuarCorreoOutlook()" style="background:#0072C6;color:white;border:none;border-radius:10px;padding:11px 22px;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-envelope"></i> ABRIR CORREO
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Botón flotante Reportes -->
   <button id="btn-reportes-flotante" onclick="abrirReportes()">
     <span class="btn-flotante-icon"><i class="fa-solid fa-chart-pie"></i></span>
@@ -2471,6 +2504,8 @@ function refrescarDatosServidor() {
     }
 
     let payloadParaWhatsApp = null; // última cotización generada, para el botón de copiar mensaje
+    // Último documento generado (PDF o Word), para adjuntarlo al correo de Outlook.
+    let adjuntoParaCorreo = null;   // { b64, nombre, mime }
 
     function escTx(x) {
       return String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -2480,18 +2515,18 @@ function refrescarDatosServidor() {
     function mostrarCajaExito(pdfUrl, esWord) {
       let box = document.getElementById('download-box');
       box.classList.remove('hidden');
-      let linkDrive = pdfUrl
-        ? '<a href="' + pdfUrl + '" target="_blank" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black px-5 py-2.5 rounded-xl transition shadow-sm text-xs cursor-pointer"><i class="fa-solid fa-file-pdf"></i> VER RESPALDO EN DRIVE</a>'
-        : '';
       box.innerHTML =
         '<div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">' +
           '<span class="text-emerald-800 font-bold block mb-3"><i class="fa-solid fa-circle-check"></i> Cotización Lista — ' + (esWord ? 'Word' : 'PDF') + ' descargado</span>' +
-          '<div class="flex flex-wrap gap-2 justify-center">' +
-            linkDrive +
-            '<button type="button" onclick="copiarMensajeWhatsApp(this)" class="inline-flex items-center gap-2 text-white font-black px-5 py-2.5 rounded-xl transition shadow-sm text-xs cursor-pointer" style="background:#25D366;">' +
+          '<div class="flex gap-2 justify-center">' +
+            '<button type="button" onclick="copiarMensajeWhatsApp(this)" class="inline-flex items-center gap-2 text-white font-black px-5 py-2.5 rounded-xl transition shadow-sm text-xs cursor-pointer whitespace-nowrap" style="background:#25D366;">' +
               '<i class="fa-brands fa-whatsapp text-base"></i> COPIAR MENSAJE WHATSAPP' +
             '</button>' +
+            '<button type="button" onclick="abrirCorreoOutlook()" class="inline-flex items-center gap-2 text-white font-black px-5 py-2.5 rounded-xl transition shadow-sm text-xs cursor-pointer whitespace-nowrap" style="background:#0072C6;">' +
+              '<i class="fa-solid fa-envelope text-base"></i> ABRIR CORREO OUTLOOK' +
+            '</button>' +
           '</div>' +
+          '<span class="text-emerald-700 block mt-2" style="font-size:11px;">El correo se genera con la firma y el ' + (esWord ? 'Word' : 'PDF') + ' ya adjunto: solo debes escribir el destinatario.</span>' +
         '</div>';
     }
 
@@ -2501,6 +2536,8 @@ function refrescarDatosServidor() {
       pdf.save(nombreArchivo); // descarga inmediata
       payloadParaWhatsApp = payload;
       let base64 = pdf.output('datauristring').split(',')[1];
+      // Se guarda para poder adjuntarlo al correo de Outlook.
+      adjuntoParaCorreo = { b64: base64, nombre: nombreArchivo, mime: 'application/pdf' };
       google.script.run
         .withSuccessHandler(function(res) {
           resetActions();
@@ -2513,9 +2550,14 @@ function refrescarDatosServidor() {
           box.innerHTML =
             '<div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">' +
               '<span class="text-amber-800 font-bold block mb-2 text-sm">El PDF se descargó, pero falló el respaldo en Drive/Historial: ' + escTx(err) + '</span>' +
-              '<button type="button" onclick="copiarMensajeWhatsApp(this)" class="inline-flex items-center gap-2 text-white font-black px-5 py-2.5 rounded-xl transition shadow-sm text-xs cursor-pointer" style="background:#25D366;">' +
-                '<i class="fa-brands fa-whatsapp text-base"></i> COPIAR MENSAJE WHATSAPP' +
-              '</button>' +
+              '<div class="flex flex-wrap gap-2 justify-center">' +
+                '<button type="button" onclick="copiarMensajeWhatsApp(this)" class="inline-flex items-center gap-2 text-white font-black px-5 py-2.5 rounded-xl transition shadow-sm text-xs cursor-pointer" style="background:#25D366;">' +
+                  '<i class="fa-brands fa-whatsapp text-base"></i> COPIAR MENSAJE WHATSAPP' +
+                '</button>' +
+                '<button type="button" onclick="abrirCorreoOutlook()" class="inline-flex items-center gap-2 text-white font-black px-5 py-2.5 rounded-xl transition shadow-sm text-xs cursor-pointer" style="background:#0072C6;">' +
+                  '<i class="fa-solid fa-envelope text-base"></i> ABRIR CORREO OUTLOOK' +
+                '</button>' +
+              '</div>' +
             '</div>';
         })
         .guardarPdfClienteYRegistrar(payload, base64, nombreArchivo);
@@ -2725,6 +2767,222 @@ function refrescarDatosServidor() {
     }
 
     // ═══════════════════════════════════════════════════════════
+    //  ABRIR CORREO NUEVO EN OUTLOOK (mailto)
+    // ═══════════════════════════════════════════════════════════
+    // Lista de recepcionistas (se guarda en este navegador: agregar/quitar
+    // se hace desde el propio modal de "¿Quién envía este correo?").
+    function _listaRecepcionistas() {
+      try {
+        let lista = JSON.parse(localStorage.getItem('cotizador_recepcionistas') || '[]');
+        return Array.isArray(lista) ? lista : [];
+      } catch(e) { return []; }
+    }
+    function _guardarListaRecepcionistas(lista) {
+      localStorage.setItem('cotizador_recepcionistas', JSON.stringify(lista));
+    }
+    function _renderSelectRecepcionistas(seleccionar) {
+      let lista = _listaRecepcionistas();
+      let sel = document.getElementById('selRecepcionista');
+      if (!lista.length) {
+        sel.innerHTML = '<option value="">— agrega un nombre abajo —</option>';
+        return;
+      }
+      sel.innerHTML = lista.map(function(n) { return '<option value="' + escTx(n) + '">' + escTx(n) + '</option>'; }).join('');
+      if (seleccionar && lista.indexOf(seleccionar) !== -1) sel.value = seleccionar;
+    }
+    function agregarRecepcionista() {
+      let input = document.getElementById('nuevoRecepcionistaInput');
+      let nombre = (input.value || '').trim();
+      if (!nombre) return;
+      let lista = _listaRecepcionistas();
+      if (lista.indexOf(nombre) === -1) lista.push(nombre);
+      _guardarListaRecepcionistas(lista);
+      input.value = '';
+      _renderSelectRecepcionistas(nombre);
+    }
+    function eliminarRecepcionistaSeleccionado() {
+      let sel = document.getElementById('selRecepcionista');
+      let actual = sel.value;
+      if (!actual) return;
+      if (!confirm('¿Eliminar "' + actual + '" de la lista?')) return;
+      let lista = _listaRecepcionistas().filter(function(n) { return n !== actual; });
+      _guardarListaRecepcionistas(lista);
+      _renderSelectRecepcionistas();
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       CORREO DE OUTLOOK — se genera un archivo .eml completo
+       ───────────────────────────────────────────────────────────────────────
+       Antes se usaba un enlace mailto:, pero cuando Outlook crea un mensaje por
+       esa vía con cuerpo incluido NO inserta la firma predeterminada, y el
+       protocolo solo admite texto plano (sin negrita ni subrayado).
+       Por eso ahora se arma el correo completo en formato MIME y se descarga
+       como .eml. La cabecera X-Unsent hace que Outlook lo abra en modo
+       redacción, listo para revisar y enviar, con:
+         · la firma del hotel incrustada (imagen inline por Content-ID),
+         · el aviso de vigencia en negrita y subrayado de verdad,
+         · asunto y copias ya puestos,
+         · y el PDF (o Word) de la cotización ya adjunto.
+       ═══════════════════════════════════════════════════════════════════════ */
+
+    // Imagen del banner de firma ("Recepción / Front desk") en base64, sin el
+    // prefijo "data:". Si se deja vacía, el correo usa la firma en texto.
+    const FIRMA_IMG_B64 = '';
+    const FIRMA_IMG_MIME = 'image/png';
+
+    // Firma en texto: se usa cuando no hay imagen cargada arriba.
+    const FIRMA_TEXTO_HTML =
+      '<p style="margin:0;font-size:10pt;color:#555;">' +
+        '<b>Recepción / Front desk</b><br>' +
+        '+56 9 4074 9693 &nbsp;·&nbsp; +56 55 2 538636<br>' +
+        'Calle Vicente Pérez Rosales 1A km 71.5, Las Cascadas, Puerto Octay<br>' +
+        'cascadashotel.cl &nbsp;·&nbsp; @cascadashotel' +
+      '</p>';
+
+    // Cuerpo del correo en HTML, con el mismo formato que se usa a mano.
+    function cuerpoCorreoHTML(payload, nombreRecepcionista) {
+      let firma = FIRMA_IMG_B64
+        ? '<p style="margin:0;"><img src="cid:firmacascadas" alt="Cascadas Hotel — Recepción" style="border:0;display:block;"></p>'
+        : FIRMA_TEXTO_HTML;
+      return '<html><head><meta charset="utf-8"></head><body style="margin:0;">' +
+        '<div style="font-family:Aptos,Calibri,\'Segoe UI\',sans-serif;font-size:11pt;color:#000000;">' +
+          '<p style="margin:0 0 11pt 0;">' + escTx(payload.saludo) + ' ' + escTx(payload.nombre_cliente) + ',</p>' +
+          '<p style="margin:0;">Junto con saludar y agradeciendo su contacto, adjunto encontrará información acorde a servicios solicitados.</p>' +
+          '<p style="margin:0 0 11pt 0;"><b><u>Esta cotización no garantiza el bloqueo de habitaciones, tiene una vigencia de 5 días y está sujeta a disponibilidad al momento de su envío.</u></b></p>' +
+          '<p style="margin:0 0 11pt 0;">Quedamos atentos</p>' +
+          '<p style="margin:0 0 11pt 0;">Se despide cordialmente</p>' +
+          '<p style="margin:0 0 14pt 0;">' + escTx(nombreRecepcionista) + '.</p>' +
+          firma +
+        '</div></body></html>';
+    }
+
+    // Cuerpo en texto plano; se conserva por si alguna vez se necesita volver
+    // al método anterior con mailto.
+    function cuerpoCorreoOutlookDe(payload, nombreRecepcionista) {
+      return payload.saludo + ' ' + payload.nombre_cliente + ',\n\n' +
+        'Junto con saludar y agradeciendo su contacto, adjunto encontrará información acorde a servicios solicitados.\n' +
+        'Esta cotización no garantiza el bloqueo de habitaciones, tiene una vigencia de 5 días y está sujeta a disponibilidad al momento de su envío.\n\n' +
+        'Quedamos atentos\n\n' +
+        'Se despide cordialmente\n\n' +
+        nombreRecepcionista + '.';
+    }
+
+    /* ---------- utilidades MIME ---------- */
+    // base64 de un texto UTF-8 (btoa por sí solo falla con acentos).
+    function _b64Utf8(s) { return btoa(unescape(encodeURIComponent(s))); }
+    // MIME exige líneas de máximo 76 caracteres.
+    function _wrap76(b64) { return (String(b64).match(/.{1,76}/g) || []).join('\r\n'); }
+    // El asunto se codifica solo si lleva acentos u otros caracteres no ASCII.
+    function _asuntoMime(s) {
+      return /^[\x20-\x7E]*$/.test(s) ? s : '=?UTF-8?B?' + _b64Utf8(s) + '?=';
+    }
+    // Nombres de archivo sin acentos, para que ningún cliente los rompa.
+    function _nombreAscii(s) {
+      return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '');
+    }
+
+    /**
+     * Arma el mensaje MIME completo.
+     * Estructura: multipart/mixed → [ multipart/related → (html + imagen) , adjunto ]
+     * Cada nivel se omite si no hace falta.
+     */
+    function construirEml(o) {
+      const NL = '\r\n';
+      const mix = 'MIX-' + Date.now().toString(36);
+      const rel = 'REL-' + (Date.now() + 7).toString(36);
+      const hayImg = !!FIRMA_IMG_B64;
+      const adj = o.adjunto;
+      const hayAdj = !!(adj && adj.b64);
+
+      const parteHtml =
+        'Content-Type: text/html; charset="UTF-8"' + NL +
+        'Content-Transfer-Encoding: base64' + NL + NL +
+        _wrap76(_b64Utf8(o.html));
+
+      // El cuerpo visible: solo HTML, o HTML + imagen dentro de multipart/related.
+      let cuerpo = parteHtml, tipoCuerpo = null;
+      if (hayImg) {
+        tipoCuerpo = 'multipart/related; type="text/html"; boundary="' + rel + '"';
+        cuerpo =
+          'Content-Type: ' + tipoCuerpo + NL + NL +
+          '--' + rel + NL + parteHtml + NL +
+          '--' + rel + NL +
+            'Content-Type: ' + FIRMA_IMG_MIME + '; name="firma.png"' + NL +
+            'Content-Transfer-Encoding: base64' + NL +
+            'Content-ID: <firmacascadas>' + NL +
+            'Content-Disposition: inline; filename="firma.png"' + NL + NL +
+            _wrap76(FIRMA_IMG_B64) + NL +
+          '--' + rel + '--';
+      }
+
+      const cab = ['MIME-Version: 1.0'];
+      if (o.cc) cab.push('Cc: ' + o.cc);
+      cab.push('Subject: ' + _asuntoMime(o.asunto));
+      cab.push('X-Unsent: 1');   // Outlook lo abre como borrador editable
+
+      if (hayAdj) {
+        const nom = _nombreAscii(adj.nombre);
+        const parteAdj =
+          'Content-Type: ' + adj.mime + '; name="' + nom + '"' + NL +
+          'Content-Transfer-Encoding: base64' + NL +
+          'Content-Disposition: attachment; filename="' + nom + '"' + NL + NL +
+          _wrap76(adj.b64);
+        cab.push('Content-Type: multipart/mixed; boundary="' + mix + '"');
+        return cab.join(NL) + NL + NL +
+          '--' + mix + NL + cuerpo + NL +
+          '--' + mix + NL + parteAdj + NL +
+          '--' + mix + '--' + NL;
+      }
+
+      if (hayImg) return cab.join(NL) + NL + cuerpo + NL;
+      cab.push('Content-Type: text/html; charset="UTF-8"');
+      cab.push('Content-Transfer-Encoding: base64');
+      return cab.join(NL) + NL + NL + _wrap76(_b64Utf8(o.html)) + NL;
+    }
+
+    function descargarEml(texto, nombreArchivo) {
+      let blob = new Blob([texto], { type: 'message/rfc822' });
+      let url = URL.createObjectURL(blob);
+      let a = document.createElement('a');
+      a.href = url; a.download = nombreArchivo;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function() { URL.revokeObjectURL(url); }, 4000);
+    }
+
+    function abrirCorreoOutlook() {
+      if (!payloadParaWhatsApp) return;
+      _renderSelectRecepcionistas(localStorage.getItem('cotizador_recepcionista_actual') || '');
+      document.getElementById('modal-recepcionista').style.display = 'flex';
+    }
+    function cerrarModalRecepcionista() {
+      document.getElementById('modal-recepcionista').style.display = 'none';
+    }
+    function continuarCorreoOutlook() {
+      let nombre = document.getElementById('selRecepcionista').value || '';
+      if (!nombre) { mostrarToast('error', 'Agrega o elige un nombre de recepcionista primero.'); return; }
+      localStorage.setItem('cotizador_recepcionista_actual', nombre);
+      cerrarModalRecepcionista();
+      let payload = payloadParaWhatsApp;
+      let checkinTx = (payload.checkin || '').replace(/\//g, '-');
+      let asunto = 'Cascadas Hotel / Cot. ' + checkinTx + ' ' + payload.nombre_cliente;
+
+      let eml;
+      try {
+        eml = construirEml({
+          asunto: asunto,
+          cc: 'npizarro@cascadashotel.cl, administracion@cascadashotel.cl',
+          html: cuerpoCorreoHTML(payload, nombre),
+          adjunto: adjuntoParaCorreo
+        });
+      } catch(e) {
+        mostrarToast('error', 'No se pudo generar el correo: ' + e);
+        return;
+      }
+      descargarEml(eml, 'Correo cotizacion ' + _nombreAscii(payload.nombre_cliente || 'cliente') + '.eml');
+      mostrarToast('exito', 'Correo generado. Abre el archivo descargado: Outlook lo mostrará listo para enviar.');
+    }
+
+    // ═══════════════════════════════════════════════════════════
     //  BUSCADOR DE COTIZACIONES
     // ═══════════════════════════════════════════════════════════
     function abrirBuscador() {
@@ -2811,6 +3069,13 @@ function refrescarDatosServidor() {
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
             setTimeout(function() { URL.revokeObjectURL(url); }, 4000);
             payloadParaWhatsApp = payload;
+            // Guarda el Word para poder adjuntarlo al correo de Outlook.
+            let lector = new FileReader();
+            lector.onload = function() {
+              adjuntoParaCorreo = { b64: String(lector.result).split(',')[1], nombre: nombre,
+                mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
+            };
+            lector.readAsDataURL(blob);
             // registrar en Historial (sin respaldo PDF)
             google.script.run
               .withSuccessHandler(function(res) {

@@ -438,6 +438,52 @@ function _asegurarColumnaVisibleServicios() {
 }
 
 /**
+ * Auto-reparacion: asegura que la hoja Servicios tenga la columna
+ * AnticipoMinimoHoras (regla opcional, activable por servicio: "solo se
+ * puede reservar con N horas de anticipacion"). 0 = sin restriccion (valor
+ * por defecto para no afectar servicios existentes). La primera vez que se
+ * crea la columna, deja Masajes (S007) en 12 horas, que es la regla que
+ * pidio el hotel para ese servicio; el resto queda en 0 (sin restriccion)
+ * y se puede activar desde el editor de servicios cuando haga falta.
+ */
+function _asegurarColumnaAnticipoServicios() {
+  var hoja = _hoja(HOJAS.SERVICIOS);
+  var encabezados = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0];
+  var yaExistia = encabezados.indexOf('AnticipoMinimoHoras') !== -1;
+  _asegurarColumna(hoja, 'AnticipoMinimoHoras', 0);
+  if (!yaExistia) {
+    var datos = hoja.getDataRange().getValues();
+    var col = _indiceColumna(hoja, 'AnticipoMinimoHoras') + 1;
+    for (var i = 1; i < datos.length; i++) {
+      if (datos[i][0] === 'S007') hoja.getRange(i + 1, col).setValue(12);
+    }
+  }
+}
+
+/**
+ * Auto-reparacion: asegura que la hoja Servicios tenga la columna
+ * PermiteParticipantes (activa por servicio la opcion de ir sumando una lista
+ * de personas a la reserva, ej. una salida de trekking). FALSE por defecto:
+ * solo los servicios donde el hotel lo active mostraran el boton de
+ * participantes. No afecta a los servicios existentes.
+ */
+function _asegurarColumnaParticipantesServicios() {
+  _asegurarColumna(_hoja(HOJAS.SERVICIOS), 'PermiteParticipantes', 'FALSE');
+}
+
+/**
+ * Auto-reparacion: asegura la columna AvisoReserva en Servicios. Es un texto
+ * opcional (ej. politica de cancelacion) que, si esta lleno, se le muestra al
+ * huesped como pop-up "De acuerdo" antes de confirmar la reserva de ese
+ * servicio. Vacio por defecto = sin aviso. Lo usan Masajes/Tinaja, etc.
+ */
+function _asegurarColumnaAvisoServicios() {
+  var hoja = _hoja(HOJAS.SERVICIOS);
+  _asegurarColumna(hoja, 'AvisoReserva', '');
+  _asegurarColumna(hoja, 'AvisoReservaEN', '');
+}
+
+/**
  * Escribe un valor en una columna por nombre, solo si la columna existe.
  * Evita romper hojas que aun no tengan la columna bilingue.
  */
@@ -513,6 +559,7 @@ var HOJAS = {
   DETALLE_PEDIDOS: 'DetallePedidos',
   USUARIOS: 'Usuarios',
   EVENTOS_BLOQUEOS: 'EventosBloqueos',
+  PARTICIPANTES: 'Participantes',
   NOTIFICACIONES: 'Notificaciones',
   DISPONIBILIDAD_PERSONAL: 'DisponibilidadPersonal',
   LOG: 'LogActividad',
@@ -807,6 +854,9 @@ function _recargoHabitacion() {
  */
 function obtenerServiciosActivos() {
   _asegurarColumnaVisibleServicios();
+  _asegurarColumnaAnticipoServicios();
+  _asegurarColumnaParticipantesServicios();
+  _asegurarColumnaAvisoServicios();
   return _leerHojaComoObjetos(HOJAS.SERVICIOS).filter(function (s) {
     return _aBooleano(s.Activo);
   }).map(_normalizarServicio);
@@ -837,7 +887,11 @@ function _normalizarServicio(s) {
     Icono: s.Icono ? String(s.Icono) : '',
     Variantes: _parsearVariantes(s.Variantes),
     UsoExclusivo: _aBooleano(s.UsoExclusivo),
-    Color: s.Color ? String(s.Color) : ''
+    Color: s.Color ? String(s.Color) : '',
+    AnticipoMinimoHoras: Number(s.AnticipoMinimoHoras) || 0,
+    PermiteParticipantes: _aBooleano(s.PermiteParticipantes),
+    AvisoReserva: s.AvisoReserva ? String(s.AvisoReserva) : '',
+    AvisoReservaEN: s.AvisoReservaEN ? String(s.AvisoReservaEN) : ''
   };
 }
 
@@ -881,6 +935,9 @@ function _serializarVariantes(variantes) {
 /** Devuelve un servicio normalizado por ID (o null). */
 function _obtenerServicio(servicioID) {
   _asegurarColumnaVisibleServicios();
+  _asegurarColumnaAnticipoServicios();
+  _asegurarColumnaParticipantesServicios();
+  _asegurarColumnaAvisoServicios();
   var filas = _leerHojaComoObjetos(HOJAS.SERVICIOS);
   for (var i = 0; i < filas.length; i++) {
     if (filas[i].ID === servicioID) return _normalizarServicio(filas[i]);
@@ -1218,6 +1275,26 @@ function _minutosAhoraLocal() {
   return _horaAMinutos(hhmm);
 }
 
+/** Dias de diferencia entre dos fechas "YYYY-MM-DD" (hastaISO - desdeISO). */
+function _diasEntreISO(desdeISO, hastaISO) {
+  var d1 = new Date(desdeISO + 'T00:00:00Z');
+  var d2 = new Date(hastaISO + 'T00:00:00Z');
+  return Math.round((d2.getTime() - d1.getTime()) / 86400000);
+}
+
+/**
+ * Horas (puede ser fraccion o negativo) entre ahora y una fecha+hora de
+ * reserva, segun la zona horaria del script. Se usa para la regla de
+ * "anticipo minimo" por servicio (ej. Masajes: 12 horas).
+ */
+function _horasHastaReserva(fechaISO, horaInicio) {
+  var hoy = _fechaISO(new Date());
+  var diffDias = _diasEntreISO(hoy, fechaISO);
+  var minutosReserva = _horaAMinutos(horaInicio);
+  var ahoraMin = _minutosAhoraLocal();
+  return diffDias * 24 + (minutosReserva - ahoraMin) / 60;
+}
+
 /** Reservas activas (no canceladas) del dia para un servicio. */
 function _reservasActivasDelDia(servicioID, fecha) {
   return _leerHojaComoObjetos(HOJAS.RESERVAS).filter(function (r) {
@@ -1265,10 +1342,27 @@ function _personasOcupadasEnBloque(reservas, ini, fin) {
   return total;
 }
 
+/**
+ * Decide si un bloqueo/evento afecta a un servicio dado, segun su campo
+ * ServicioID (que ahora admite varios alcances):
+ *   - vacio          -> bloquea TODOS los servicios (compatibilidad + "todos").
+ *   - 'NINGUNO'      -> es solo un evento, no bloquea ningun servicio.
+ *   - 'S001,S003...' -> bloquea SOLO esos servicios (lista separada por comas).
+ * @param {string} bServicioID Valor crudo de la columna ServicioID del bloqueo.
+ * @param {string} servicioID  Servicio contra el que se evalua.
+ * @return {boolean}
+ */
+function _bloqueoAplicaAServicio(bServicioID, servicioID) {
+  var raw = bServicioID === null || bServicioID === undefined ? '' : String(bServicioID).trim();
+  if (raw === '') return true;          // todos
+  if (raw === 'NINGUNO') return false;  // evento que no bloquea nada
+  return raw.split(',').map(function (s) { return s.trim(); }).indexOf(servicioID) !== -1;
+}
+
 /** Bloqueos que aplican a un servicio (o a todos) en una fecha. */
 function _bloqueosDelDia(servicioID, fecha) {
   return _leerHojaComoObjetos(HOJAS.EVENTOS_BLOQUEOS).filter(function (b) {
-    var aplicaServicio = !b.ServicioID || b.ServicioID === servicioID;
+    var aplicaServicio = _bloqueoAplicaAServicio(b.ServicioID, servicioID);
     var desde = _fechaISO(b.FechaInicio);
     var hasta = _fechaISO(b.FechaFin || b.FechaInicio);
     return aplicaServicio && fecha >= desde && fecha <= hasta;
@@ -1339,6 +1433,17 @@ function crearReserva(datos) {
       limite.setDate(limite.getDate() + maxDias);
       if (fecha > _fechaISO(limite)) {
         return { success: false, mensaje: 'Solo puedes reservar hasta ' + maxDias + ' dias desde hoy. Para fechas mas lejanas, consulta en recepcion.' };
+      }
+    }
+
+    // Regla configurable por servicio: reservar con un minimo de horas de
+    // anticipacion (ej. Masajes = 12h). Se activa/desactiva por servicio
+    // (AnticipoMinimoHoras = 0 significa sin restriccion). No aplica al
+    // personal, que puede agendar en el momento desde el Centro de Operaciones.
+    if (!esStaff && servicio.AnticipoMinimoHoras > 0) {
+      var horasFaltantes = _horasHastaReserva(fecha, datos.horaInicio);
+      if (horasFaltantes < servicio.AnticipoMinimoHoras) {
+        return { success: false, mensaje: 'Este servicio requiere reservar con al menos ' + servicio.AnticipoMinimoHoras + ' horas de anticipacion.' };
       }
     }
 
@@ -2131,12 +2236,24 @@ function obtenerDatosOperaciones(fecha) {
   var todasReservas = _leerHojaComoObjetos(HOJAS.RESERVAS);
 
   var estadosProximas = [ESTADOS.SOLICITADA, ESTADOS.PENDIENTE, ESTADOS.CONFIRMADA];
+  // Rango de eventos "por venir": desde hoy hasta un ano hacia adelante. Es
+  // independiente del dia que este mirando el staff, para que el widget
+  // "Reservas por venir" muestre siempre los eventos futuros.
+  var hoy = _fechaISO(new Date());
+  var lejano = new Date();
+  lejano.setFullYear(lejano.getFullYear() + 1);
   return {
     centro: obtenerCentroOperaciones(fecha, todasReservas),
     agotados: obtenerProductosAgotados(),
     reservasProximas: _construirReservas({ estados: estadosProximas }, todasReservas),
-    // Bloqueos/eventos que caen en este dia, para mostrarlos como burbujas.
-    eventos: obtenerBloqueos(fecha, fecha, '')
+    // Bloqueos/eventos que caen en el dia seleccionado, para las burbujas de "hoy".
+    eventos: obtenerBloqueos(fecha, fecha, ''),
+    // Eventos futuros (desde hoy) para el widget "Reservas por venir", sin
+    // importar que dia se este mirando en el Centro de Operaciones.
+    eventosProximos: obtenerBloqueos(hoy, _fechaISO(lejano), ''),
+    // Participantes por reserva/evento, para mostrarlos dentro de cada burbuja
+    // sin una llamada extra por cada una.
+    participantes: _mapaParticipantes()
   };
 }
 
@@ -2157,6 +2274,17 @@ function _generarAlertasCapacidad(reservasDelDia, servicios) {
     var partes = clave.split('|');
     var serv = servicios[partes[0]];
     if (!serv) return;
+    // Servicios de uso exclusivo (ej. Tinaja, Masajes) se reservan enteros:
+    // una sola reserva ocupa todo el horario sin importar cuantas personas
+    // asistan (2 personas en una tinaja de 4 igual la dejan tomada por
+    // completo). Ahi no existe un "quedan X cupos" parcial: o esta libre o
+    // esta ocupada.
+    if (_esServicioExclusivo(serv)) {
+      if (mapa[clave] > 0) {
+        alertas.push('Sin cupos para ' + serv.Nombre + ' a las ' + partes[1] + ' (uso exclusivo).');
+      }
+      return;
+    }
     var restante = serv.Capacidad - mapa[clave];
     if (restante <= 2 && restante > 0) {
       alertas.push('Quedan ' + restante + ' cupos para ' + serv.Nombre + ' a las ' + partes[1] + '.');
@@ -2303,6 +2431,12 @@ function marcarTodasNotificacionesLeidas(rol) {
 // 6.6. BLOQUEOS Y EVENTOS
 // ===========================================================================
 
+/** Auto-reparacion: asegura la columna Notas en EventosBloqueos (nota o
+ *  descripcion libre del evento/bloqueo). Vacia por defecto. */
+function _asegurarColumnaNotasEventos() {
+  _asegurarColumna(_hoja(HOJAS.EVENTOS_BLOQUEOS), 'Notas', '');
+}
+
 /**
  * Devuelve bloqueos en un rango que afecten a un servicio (o todos).
  * @param {string} fechaInicio
@@ -2311,6 +2445,7 @@ function marcarTodasNotificacionesLeidas(rol) {
  * @return {Array<Object>}
  */
 function obtenerBloqueos(fechaInicio, fechaFin, servicioID) {
+  _asegurarColumnaNotasEventos();
   var desde = _fechaISO(fechaInicio);
   var hasta = _fechaISO(fechaFin);
   return _leerHojaComoObjetos(HOJAS.EVENTOS_BLOQUEOS).filter(function (b) {
@@ -2318,18 +2453,19 @@ function obtenerBloqueos(fechaInicio, fechaFin, servicioID) {
     var bHasta = _fechaISO(b.FechaFin || b.FechaInicio);
     // Solapamiento de rangos.
     if (bHasta < desde || bDesde > hasta) return false;
-    if (servicioID && b.ServicioID && b.ServicioID !== servicioID) return false;
+    if (servicioID && !_bloqueoAplicaAServicio(b.ServicioID, servicioID)) return false;
     return true;
   }).map(function (b) {
     return {
       ID: b.ID,
       Tipo: b.Tipo,
-      ServicioID: b.ServicioID,
+      ServicioID: b.ServicioID ? String(b.ServicioID) : '',
       FechaInicio: _fechaISO(b.FechaInicio),
       FechaFin: _fechaISO(b.FechaFin || b.FechaInicio),
       HoraInicio: _horaATexto(b.HoraInicio),
       HoraFin: _horaATexto(b.HoraFin),
       Motivo: b.Motivo,
+      Notas: b.Notas ? String(b.Notas) : '',
       CreadoPor: b.CreadoPor,
       Timestamp: _fechaHoraTexto(b.Timestamp)
     };
@@ -2347,12 +2483,20 @@ function crearBloqueo(datos) {
   }
   if (!datos.fechaInicio) return { success: false, mensaje: 'Falta la fecha de inicio.' };
 
+  _asegurarColumnaNotasEventos();
+  var hoja = _hoja(HOJAS.EVENTOS_BLOQUEOS);
   var id = generarID();
-  _hoja(HOJAS.EVENTOS_BLOQUEOS).appendRow([
+  hoja.appendRow([
     id, datos.tipo || 'Bloqueo', datos.servicioID || '', _fechaISO(datos.fechaInicio),
     _fechaISO(datos.fechaFin || datos.fechaInicio), datos.horaInicio || '', datos.horaFin || '',
     datos.motivo || '', datos.email || '', new Date()
   ]);
+  // La nota va por nombre de columna (la columna Notas se agrego despues del
+  // orden posicional original de la hoja).
+  if (datos.notas) {
+    var colNotas = _indiceColumna(hoja, 'Notas');
+    if (colNotas !== -1) hoja.getRange(hoja.getLastRow(), colNotas + 1).setValue(datos.notas);
+  }
   registrarLog('Crear bloqueo', datos.tipo + ' ' + (datos.servicioID || 'TODOS'), '');
   return { success: true, id: id, mensaje: 'Bloqueo creado.' };
 }
@@ -2368,6 +2512,7 @@ function editarBloqueo(datos) {
   if (!datos.id) return { success: false, mensaje: 'Falta el bloqueo a editar.' };
   if (!datos.fechaInicio) return { success: false, mensaje: 'Falta la fecha de inicio.' };
 
+  _asegurarColumnaNotasEventos();
   var hoja = _hoja(HOJAS.EVENTOS_BLOQUEOS);
   var filas = _leerHojaComoObjetos(HOJAS.EVENTOS_BLOQUEOS);
   var fila = filas.filter(function (b) { return b.ID === datos.id; })[0];
@@ -2384,6 +2529,7 @@ function editarBloqueo(datos) {
   set('HoraInicio', datos.horaInicio || '');
   set('HoraFin', datos.horaFin || '');
   set('Motivo', datos.motivo || '');
+  set('Notas', datos.notas || '');
   registrarLog('Editar bloqueo', datos.tipo + ' ' + (datos.servicioID || 'TODOS'), '');
   return { success: true, mensaje: 'Bloqueo actualizado.' };
 }
@@ -2399,6 +2545,143 @@ function eliminarBloqueo(id, email) {
   hoja.deleteRow(fila._fila);
   registrarLog('Eliminar bloqueo', id, '');
   return { success: true, mensaje: 'Bloqueo eliminado.' };
+}
+
+// ===========================================================================
+// 6.6.b PARTICIPANTES (reservas de servicios y eventos)
+// ===========================================================================
+// Lista libre de personas que se van sumando a una reserva de servicio o a un
+// evento (ej. una salida de trekking agendada a cierta hora, donde se anota
+// gente de a poco). Solo lo maneja el personal, el huesped no la ve ni la
+// edita. tipo: 'reserva' (Reservas.ID) o 'evento' (EventosBloqueos.ID).
+
+/** Auto-reparacion: crea la hoja Participantes si todavia no existe, y le
+ *  asegura la columna Notas (agregada despues de la primera version). */
+function _asegurarHojaParticipantes() {
+  var ss = _ss();
+  var hoja = ss.getSheetByName(HOJAS.PARTICIPANTES);
+  if (!hoja) {
+    hoja = ss.insertSheet(HOJAS.PARTICIPANTES);
+    hoja.getRange(1, 1, 1, 9).setValues([[
+      'ID', 'Tipo', 'RefID', 'Nombre', 'Telefono', 'Habitacion', 'Notas', 'AgregadoPor', 'Timestamp'
+    ]]);
+    hoja.setFrozenRows(1);
+    return;
+  }
+  _asegurarColumna(hoja, 'Notas', '');
+}
+
+/**
+ * Devuelve los participantes de una reserva o evento. Solo personal.
+ * @param {string} tipo 'reserva' o 'evento'.
+ * @param {string} refID ID de la reserva o del evento/bloqueo.
+ * @param {string} email
+ * @return {Array<Object>}
+ */
+function obtenerParticipantes(tipo, refID, email) {
+  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) return [];
+  _asegurarHojaParticipantes();
+  return _leerHojaComoObjetos(HOJAS.PARTICIPANTES).filter(function (p) {
+    return p.Tipo === tipo && p.RefID === refID;
+  }).map(_normalizarParticipante);
+}
+
+/** Normaliza una fila de participante a objeto transferible al cliente. */
+function _normalizarParticipante(p) {
+  return {
+    ID: p.ID,
+    Nombre: p.Nombre ? String(p.Nombre) : '',
+    Telefono: p.Telefono ? String(p.Telefono) : '',
+    Habitacion: p.Habitacion ? String(p.Habitacion) : '',
+    Notas: p.Notas ? String(p.Notas) : ''
+  };
+}
+
+/**
+ * Mapa de TODOS los participantes agrupados por RefID (reserva o evento). Se usa
+ * para que el Centro de Operaciones muestre la lista dentro de cada burbuja sin
+ * una llamada por reserva. Clave = RefID. NO lee la hoja si aun no existe.
+ * @return {Object} { refID: [ {ID, Nombre, Telefono, Habitacion, Notas} ] }
+ */
+function _mapaParticipantes() {
+  var ss = _ss();
+  if (!ss.getSheetByName(HOJAS.PARTICIPANTES)) return {};
+  var mapa = {};
+  _leerHojaComoObjetos(HOJAS.PARTICIPANTES).forEach(function (p) {
+    if (!p.RefID) return;
+    if (!mapa[p.RefID]) mapa[p.RefID] = [];
+    mapa[p.RefID].push(_normalizarParticipante(p));
+  });
+  return mapa;
+}
+
+/**
+ * Agrega un participante a una reserva o evento. Solo personal.
+ * @param {Object} datos {tipo, refID, nombre, telefono, habitacion, notas, email}
+ * @return {Object} {success, mensaje}
+ */
+function agregarParticipante(datos) {
+  if (!_validarRolPermitido(datos.email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
+    return { success: false, mensaje: 'No tienes permisos para agregar participantes.' };
+  }
+  if (!datos.tipo || !datos.refID) return { success: false, mensaje: 'Falta la reserva o el evento.' };
+  if (!datos.nombre) return { success: false, mensaje: 'Falta el nombre del participante.' };
+  _asegurarHojaParticipantes();
+  var hoja = _hoja(HOJAS.PARTICIPANTES);
+  var id = generarID();
+  // Escribe respetando el orden real de columnas (la hoja puede haber sido
+  // creada antes de agregar "Notas", ya reparada por _asegurarHojaParticipantes).
+  var encabezados = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0];
+  var valores = {
+    ID: id, Tipo: datos.tipo, RefID: datos.refID, Nombre: datos.nombre,
+    Telefono: datos.telefono || '', Habitacion: datos.habitacion || '',
+    Notas: datos.notas || '', AgregadoPor: datos.email || '', Timestamp: new Date()
+  };
+  var fila = encabezados.map(function (col) { return valores[col] !== undefined ? valores[col] : ''; });
+  hoja.appendRow(fila);
+  registrarLog('Agregar participante', datos.nombre, datos.habitacion || '');
+  return { success: true, mensaje: 'Participante agregado.' };
+}
+
+/**
+ * Edita un participante existente. Solo personal.
+ * @param {Object} datos {id, nombre, telefono, habitacion, notas, email}
+ * @return {Object} {success, mensaje}
+ */
+function editarParticipante(datos) {
+  if (!_validarRolPermitido(datos.email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
+    return { success: false, mensaje: 'No tienes permisos para editar participantes.' };
+  }
+  if (!datos.id) return { success: false, mensaje: 'Falta el participante a editar.' };
+  if (!datos.nombre) return { success: false, mensaje: 'Falta el nombre del participante.' };
+  _asegurarHojaParticipantes();
+  var hoja = _hoja(HOJAS.PARTICIPANTES);
+  var fila = _leerHojaComoObjetos(HOJAS.PARTICIPANTES).filter(function (p) { return p.ID === datos.id; })[0];
+  if (!fila) return { success: false, mensaje: 'Participante no encontrado.' };
+  var set = function (col, val) {
+    var i = _indiceColumna(hoja, col);
+    if (i !== -1) hoja.getRange(fila._fila, i + 1).setValue(val);
+  };
+  set('Nombre', datos.nombre);
+  set('Telefono', datos.telefono || '');
+  set('Habitacion', datos.habitacion || '');
+  set('Notas', datos.notas || '');
+  registrarLog('Editar participante', datos.nombre, datos.habitacion || '');
+  return { success: true, mensaje: 'Participante actualizado.' };
+}
+
+/** Elimina un participante. Solo personal. */
+function eliminarParticipante(participanteID, email) {
+  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
+    return { success: false, mensaje: 'No tienes permisos para quitar participantes.' };
+  }
+  _asegurarHojaParticipantes();
+  var hoja = _hoja(HOJAS.PARTICIPANTES);
+  var fila = _leerHojaComoObjetos(HOJAS.PARTICIPANTES).filter(function (p) { return p.ID === participanteID; })[0];
+  if (!fila) return { success: false, mensaje: 'Participante no encontrado.' };
+  hoja.deleteRow(fila._fila);
+  registrarLog('Quitar participante', participanteID, '');
+  return { success: true, mensaje: 'Participante eliminado.' };
 }
 
 // ===========================================================================
@@ -2828,6 +3111,9 @@ function actualizarConfiguracion(clave, valor, email) {
  */
 function obtenerServiciosGestion() {
   _asegurarColumnaVisibleServicios();
+  _asegurarColumnaAnticipoServicios();
+  _asegurarColumnaParticipantesServicios();
+  _asegurarColumnaAvisoServicios();
   return _leerHojaComoObjetos(HOJAS.SERVICIOS).map(_normalizarServicio);
 }
 
@@ -2844,6 +3130,9 @@ function guardarServicioConfig(datos, email) {
     return { success: false, mensaje: 'No tienes permisos para editar servicios.' };
   }
   _asegurarColumnaVisibleServicios();
+  _asegurarColumnaAnticipoServicios();
+  _asegurarColumnaParticipantesServicios();
+  _asegurarColumnaAvisoServicios();
   var hoja = _hoja(HOJAS.SERVICIOS);
   var filas = _leerHojaComoObjetos(HOJAS.SERVICIOS);
   for (var i = 0; i < filas.length; i++) {
@@ -2871,6 +3160,9 @@ function guardarServicioNuevo(datos, email) {
   if (!datos.nombre) return { success: false, mensaje: 'El nombre es obligatorio.' };
 
   _asegurarColumnaVisibleServicios();
+  _asegurarColumnaAnticipoServicios();
+  _asegurarColumnaParticipantesServicios();
+  _asegurarColumnaAvisoServicios();
   var hoja = _hoja(HOJAS.SERVICIOS);
   // Genera el proximo ID S00X.
   var max = 0;
@@ -2924,6 +3216,10 @@ function _escribirCamposServicio(hoja, fila, datos) {
   if (datos.visible !== undefined) set('Visible', datos.visible ? 'TRUE' : 'FALSE');
   if (datos.variantes !== undefined) setHora('Variantes', _serializarVariantes(datos.variantes));
   if (datos.color !== undefined) set('Color', datos.color || '');
+  if (datos.anticipoMinimoHoras !== undefined) set('AnticipoMinimoHoras', Number(datos.anticipoMinimoHoras) || 0);
+  if (datos.permiteParticipantes !== undefined) set('PermiteParticipantes', datos.permiteParticipantes ? 'TRUE' : 'FALSE');
+  if (datos.avisoReserva !== undefined) set('AvisoReserva', datos.avisoReserva || '');
+  if (datos.avisoReservaEN !== undefined) set('AvisoReservaEN', datos.avisoReservaEN || '');
 }
 
 // ===========================================================================

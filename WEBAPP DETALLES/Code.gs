@@ -3,15 +3,15 @@
  * CASCADAS HOTEL — DETALLES CASCADAS
  * ============================================================================
  * Generador de tarjetas de atencion (aniversario, cumpleanos, bienvenida,
- * estadia de regalo, gift card de noches, welcome drink, disculpas, etc.)
- * y cupones canjeables. Cada tarjeta se arma en el navegador y se descarga
- * como PDF listo para imprimir en formato diptico pequeno ("French fold"):
- * se imprime por UNA sola cara, se dobla dos veces y queda una tarjeta A6
- * que se abre como tarjeta de saludo. Al ser una sola cara no hay problema
- * de alineacion frente/reverso.
+ * estadia de regalo, gift card de noches, welcome drink, etc.) y cupones
+ * canjeables. Cada tarjeta/cupon se arma y se descarga como PDF en el
+ * navegador, sin pasar por planilla.
  *
- * No usa planilla: no guarda datos, todo se genera al momento. Por eso el
- * unico punto de entrada es doGet (sirve el Index) — no hay backend de datos.
+ * La UNICA excepcion es la Gift Card: cada vez que se genera una, sus datos
+ * (codigo, noches, vigencia, para/de, fecha) se guardan en una planilla para
+ * poder llevar registro de las que se han emitido. La planilla se crea sola
+ * la primera vez que se guarda una Gift Card (no hace falta configurar nada
+ * a mano): el ID queda guardado en las Propiedades del Script.
  * ============================================================================
  */
 
@@ -24,4 +24,74 @@ function doGet() {
 
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+// ---------------------------------------------------------------------------
+// PLANILLA DE GIFT CARDS EMITIDAS (se crea sola la primera vez)
+// ---------------------------------------------------------------------------
+var GIFTCARDS_HOJA = 'GiftCards';
+var GIFTCARDS_ENCABEZADOS = [
+  'Codigo', 'FechaEmision', 'Noches', 'VigenciaMeses', 'MesesValidos', 'Inclusiones',
+  'Para', 'De', 'Idioma', 'Mensaje'
+];
+
+function _ssDetalles() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty('DETALLES_SPREADSHEET_ID');
+  if (id) {
+    try { return SpreadsheetApp.openById(id); } catch (e) { /* si la borraron, se crea otra abajo */ }
+  }
+  var ss = SpreadsheetApp.create('Cascadas Hotel - Detalles Cascadas (Gift Cards)');
+  props.setProperty('DETALLES_SPREADSHEET_ID', ss.getId());
+  return ss;
+}
+
+function _hojaGiftCards() {
+  var ss = _ssDetalles();
+  var hoja = ss.getSheetByName(GIFTCARDS_HOJA);
+  if (!hoja) {
+    hoja = ss.insertSheet(GIFTCARDS_HOJA);
+    hoja.getRange(1, 1, 1, GIFTCARDS_ENCABEZADOS.length).setValues([GIFTCARDS_ENCABEZADOS]);
+    var rangoEnc = hoja.getRange(1, 1, 1, GIFTCARDS_ENCABEZADOS.length);
+    rangoEnc.setFontWeight('bold'); rangoEnc.setBackground('#414143'); rangoEnc.setFontColor('#FFFFFF');
+    hoja.setFrozenRows(1);
+    hoja.autoResizeColumns(1, GIFTCARDS_ENCABEZADOS.length);
+    var hojaDefault = ss.getSheetByName('Hoja 1') || ss.getSheetByName('Sheet1');
+    if (hojaDefault && ss.getSheets().length > 1) ss.deleteSheet(hojaDefault);
+  }
+  return hoja;
+}
+
+/**
+ * Guarda una Gift Card recien emitida. Se llama desde el navegador justo
+ * despues de generar el PDF. `datos` = {codigo, noches, vigencia,
+ * mesesValidos, inclusiones, destinatario, remitente, idioma, mensaje}.
+ */
+function guardarGiftCard(datos) {
+  var hoja = _hojaGiftCards();
+  hoja.appendRow([
+    datos.codigo || '', new Date(), datos.noches || '', datos.vigencia || '', datos.mesesValidos || '',
+    datos.inclusiones || '', datos.destinatario || '', datos.remitente || '',
+    datos.idioma || '', datos.mensaje || ''
+  ]);
+  return { ok: true };
+}
+
+/**
+ * Devuelve las Gift Cards emitidas, mas recientes primero (hasta `limite`).
+ */
+function listarGiftCards(limite) {
+  limite = limite || 50;
+  var hoja = _hojaGiftCards();
+  var datos = hoja.getDataRange().getValues();
+  if (datos.length < 2) return [];
+  var encabezados = datos[0];
+  var filas = datos.slice(1).map(function (fila) {
+    var obj = {};
+    for (var c = 0; c < encabezados.length; c++) obj[encabezados[c]] = fila[c];
+    if (obj.FechaEmision instanceof Date) obj.FechaEmision = Utilities.formatDate(obj.FechaEmision, Session.getScriptTimeZone() || 'America/Santiago', 'dd/MM/yyyy HH:mm');
+    return obj;
+  });
+  filas.reverse();
+  return filas.slice(0, limite);
 }

@@ -771,11 +771,13 @@
       }).join('');
     }
 
+    const COMENTARIOS_TOPE_COLAPSO = 5; // sobre esto, se muestran colapsados en la pagina
+
     function pintarSeccionTextos(d) {
       const cont = document.getElementById('seccionTextos');
       if (!d.textos || !d.textos.length) { cont.innerHTML = ''; return; }
-      cont.innerHTML = d.textos.filter(t => t.items.length).map(t => {
-        const cards = t.items.slice(0, 40).map(it => `
+      cont.innerHTML = d.textos.filter(t => t.items.length).map((t, idx) => {
+        const tarjeta = it => `
           <div class="comment">
             <div class="comment-meta">
               ${it.habitacion ? `<span class="comment-room">Hab. ${escHtml(it.habitacion)}</span>` : (it.nombre ? `<span class="comment-room">${escHtml(it.nombre)}</span>` : '')}
@@ -783,12 +785,34 @@
               ${it.puntuacionGeneral !== null ? `<span class="badge-score ${claseScore(it.puntuacionGeneral)}" style="margin-left:auto;">${it.puntuacionGeneral}</span>` : ''}
             </div>
             <p>${escHtml(it.texto)}</p>
-          </div>`).join('');
+          </div>`;
+        // En pantalla se muestran hasta 5; el resto queda colapsado tras un
+        // boton "Ver N mas". En el PDF salen todos igual (no depende de esto).
+        const visibles = t.items.slice(0, COMENTARIOS_TOPE_COLAPSO).map(tarjeta).join('');
+        const ocultos = t.items.slice(COMENTARIOS_TOPE_COLAPSO);
+        let extra = '';
+        if (ocultos.length) {
+          extra = `<div id="comentariosMas${idx}" class="comment-list oculto-com" style="display:none;">${ocultos.map(tarjeta).join('')}</div>` +
+            `<button type="button" class="btn-mini outline" style="margin-top:8px;" id="btnComentarios${idx}" onclick="toggleComentarios(${idx})">` +
+            `<i class="fa-solid fa-chevron-down"></i> Ver ${ocultos.length} comentario${ocultos.length > 1 ? 's' : ''} más</button>`;
+        }
         return `<div class="report-card">
           <div class="report-card-head"><h3>${escHtml(t.texto)}</h3><span class="q-count">${t.respuestas} resp.</span></div>
-          <div class="comment-list">${cards}</div>
+          <div class="comment-list">${visibles}</div>${extra}
         </div>`;
       }).join('');
+    }
+
+    function toggleComentarios(idx) {
+      const div = document.getElementById('comentariosMas' + idx);
+      const btn = document.getElementById('btnComentarios' + idx);
+      if (!div || !btn) return;
+      const abierto = div.style.display !== 'none';
+      div.style.display = abierto ? 'none' : 'flex';
+      const n = div.querySelectorAll('.comment').length;
+      btn.innerHTML = abierto
+        ? `<i class="fa-solid fa-chevron-down"></i> Ver ${n} comentario${n > 1 ? 's' : ''} más`
+        : `<i class="fa-solid fa-chevron-up"></i> Ver menos`;
     }
 
     function pintarTendencia(d) {
@@ -930,7 +954,7 @@
       if (y > pageHeight - 24) { doc.addPage(); y = 16; }
       doc.setFontSize(10); doc.setTextColor(58, 58, 60); doc.setFont(undefined, 'bold');
       doc.text(t.texto, x, y, { maxWidth: w }); y += 6;
-      t.items.slice(0, 8).forEach(it => {
+      t.items.forEach(it => {
         const linea = (it.habitacion ? 'Hab. ' + it.habitacion : (it.nombre || '')) + ' — ' + it.fecha +
           (it.puntuacionGeneral !== null ? ' — Puntuación ' + it.puntuacionGeneral : '');
         const wrapped = doc.splitTextToSize(it.texto, w - 4);
@@ -964,21 +988,41 @@
         doc.setFontSize(10); doc.setTextColor(110, 108, 105); doc.setFont(undefined, 'normal');
         doc.text('Encuesta de Satisfacción — ' + desde + ' al ' + hasta, pageWidth / 2, 17, { align: 'center' });
 
+        // Continua en la misma hoja si hay espacio; solo salta de pagina si el
+        // bloque no cabe. Evita el "una pregunta por hoja" con mucho espacio en
+        // blanco. Devuelve la nueva y (16 si abrio pagina nueva).
+        const asegurarEspacio = (yActual, alto) => {
+          if (yActual + alto > pageHeight - 15) { doc.addPage(); return 16; }
+          return yActual;
+        };
+
         let y = 24;
         y = dibujarKpisPDF(doc, construirTilesKPI(d), pageWidth, y);
-        if (d.preguntaGeneralTexto && d.distribucionGeneral.length) y = dibujarSeccionNPSPDF(doc, d, marginX, y + 2, contentW);
-        if (d.escalas && d.escalas.length) y = dibujarMatrizPDF(doc, d, marginX, y + 2, contentW);
+        if (d.preguntaGeneralTexto && d.distribucionGeneral.length) {
+          y = asegurarEspacio(y + 2, 46);
+          y = dibujarSeccionNPSPDF(doc, d, marginX, y, contentW);
+        }
+        if (d.escalas && d.escalas.length) {
+          y = asegurarEspacio(y + 2, 20 + d.escalas.length * 8);
+          y = dibujarMatrizPDF(doc, d, marginX, y, contentW);
+        }
 
         if ((d.alternativas && d.alternativas.length) || (d.siNo && d.siNo.length)) {
-          doc.addPage(); y = 16;
+          y = asegurarEspacio(y + 4, 18);
           doc.setFontSize(14); doc.setTextColor(58, 58, 60); doc.setFont(undefined, 'bold');
           doc.text('Preguntas de alternativas', marginX, y); y += 7;
-          (d.alternativas || []).forEach(a => { y = dibujarAlternativaPDF(doc, a, marginX, y, contentW); });
-          (d.siNo || []).forEach(s => { y = dibujarSiNoPDF(doc, s, marginX, y, contentW); });
+          (d.alternativas || []).forEach(a => {
+            y = asegurarEspacio(y, 12 + (a.distribucion.length * 5.5));
+            y = dibujarAlternativaPDF(doc, a, marginX, y, contentW);
+          });
+          (d.siNo || []).forEach(s => {
+            y = asegurarEspacio(y, 24);
+            y = dibujarSiNoPDF(doc, s, marginX, y, contentW);
+          });
         }
 
         if (d.textos && d.textos.some(t => t.items.length)) {
-          doc.addPage(); y = 16;
+          y = asegurarEspacio(y + 4, 24);
           doc.setFontSize(14); doc.setTextColor(58, 58, 60); doc.setFont(undefined, 'bold');
           doc.text('Comentarios de huéspedes', marginX, y); y += 8;
           d.textos.forEach(t => { if (t.items.length) y = dibujarComentariosPDF(doc, t, marginX, y, contentW, pageHeight); });

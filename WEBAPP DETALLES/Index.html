@@ -38,50 +38,68 @@
       align-items: center; justify-content: center; font-size: 11px; }
 
     /* Selector de ocasion */
-    .grid-oc { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .grid-oc { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
     .oc {
-      background: var(--surface); border: 1px solid var(--borde); border-radius: 16px; padding: 16px 14px; cursor: pointer;
-      box-shadow: var(--sombra); text-align: left; display: flex; flex-direction: column; gap: 8px; position: relative; transition: transform .15s, box-shadow .2s;
-      border-left: 4px solid var(--acc, #999);
+      background: var(--surface); border: 1px solid var(--borde); border-radius: 18px; padding: 20px 18px; cursor: pointer;
+      box-shadow: var(--sombra); text-align: left; display: flex; flex-direction: column; gap: 10px; position: relative; transition: transform .15s, box-shadow .2s;
+      border-left: 5px solid var(--acc, #999);
     }
     .oc:hover { transform: translateY(-3px); }
-    .oc.sel { outline: 2px solid var(--acc); outline-offset: 1px; }
-    .oc .ic { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-      font-size: 17px; color: #fff; background: var(--acc, #888); box-shadow: inset 0 1px 1px rgba(255,255,255,.3), 0 2px 4px rgba(0,0,0,.2); }
-    .oc .nom { font-weight: 500; font-size: 15px; color: var(--tinta); }
-    .oc .tip { font-size: 10.5px; color: var(--tinta-suave); text-transform: uppercase; letter-spacing: .06em; }
-    .oc .cupon-badge { position: absolute; top: 12px; right: 12px; font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase;
-      color: var(--acc); border: 1px solid var(--acc); border-radius: 6px; padding: 2px 6px; font-weight: 600; }
+    .oc.sel { outline: 3px solid var(--acc); outline-offset: 1px; }
+    .oc .ic { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 21px; color: #fff; background: var(--acc, #888); box-shadow: inset 0 1px 1px rgba(255,255,255,.3), 0 2px 4px rgba(0,0,0,.2); }
+    .oc .nom { font-weight: 500; font-size: 17.5px; color: var(--tinta); }
+    .oc .tip { font-size: 11.5px; color: var(--tinta-suave); text-transform: uppercase; letter-spacing: .06em; }
+    .oc .cupon-badge { position: absolute; top: 14px; right: 14px; font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--acc); border: 1px solid var(--acc); border-radius: 7px; padding: 3px 7px; font-weight: 600; }
+
+    /* Selector de variante de diseno */
+    .grid-variante { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+    .variante-op { background: var(--surface); border: 2px solid var(--borde); border-radius: 16px; padding: 16px; cursor: pointer;
+      display: flex; flex-direction: column; gap: 8px; transition: transform .15s, border-color .15s; }
+    .variante-op:hover { transform: translateY(-2px); }
+    .variante-op.sel { border-color: var(--grafito); box-shadow: 0 0 0 2px rgba(65,65,67,.18); }
+    .variante-op .miniatura { border-radius: 8px; height: 60px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .variante-op .nom { font-weight: 600; font-size: 14px; color: var(--tinta); }
+    .variante-op .desc { font-size: 11.5px; color: var(--tinta-suave); line-height: 1.4; }
+    .copias-fila { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 16px; }
+    .copias-lbl { font-size: 13px; font-weight: 600; color: var(--tinta-suave); text-transform: uppercase; letter-spacing: .04em; }
 
     /* Formulario */
-    .card { background: var(--surface); border: 1px solid var(--borde); border-radius: 18px; padding: 20px; box-shadow: var(--sombra); margin-top: 10px; }
+    .card { background: var(--surface); border: 1px solid var(--borde); border-radius: 18px; padding: 22px; box-shadow: var(--sombra); margin-top: 10px; }
     .oculto { display: none !important; }
-    .campo { margin-bottom: 14px; }
-    .campo label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--tinta-suave); font-weight: 600; margin-bottom: 5px; }
+    .campo { margin-bottom: 18px; }
+    .campo label { display: block; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--tinta-suave); font-weight: 600; margin-bottom: 7px; }
     .campo input, .campo textarea, .campo select {
-      width: 100%; border: none; border-radius: 12px; background: var(--input); box-shadow: inset 0 0 0 1px var(--borde);
-      font-family: 'Oswald'; font-size: 15px; color: var(--tinta); padding: 11px 14px; resize: vertical;
+      width: 100%; border: none; border-radius: 14px; background: var(--input); box-shadow: inset 0 0 0 1px var(--borde);
+      font-family: 'Oswald'; font-size: 16.5px; color: var(--tinta); padding: 14px 16px; resize: vertical;
     }
-    .campo textarea { min-height: 92px; line-height: 1.5; }
+    .campo textarea { min-height: 100px; line-height: 1.55; }
     .fila2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .hint { font-size: 11.5px; color: var(--tinta-suave); margin-top: 4px; }
-    .btn { border: none; border-radius: 13px; cursor: pointer; font-family: 'Oswald'; font-weight: 600; font-size: 15px;
-      padding: 13px 18px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; }
+    .hint { font-size: 12.5px; color: var(--tinta-suave); margin-top: 5px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 9px; }
+    .chip { border: 1.5px solid var(--borde); background: var(--surface); color: var(--tinta-suave); font-family: 'Oswald';
+      font-weight: 500; font-size: 13.5px; padding: 7px 14px; border-radius: 999px; cursor: pointer; transition: all .15s; }
+    .chip:hover { border-color: var(--acc-campo, var(--tinta-suave)); color: var(--tinta); }
+    .chip.act { background: var(--acc-campo, var(--grafito)); border-color: var(--acc-campo, var(--grafito)); color: #fff; }
+    .btn { border: none; border-radius: 15px; cursor: pointer; font-family: 'Oswald'; font-weight: 600; font-size: 17px;
+      padding: 17px 24px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
     .btn-dark { background: linear-gradient(180deg, #4C4C4F, #414143 60%, #38383A); color: #E9E7E5; box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 2px 6px rgba(0,0,0,.22); }
     .btn-dark:active { transform: translateY(1px); }
     .btn-ghost { background: var(--surface); color: var(--tinta); box-shadow: inset 0 0 0 1px var(--borde); }
-    .acciones { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
-
-    .instr { background: #F1EFEA; border: 1px solid var(--borde); border-radius: 14px; padding: 14px 16px; margin-top: 16px; font-size: 13px; color: var(--tinta-suave); line-height: 1.55; }
-    .instr b { color: var(--tinta); }
-    .instr ol { margin: 8px 0 0 18px; }
-    .instr li { margin-bottom: 3px; }
+    .acciones { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
 
     .previa-wrap { display: flex; justify-content: center; margin-top: 4px; }
     .previa { width: 250px; border-radius: 6px; box-shadow: 0 12px 30px -12px rgba(30,26,20,.4); }
     .previa svg { display: block; width: 100%; height: auto; border-radius: 6px; }
     .previa-cap { text-align: center; font-size: 11.5px; color: var(--tinta-suave); text-transform: uppercase; letter-spacing: .06em; margin-top: 16px; margin-bottom: 6px; }
     .previa-reverso { width: 250px; aspect-ratio: 210/148.5; border-radius: 6px; box-shadow: 0 12px 30px -12px rgba(30,26,20,.4); }
+
+    .tabla-gc { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    .tabla-gc th, .tabla-gc td { text-align: left; padding: 9px 12px; white-space: nowrap; }
+    .tabla-gc th { color: var(--tinta-suave); text-transform: uppercase; font-size: 11px; letter-spacing: .04em; border-bottom: 2px solid var(--borde); }
+    .tabla-gc td { border-bottom: 1px solid var(--borde); }
+    .tabla-gc tbody tr:last-child td { border-bottom: none; }
 
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); opacity: 0;
       background: #2c2c2e; color: #fff; padding: 11px 20px; border-radius: 12px; font-size: 13px; box-shadow: 0 8px 22px rgba(0,0,0,.3);
@@ -111,7 +129,16 @@
     <div class="grid-oc" id="gridOcasiones"></div>
 
     <div id="panelForm" class="oculto">
-      <div class="paso-tit" style="margin-top:26px"><span class="n">2</span> <span data-t="paso2">Completa los datos</span></div>
+      <div id="varianteSection" class="oculto">
+        <div class="paso-tit" style="margin-top:26px"><span class="n">2</span> <span data-t="paso_variante">Elige el diseño</span></div>
+        <div class="grid-variante" id="gridVariantes"></div>
+        <div class="copias-fila">
+          <span class="copias-lbl" data-t="copias_lbl">¿Cuántas tarjetas por hoja?</span>
+          <div class="chips" id="gridCopias" style="--acc-campo:var(--grafito)"></div>
+        </div>
+      </div>
+
+      <div class="paso-tit" style="margin-top:26px"><span class="n numVariante">3</span> <span data-t="paso2">Completa los datos</span></div>
       <div class="card">
         <div id="camposForm"></div>
         <div class="campo" id="campoMensaje">
@@ -123,11 +150,9 @@
           <button class="btn btn-ghost" onclick="volverInicio()"><i class="fa-solid fa-arrow-left"></i> <span data-t="btn_cambiar">Cambiar tipo</span></button>
           <button class="btn btn-dark" onclick="generarPDF()"><i class="fa-solid fa-file-arrow-down"></i> <span data-t="btn_pdf">Generar tarjeta (PDF)</span></button>
         </div>
-
-        <div class="instr" id="instrBox"></div>
       </div>
 
-      <div class="paso-tit" style="margin-top:22px"><span class="n">3</span> <span data-t="paso3">Vista previa</span></div>
+      <div class="paso-tit" style="margin-top:22px"><span class="n numVariante">4</span> <span data-t="paso3">Vista previa</span></div>
       <div class="previa-wrap">
         <div class="previa" id="previa"></div>
       </div>
@@ -137,13 +162,18 @@
           <div class="previa-reverso" id="previaReverso"></div>
         </div>
       </div>
+
+      <div id="giftcardsSection" class="oculto">
+        <div class="paso-tit" style="margin-top:22px"><i class="fa-solid fa-clock-rotate-left"></i> <span data-t="gc_historial">Gift Cards emitidas</span></div>
+        <div class="card" id="giftcardsLista"></div>
+      </div>
     </div>
   </div>
 
   <div id="toast" class="toast"></div>
 
   <script>
-    var APP = { idioma: 'es', ocasion: null, mensajeTocado: false };
+    var APP = { idioma: 'es', ocasion: null, mensajeTocado: false, variante: 'reverso', copias: 1 };
     var LOGO_URL = 'https://lh3.googleusercontent.com/d/1l-GRXICSU6fHGe9uGsnGdZ6M0FKgKevJ';
 
     // Paleta base de las tarjetas
@@ -227,6 +257,13 @@
       }
     }
 
+    // Meses del año, para la burbuja de "meses validos" de la Gift Card
+    // (ej. restringirla a temporada baja).
+    var MESES = {
+      es: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
+      en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+    };
+
     // ---------------------------------------------------------------------
     //  DEFINICION DE OCASIONES
     //  Cada una: color de acento, icono UI, campos del formulario, dibujo de
@@ -306,12 +343,35 @@
           en: '{destinatario}:\n\nSomeone very special thought of you. {remitente} wanted to gift you this stay at Cascadas Hotel, so you can take some time just for yourself to relax and unwind.\n\nOn our end, we will put all our care into making this experience unforgettable. Enjoy it, it is all yours.\n\nWarmly,\nthe Cascadas Hotel team'
         }
       },
+      eventoespecial: {
+        acc: [92, 102, 140], icon: 'fa-star', cupon: false, tituloCampo: true,
+        oscuro: true, usarLogoComoMotivo: true,
+        nombre: { es: 'Evento especial', en: 'Special event' },
+        // Plantilla en blanco para armar la tarjeta de cualquier evento
+        // (corporativo, grupo, celebracion puntual): el titulo tambien es
+        // un campo libre, no uno fijo por ocasion. A pedido: interior
+        // grafito con letras/lineas blancas y el logo del hotel (grande)
+        // en vez de un icono generico.
+        campos: [
+          { key: 'titulo', label: { es: 'Título de la tarjeta', en: 'Card title' }, ph: 'Bienvenida Corporativa' },
+          { key: 'nombre', label: { es: 'Nombre / Habitación (opcional)', en: 'Name / Room (optional)' }, ph: 'Habitación 204' }
+        ],
+        sub: function (d) { return d.nombre || ''; },
+        mensaje: {
+          es: '{saludo}Sea muy bienvenido a Cascadas Hotel. Esperamos que disfrute cada momento de esta experiencia.\n\nCon cariño,\nel equipo de Cascadas Hotel',
+          en: '{saludo}Welcome to Cascadas Hotel. We hope you enjoy every moment of this experience.\n\nWarmly,\nthe Cascadas Hotel team'
+        }
+      },
       giftcard: {
-        acc: [122, 59, 59], icon: 'fa-ticket', cupon: true,
+        acc: [193, 148, 92], icon: 'fa-ticket', cupon: false, full: true,
         nombre: { es: 'Gift Card · noches', en: 'Gift Card · nights' },
         campos: [
-          { key: 'noches', label: { es: 'N.º de noches', en: 'Number of nights' }, ph: '3', type: 'number' },
-          { key: 'inclusiones', label: { es: 'Incluye (opcional)', en: 'Includes (optional)' }, ph: 'Tinaja y cena' },
+          { key: 'noches', label: { es: 'N.º de noches', en: 'Number of nights' }, ph: '3', type: 'number', chips: ['1', '2', '3', '5', '7'] },
+          { key: 'vigencia', label: { es: 'Vigencia (meses)', en: 'Validity (months)' }, ph: '12', type: 'number', chips: ['3', '6', '12', '24'] },
+          { key: 'mesesValidos', label: { es: 'Meses válidos (opcional, p.ej. temporada baja)', en: 'Valid months (optional, e.g. low season)' }, ph: '', chipsMulti: true,
+            chips: { es: MESES.es, en: MESES.en } },
+          { key: 'inclusiones', label: { es: 'Incluye (opcional)', en: 'Includes (optional)' }, ph: 'Tinaja y cena', chipsMulti: true,
+            chips: { es: ['Tinaja', 'Cena', 'Desayuno', 'Masaje', 'Traslado'], en: ['Hot tub', 'Dinner', 'Breakfast', 'Massage', 'Transfer'] } },
           { key: 'destinatario', label: { es: 'Para (opcional)', en: 'To (optional)' }, ph: '' },
           { key: 'remitente', label: { es: 'De parte de (opcional)', en: 'From (optional)' }, ph: '' }
         ],
@@ -319,16 +379,28 @@
         valor: function (d) { var n = Number(d.noches) || 0; return n + (APP.idioma === 'en' ? (n === 1 ? ' NIGHT' : ' NIGHTS') : (n === 1 ? ' NOCHE' : ' NOCHES')); },
         valorSub: function (d) { return (d.inclusiones || '').toUpperCase(); },
         motivo: function (p, cx, cy, a) { mono(p, cx, cy, a); },
+        // Mensaje calido (editable): la parte "de regalo". Los datos duros
+        // (noches, vigencia, condicion de disponibilidad) van aparte, en la
+        // letra chica fija de abajo, para que SIEMPRE queden aunque el
+        // usuario edite o borre este texto.
         mensaje: {
-          es: 'Esta Gift Card es válida por {noches} noche(s) de estadía en Cascadas Hotel{inclSuf}.\n\n{paraDe}\n\nSujeta a disponibilidad. Presentar en recepción.',
-          en: 'This Gift Card is valid for {noches} night(s) at Cascadas Hotel{inclSuf}.\n\n{paraDe}\n\nSubject to availability. Present at reception.'
+          es: 'Esta Gift Card es un regalo especial de Cascadas Hotel, pensado para que puedas disfrutar de una estadía inolvidable{inclSuf}.\n\n{paraDe}\n\nAgradecemos profundamente la preferencia y esperamos que cada detalle de la estadía sea memorable.',
+          en: 'This Gift Card is a special gift from Cascadas Hotel, meant for you to enjoy an unforgettable stay{inclSuf}.\n\n{paraDe}\n\nWe deeply appreciate your trust and hope every detail of the stay is memorable.'
+        },
+        // Letra chica fija (NO editable): siempre se imprime, con las
+        // condiciones reales de la cortesia.
+        letraChica: {
+          es: 'Válida por {noches} noche(s) de estadía en Cascadas Hotel{inclSuf}. Vigencia de {vigencia} mes(es) desde la fecha de emisión.{mesesSuf} Esta Gift Card está sujeta a disponibilidad y no garantiza disponibilidad en la fecha específica solicitada. Debe presentarse (impresa o digital) al momento de realizar el check-in.',
+          en: 'Valid for {noches} night(s) at Cascadas Hotel{inclSuf}. Valid for {vigencia} month(s) from the date of issue.{mesesSuf} This Gift Card is subject to availability and does not guarantee availability on the specific date requested. It must be presented (printed or digital) at check-in.'
         }
       },
       welcomedrink: {
-        acc: [46, 125, 119], icon: 'fa-champagne-glasses', cupon: true,
+        acc: [149, 120, 64], icon: 'fa-champagne-glasses', cupon: true,
         nombre: { es: 'Welcome Drink', en: 'Welcome Drink' },
         campos: [
-          { key: 'trago', label: { es: 'Trago (editable)', en: 'Drink (editable)' }, ph: 'Agua, jugo o copa de espumante' }
+          { key: 'trago', label: { es: 'Trago (editable)', en: 'Drink (editable)' }, ph: 'Agua, jugo o copa de espumante',
+            chips: { es: ['Agua, jugo o copa de espumante', 'Copa de espumante', 'Cerveza artesanal', 'Cóctel de la casa'],
+              en: ['Water, juice or a glass of sparkling wine', 'Glass of sparkling wine', 'Craft beer', 'House cocktail'] } }
         ],
         kicker: { es: 'CORTESÍA', en: 'COURTESY' },
         valor: function () { return 'Welcome Drink'; }, valorSize: 13,
@@ -338,49 +410,32 @@
           es: 'Cupón canjeable por 1 trago por persona (2 personas): {trago}.\n\nUna cortesía de Cascadas Hotel. Presentar en el bar o restaurant.',
           en: 'Voucher for 1 drink per person (2 guests): {trago}.\n\nA courtesy of Cascadas Hotel. Present it at the bar or restaurant.'
         }
-      },
-      disculpas: {
-        acc: [92, 90, 85], icon: 'fa-hand-holding-heart', cupon: false,
-        nombre: { es: 'Con nuestras disculpas', en: 'Our apologies' },
-        campos: [{ key: 'nombre', label: { es: 'Nombre (opcional)', en: 'Name (optional)' }, ph: '' }],
-        kicker: { es: 'CON NUESTRAS', en: 'WITH OUR' },
-        titulo: { es: ['Disculpas'], en: ['Apologies'] },
-        sub: function () { return ''; },
-        motivo: function (p, cx, cy, a) { laurel(p, cx, cy, a); },
-        mensaje: {
-          es: '{saludo}Lamentamos sinceramente el inconveniente que tuvo lugar durante su estadía. Su comodidad es nuestra prioridad, y sabemos que en esta ocasión no estuvimos a la altura.\n\nQueremos compensarlo con este pequeño gesto de nuestra parte, y esperamos de corazón que el resto de su estadía en Cascadas Hotel sea impecable.\n\nCon respeto,\nel equipo de Cascadas Hotel',
-          en: '{saludo}We sincerely apologize for the inconvenience that took place during your stay. Your comfort is our priority, and we know that on this occasion we did not meet that standard.\n\nWe would like to make up for it with this small gesture on our part, and we truly hope that the rest of your stay at Cascadas Hotel is impeccable.\n\nWith respect,\nthe Cascadas Hotel team'
-        }
       }
     };
-    var ORDEN = ['aniversario', 'cumpleanos', 'lunademiel', 'bienvenida', 'estadiaregalo', 'giftcard', 'welcomedrink', 'disculpas'];
+    var ORDEN = ['aniversario', 'cumpleanos', 'lunademiel', 'bienvenida', 'estadiaregalo', 'eventoespecial', 'giftcard', 'welcomedrink'];
 
     // ---------------------------------------------------------------------
     //  I18N de interfaz
     // ---------------------------------------------------------------------
     var UI = {
       es: { titulo: 'Detalles Cascadas', subtitulo: 'Tarjetas de atención · Cascadas Hotel', paso1: 'Elige el tipo de tarjeta',
-        paso2: 'Completa los datos', paso3: 'Vista previa', lbl_mensaje: 'Mensaje (editable)',
+        paso_variante: 'Elige el diseño', paso2: 'Completa los datos', paso3: 'Vista previa', lbl_mensaje: 'Mensaje (editable)',
         hint_mensaje: 'Viene un texto sugerido; puedes cambiarlo como quieras.', btn_cambiar: 'Cambiar tipo', btn_pdf: 'Generar PDF',
-        instr_tit: 'Cómo armarla (impecable, sin pegar):',
-        instr_t1: 'El PDF trae <b>2 copias</b> de la tarjeta (por si te equivocas) y <b>2 páginas</b>: página 1 = interior, página 2 = reverso (grafito sólido).',
-        instr_t2: 'Recorta por la línea de corte del medio para separar las 2 copias.',
-        instr_t3: 'Imprime a <b>doble cara</b> (o imprime la página 1, da vuelta la hoja e imprime la página 2 — no importa de qué lado la voltees, el reverso es parejo).',
-        instr_t4: 'Dobla cada copia por la mitad (línea vertical) y marca el pliegue. Lista: por fuera el grafito, por dentro el mensaje.',
-        instr_c1: 'El PDF trae <b>4 cupones</b> idénticos en una sola página, listos para repartir.',
-        instr_c2: 'No lleva doblez: es una tarjeta plana. Solo recorta por las líneas punteadas entre cada cupón.',
-        cupon: 'Cupón', tarjeta: 'Tarjeta', previa_reverso: 'Reverso (color sólido, a sangre completa)' },
+        cupon: 'Cupón', tarjeta: 'Tarjeta', giftcardtag: 'Gift Card', previa_reverso: 'Reverso (color sólido, a sangre completa)',
+        gc_historial: 'Gift Cards emitidas',
+        var_reverso_nom: 'Clásica (con reverso)', var_reverso_desc: 'La tarjeta de libro de siempre: se dobla al medio, reverso grafito con el logo. Doble cara.',
+        var_grafito_nom: 'Minimalista grafito', var_grafito_desc: 'Horizontal, solo colores corporativos (grafito), sin reverso ni doblez. Una sola cara.',
+        var_color_nom: 'Con color, sin reverso', var_color_desc: 'El mismo frente a color de siempre, pero a una sola cara: no lleva reverso ni doblez.',
+        copias_lbl: '¿Cuántas tarjetas por hoja?', copias_1: '1 tarjeta', copias_2: '2 tarjetas' },
       en: { titulo: 'Detalles Cascadas', subtitulo: 'Guest cards · Cascadas Hotel', paso1: 'Choose the card type',
-        paso2: 'Fill in the details', paso3: 'Preview', lbl_mensaje: 'Message (editable)',
+        paso_variante: 'Choose the design', paso2: 'Fill in the details', paso3: 'Preview', lbl_mensaje: 'Message (editable)',
         hint_mensaje: 'A suggested text is prefilled; edit it however you like.', btn_cambiar: 'Change type', btn_pdf: 'Generate PDF',
-        instr_tit: 'How to assemble it (flawless, no glue):',
-        instr_t1: 'The PDF includes <b>2 copies</b> of the card (in case of a mistake) and <b>2 pages</b>: page 1 = interior, page 2 = back (solid graphite).',
-        instr_t2: 'Cut along the middle cut line to separate the 2 copies.',
-        instr_t3: 'Print <b>double-sided</b> (or print page 1, flip the sheet over and print page 2 — it does not matter which way you flip it, the back is uniform).',
-        instr_t4: 'Fold each copy in half (vertical line) and crease it. Done: graphite outside, message inside.',
-        instr_c1: 'The PDF includes <b>4 identical vouchers</b> on a single page, ready to hand out.',
-        instr_c2: "There's no folding: it's a flat card. Just cut along the dashed lines between each voucher.",
-        cupon: 'Voucher', tarjeta: 'Card', previa_reverso: 'Back (solid color, full bleed)' }
+        cupon: 'Voucher', tarjeta: 'Card', giftcardtag: 'Gift Card', previa_reverso: 'Back (solid color, full bleed)',
+        gc_historial: 'Issued Gift Cards',
+        var_reverso_nom: 'Classic (with back)', var_reverso_desc: 'The usual book-fold card: folds in half, graphite back with the logo. Double-sided.',
+        var_grafito_nom: 'Minimalist graphite', var_grafito_desc: 'Landscape, corporate colors only (graphite), no back page or fold. Single-sided.',
+        var_color_nom: 'Color, no back', var_color_desc: 'The same colorful front as always, but single-sided: no back page or folding.',
+        copias_lbl: 'How many cards per sheet?', copias_1: '1 card', copias_2: '2 cards' }
     };
     function t(k) { return (UI[APP.idioma] && UI[APP.idioma][k]) || UI.es[k] || k; }
 
@@ -394,16 +449,7 @@
     }
     function setIdioma(idi) {
       APP.idioma = idi; aplicarIdiomaUI(); pintarOcasiones();
-      if (APP.ocasion) { pintarCampos(); if (!APP.mensajeTocado) resetMensaje(); refrescarPrevia(); actualizarInstrucciones(); }
-    }
-
-    // Las instrucciones de armado cambian segun si es una tarjeta que se
-    // dobla o un cupon plano (sin doblez).
-    function actualizarInstrucciones() {
-      var o = T[APP.ocasion]; if (!o) return;
-      var pasos = o.cupon ? ['instr_c1', 'instr_c2'] : ['instr_t1', 'instr_t2', 'instr_t3', 'instr_t4'];
-      document.getElementById('instrBox').innerHTML =
-        '<b>' + t('instr_tit') + '</b><ol>' + pasos.map(function (k) { return '<li>' + t(k) + '</li>'; }).join('') + '</ol>';
+      if (APP.ocasion) { pintarCampos(); if (!APP.mensajeTocado) resetMensaje(); refrescarPrevia(); }
     }
 
     // ---------------------------------------------------------------------
@@ -414,24 +460,67 @@
       cont.innerHTML = ORDEN.map(function (id) {
         var o = T[id];
         var acc = 'rgb(' + o.acc.join(',') + ')';
+        var etiqueta = o.full ? t('giftcardtag') : (o.cupon ? t('cupon') : t('tarjeta'));
         return '<div class="oc' + (APP.ocasion === id ? ' sel' : '') + '" style="--acc:' + acc + '" onclick="elegirOcasion(\'' + id + '\')">' +
-          (o.cupon ? '<span class="cupon-badge">' + t('cupon') + '</span>' : '') +
+          ((o.cupon || o.full) ? '<span class="cupon-badge">' + etiqueta + '</span>' : '') +
           '<div class="ic"><i class="fa-solid ' + o.icon + '"></i></div>' +
           '<div class="nom">' + o.nombre[APP.idioma] + '</div>' +
-          '<div class="tip">' + (o.cupon ? t('cupon') : t('tarjeta')) + '</div>' +
+          '<div class="tip">' + etiqueta + '</div>' +
         '</div>';
       }).join('');
     }
 
     function elegirOcasion(id) {
-      APP.ocasion = id; APP.mensajeTocado = false;
+      APP.ocasion = id; APP.mensajeTocado = false; APP.variante = 'reverso'; APP.copias = 1;
       pintarOcasiones();
       document.getElementById('panelForm').classList.remove('oculto');
+      var o = T[id];
+      var seccionVar = document.getElementById('varianteSection');
+      var tieneVariantes = !o.cupon && !o.full;
+      seccionVar.classList.toggle('oculto', !tieneVariantes);
+      document.querySelectorAll('.numVariante').forEach(function (el, i) { el.textContent = tieneVariantes ? (i === 0 ? '3' : '4') : (i === 0 ? '2' : '3'); });
+      if (tieneVariantes) { pintarVariantes(); pintarCopias(); }
       pintarCampos();
       resetMensaje();
       refrescarPrevia();
-      actualizarInstrucciones();
+      var seccionGC = document.getElementById('giftcardsSection');
+      if (o.full) { seccionGC.classList.remove('oculto'); cargarGiftCardsEmitidas(); }
+      else seccionGC.classList.add('oculto');
       document.getElementById('panelForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // ---------------------------------------------------------------------
+    //  VARIANTES DE DISEÑO (todas las tarjetas menos Welcome Drink/Gift Card):
+    //  - reverso: la actual, tarjeta chica de libro con doblez y reverso grafito.
+    //  - grafito: horizontal, minimalista, monocromo grafito, sin doblez ni reverso.
+    //  - color: el mismo frente a color de siempre, pero sin pagina de reverso
+    //    (una sola cara, no hace falta doblar para que se vea bien).
+    // ---------------------------------------------------------------------
+    var VARIANTES = ['reverso', 'grafito', 'color'];
+    function elegirVariante(v) { APP.variante = v; pintarVariantes(); refrescarPrevia(); }
+    function pintarVariantes() {
+      var cont = document.getElementById('gridVariantes');
+      var o = T[APP.ocasion];
+      var acc = 'rgb(' + o.acc.join(',') + ')';
+      cont.innerHTML = VARIANTES.map(function (v) {
+        var mini = v === 'grafito'
+          ? '<div class="miniatura" style="background:' + rgb(GRAFITO) + ';border:1px solid ' + rgb(mezclar(CREMA, GRAFITO, .4)) + '"></div>'
+          : v === 'color'
+          ? '<div class="miniatura" style="background:' + acc + '"></div>'
+          : '<div class="miniatura" style="background:linear-gradient(90deg,' + acc + ' 50%,' + rgb(GRAFITO) + ' 50%)"></div>';
+        return '<div class="variante-op' + (APP.variante === v ? ' sel' : '') + '" onclick="elegirVariante(\'' + v + '\')">' +
+          mini + '<div class="nom">' + t('var_' + v + '_nom') + '</div><div class="desc">' + t('var_' + v + '_desc') + '</div></div>';
+      }).join('');
+    }
+
+    // Cuantas tarjetas identicas entran por hoja A4 (1 o 2, a eleccion).
+    function elegirCopias(n) { APP.copias = n; pintarCopias(); }
+    function pintarCopias() {
+      var cont = document.getElementById('gridCopias');
+      cont.innerHTML = [1, 2].map(function (n) {
+        return '<button type="button" class="chip' + (APP.copias === n ? ' act' : '') + '" onclick="elegirCopias(' + n + ')">' +
+          (n === 1 ? t('copias_1') : t('copias_2')) + '</button>';
+      }).join('');
     }
     function volverInicio() {
       APP.ocasion = null; pintarOcasiones();
@@ -443,14 +532,22 @@
       var o = T[APP.ocasion];
       var cont = document.getElementById('camposForm');
       var campos = o.campos || [];
-      // Agrupa de a dos los campos cortos
+      var acc = 'rgb(' + o.acc.join(',') + ')';
+      // Agrupa de a dos los campos cortos (los que traen burbujas van solos, para que quepan)
       var html = '';
       for (var i = 0; i < campos.length; i++) {
         var c = campos[i], c2 = campos[i + 1];
-        var esPar = c2 && !esCampoLargo(c) && !esCampoLargo(c2);
+        var esPar = c2 && !esCampoLargo(c) && !esCampoLargo(c2) && !c.chips && !c2.chips;
         function inp(cc) {
+          var chipsHtml = '';
+          if (cc.chips) {
+            var opciones = Array.isArray(cc.chips) ? cc.chips : cc.chips[APP.idioma];
+            chipsHtml = '<div class="chips" style="--acc-campo:' + acc + '">' + opciones.map(function (op) {
+              return "<button type=\"button\" class=\"chip\" onclick='elegirChip(" + JSON.stringify(cc.key) + ',' + JSON.stringify(op) + ',' + !!cc.chipsMulti + ")'>" + op + '</button>';
+            }).join('') + '</div>';
+          }
           return '<div class="campo"><label>' + cc.label[APP.idioma] + '</label>' +
-            '<input id="f_' + cc.key + '" type="' + (cc.type || 'text') + '" placeholder="' + (cc.ph || '') + '" oninput="onCampo()"></div>';
+            '<input id="f_' + cc.key + '" type="' + (cc.type || 'text') + '" placeholder="' + (cc.ph || '') + '" oninput="onCampo()">' + chipsHtml + '</div>';
         }
         if (esPar) { html += '<div class="fila2">' + inp(c) + inp(c2) + '</div>'; i++; }
         else html += inp(c);
@@ -459,9 +556,39 @@
     }
     function esCampoLargo(c) { return c.key === 'inclusiones'; }
 
+    // Burbujas de opciones rapidas: reemplazan el valor (chips normales) o lo
+    // suman/quitan de una lista separada por comas (chipsMulti, p.ej. inclusiones).
+    function elegirChip(key, valor, multi) {
+      var el = document.getElementById('f_' + key); if (!el) return;
+      if (multi) {
+        var partes = el.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+        var idx = partes.findIndex(function (s) { return s.toLowerCase() === valor.toLowerCase(); });
+        if (idx >= 0) partes.splice(idx, 1); else partes.push(valor);
+        el.value = partes.join(', ');
+      } else {
+        el.value = (el.value === valor) ? '' : valor;
+      }
+      onCampo();
+    }
+
     function onCampo() {
       if (!APP.mensajeTocado) resetMensaje();
       refrescarPrevia();
+      actualizarChipsActivos();
+    }
+
+    // Resalta las burbujas cuyo valor ya esta puesto en el campo.
+    function actualizarChipsActivos() {
+      var o = T[APP.ocasion]; if (!o) return;
+      (o.campos || []).forEach(function (c) {
+        if (!c.chips) return;
+        var el = document.getElementById('f_' + c.key); if (!el) return;
+        var partes = (c.chipsMulti ? el.value.split(',') : [el.value]).map(function (s) { return s.trim().toLowerCase(); });
+        var cont = el.parentElement.querySelector('.chips'); if (!cont) return;
+        Array.prototype.forEach.call(cont.children, function (btn) {
+          btn.classList.toggle('act', partes.indexOf(btn.textContent.trim().toLowerCase()) !== -1);
+        });
+      });
     }
 
     function datosForm() {
@@ -473,9 +600,8 @@
       return d;
     }
 
-    // Rellena placeholders del mensaje con manejo de casos vacios/plurales.
-    function construirMensaje(o, d) {
-      var s = o.mensaje[APP.idioma];
+    // Rellena los placeholders de una plantilla con manejo de casos vacios/plurales.
+    function rellenarPlantilla(s, d) {
       var incl = (d.inclusiones || '').trim();
       var inclSuf = incl ? (APP.idioma === 'en' ? ', including ' + incl : ', que incluye ' + incl) : '';
       var paraDe = '';
@@ -486,13 +612,22 @@
       }
       var saludo = d.nombre ? (d.nombre + ':\n\n') : '';
       var trago = d.trago ? d.trago : (APP.idioma === 'en' ? 'water, juice or a glass of sparkling wine' : 'agua, jugo o copa de espumante');
+      var meses = (d.mesesValidos || '').trim();
+      var mesesSuf = meses ? (APP.idioma === 'en' ? ' Valid only during: ' + meses + '.' : ' Válida únicamente durante: ' + meses + '.') : '';
       return s
         .replace(/\{n1\}/g, d.n1 || '').replace(/\{n2\}/g, d.n2 || '')
         .replace(/\{nombre\}/g, d.nombre || '').replace(/\{remitente\}/g, d.remitente || (APP.idioma === 'en' ? 'someone special' : 'alguien especial'))
         .replace(/\{destinatario\}/g, d.destinatario || '').replace(/\{noches\}/g, d.noches || '—')
+        .replace(/\{vigencia\}/g, d.vigencia || '12').replace(/\{mesesSuf\}/g, mesesSuf).replace(/\{mesesValidos\}/g, meses)
         .replace(/\{inclusiones\}/g, incl).replace(/\{inclSuf\}/g, inclSuf).replace(/\{paraDe\}/g, paraDe)
         .replace(/\{saludo\}/g, saludo).replace(/\{trago\}/g, trago)
         .replace(/\n{3,}/g, '\n\n').replace(/^\s+|\s+$/g, '');
+    }
+    function construirMensaje(o, d) { return rellenarPlantilla(o.mensaje[APP.idioma], d); }
+    // Letra chica FIJA (Gift Card): no es editable, para que las condiciones
+    // reales de la cortesia (vigencia, disponibilidad) siempre queden impresas.
+    function construirLetraChica(o, d) {
+      return o.letraChica ? rellenarPlantilla(o.letraChica[APP.idioma], d) : '';
     }
     function resetMensaje() {
       var o = T[APP.ocasion];
@@ -520,7 +655,16 @@
           doc.setTextColor(col[0], col[1], col[2]);
           doc.setFont(opts.font || 'helvetica', opts.style || 'normal');
           doc.setFontSize(size);
-          var o = { align: opts.align || 'center', baseline: 'alphabetic' };
+          var align = opts.align || 'center';
+          // jsPDF calcula el centrado de "align:center" SIN contar el ancho extra
+          // de charSpace, asi que un texto con letter-spacing queda corrido hacia
+          // un lado. Para evitarlo, cuando hay charSpace centramos a mano.
+          if (opts.charSpace && align === 'center' && !rotated) {
+            var w = doc.getTextWidth(str) + opts.charSpace * Math.max(0, str.length - 1);
+            doc.text(str, p[0] - w / 2, p[1], { align: 'left', baseline: 'alphabetic', charSpace: opts.charSpace });
+            return;
+          }
+          var o = { align: align, baseline: 'alphabetic' };
           if (opts.charSpace) o.charSpace = opts.charSpace;
           if (rotated) o.angle = 180;
           doc.text(str, p[0], p[1], o);
@@ -552,9 +696,11 @@
       p.fill(bez(cx, cy - 20, cx + 5, cy - 15, cx + 3, cy - 9, cx, cy - 10).concat(bez(cx, cy - 10, cx - 3, cy - 9, cx - 5, cy - 15, cx, cy - 20)), a);
     }
     function montanas(p, cx, cy, a) {
-      p.poly([[cx - 26, cy + 14], [cx - 10, cy - 12], [cx + 2, cy + 4], [cx + 12, cy - 18], [cx + 28, cy + 14], [cx - 26, cy + 14]], a, 1.6);
-      [-6, -2, 2].forEach(function (dx, i) { p.line(cx + dx, cy - 4 + i, cx + dx, cy + 13, a, .8); });
-      p.line(cx - 30, cy + 15, cx + 30, cy + 15, a, .8);
+      // Dos picos limpios + sol, sin relleno de lineas internas que lo recargaban.
+      p.circle(cx + 9, cy - 15, 5, a, 1.3);
+      p.poly([[cx - 22, cy + 13], [cx - 6, cy - 9], [cx + 9, cy + 13]], a, 1.7);
+      p.poly([[cx - 2, cy + 13], [cx + 13, cy - 4], [cx + 27, cy + 13]], a, 1.7);
+      p.line(cx - 26, cy + 14, cx + 30, cy + 14, a, .9);
     }
     function mono(p, cx, cy, a) {
       p.poly(bez(cx, cy, cx - 20, cy - 12, cx - 20, cy + 12, cx, cy), a, 1.6);
@@ -625,48 +771,58 @@
     // =====================================================================
     var CARD_W = 105, CARD_H = 148.5;
 
-    // Pagina izquierda (portada): logo/marca, motivo con halo, titulo y nombre.
-    function dibujarPagPortada(p, o, d) {
-      var acc = o.acc;
-      var fondo = mezclar(acc, PAPEL, 0.16);
+    // Pagina izquierda (portada): motivo con halo, titulo y nombre grande.
+    // El logo del hotel ya NO va aqui (paso al reverso grafito, a pedido).
+    function dibujarPagPortada(p, o, d, oscuroForzado) {
+      var acc = o.acc, oscuro = oscuroForzado !== undefined ? oscuroForzado : !!o.oscuro;
+      var fondo = oscuro ? GRAFITO : mezclar(acc, PAPEL, 0.16);
+      var linea = oscuro ? CREMA : acc;
+      var textoFuerte = oscuro ? CREMA : acc;
+      var textoSuave = oscuro ? mezclar(CREMA, GRAFITO, .55) : INK_SOFT;
       p.bg(0, 0, CARD_W, CARD_H, fondo);
-      patronPuntos(p, 9, 9, CARD_W - 9, CARD_H - 9, mezclar(acc, fondo, .3), 8.5);
-      p.rect(7, 7, CARD_W - 14, CARD_H - 14, acc, .8);
-      p.rect(9.5, 9.5, CARD_W - 19, CARD_H - 19, mezclar(acc, INK, .3), .3);
-      patronRombos(p, 15, CARD_W - 15, 13.5, acc, 8);
-      patronRombos(p, 15, CARD_W - 15, CARD_H - 13.5, acc, 8);
+      patronPuntos(p, 9, 9, CARD_W - 9, CARD_H - 9, mezclar(linea, fondo, .3), 8.5);
+      p.rect(7, 7, CARD_W - 14, CARD_H - 14, linea, .8);
+      p.rect(9.5, 9.5, CARD_W - 19, CARD_H - 19, mezclar(linea, fondo, .55), .3);
+      patronRombos(p, 15, CARD_W - 15, 13.5, linea, 8);
+      patronRombos(p, 15, CARD_W - 15, CARD_H - 13.5, linea, 8);
 
-      dibujarMarca(p, CARD_W / 2, 25, 11, INK, INK_SOFT);
+      var cyMotivo = 46;
+      if (o.usarLogoComoMotivo) {
+        dibujarMarca(p, CARD_W / 2, cyMotivo, 42, textoFuerte, textoSuave, 88);
+      } else {
+        p.circle(CARD_W / 2, cyMotivo, 24, null, 0, mezclar(linea, fondo, .22));
+        if (o.motivo) o.motivo(p, CARD_W / 2, cyMotivo, linea);
+      }
 
-      var cyMotivo = 63;
-      p.circle(CARD_W / 2, cyMotivo, 21, null, 0, mezclar(acc, fondo, .22));
-      if (o.motivo) o.motivo(p, CARD_W / 2, cyMotivo, acc);
+      if (o.kicker) p.text(o.kicker[APP.idioma], CARD_W / 2, 82, 4.6, textoSuave, { font: 'helvetica', charSpace: 1.6 });
 
-      if (o.kicker) p.text(o.kicker[APP.idioma], CARD_W / 2, 92, 4.4, INK_SOFT, { font: 'helvetica', charSpace: 1.6 });
-
-      var tit = o.titulo[APP.idioma] || [];
-      var ty = tit.length > 1 ? 100 : 106;
-      tit.forEach(function (l, i) { p.text(l, CARD_W / 2, ty + i * 11.5, 16.5, acc, { font: 'times', style: 'italic' }); });
+      // "Evento especial" tiene el titulo libre (lo escribe quien arma la
+      // tarjeta), en vez de un titulo fijo por idioma.
+      var tit = o.tituloCampo ? wrapTexto(d.titulo || (APP.idioma === 'en' ? 'Special Event' : 'Evento Especial'), 15) : (o.titulo[APP.idioma] || []);
+      var ty = (o.kicker ? 96 : 90) - (tit.length > 1 ? 4 : 0);
+      tit.forEach(function (l, i) { p.text(l, CARD_W / 2, ty + i * 12.5, 18, textoFuerte, { font: 'times', style: 'italic' }); });
       var sub = o.sub ? o.sub(d) : '';
-      if (sub) p.text(sub, CARD_W / 2, ty + tit.length * 11.5 + 6, 9, INK_SOFT, { font: 'times', style: 'italic' });
-      // (el ribete de rombos de abajo ya cierra la composicion; sin flourish extra para no chocar con el nombre)
+      if (sub) p.text(sub, CARD_W / 2, ty + (tit.length - 1) * 12.5 + 14.5, 17, textoSuave, { font: 'times', style: 'italic' });
     }
 
     // Pagina derecha (mensaje): encabezado ornamental + texto completo + firma.
-    function dibujarPagMensaje(p, o, d, mensaje) {
-      var acc = o.acc;
-      var fondo = mezclar(acc, PAPEL, 0.16);
+    function dibujarPagMensaje(p, o, d, mensaje, oscuroForzado) {
+      var acc = o.acc, oscuro = oscuroForzado !== undefined ? oscuroForzado : !!o.oscuro;
+      var fondo = oscuro ? GRAFITO : mezclar(acc, PAPEL, 0.16);
+      var linea = oscuro ? CREMA : acc;
+      var textoFuerte = oscuro ? CREMA : acc;
+      var textoBase = oscuro ? CREMA : INK;
       p.bg(0, 0, CARD_W, CARD_H, fondo);
-      patronPuntos(p, 9, 9, CARD_W - 9, CARD_H - 9, mezclar(acc, fondo, .3), 8.5);
-      p.rect(7, 7, CARD_W - 14, CARD_H - 14, acc, .8);
-      p.rect(9.5, 9.5, CARD_W - 19, CARD_H - 19, mezclar(acc, INK, .3), .3);
-      patronRombos(p, 15, CARD_W - 15, 13.5, acc, 8);
-      patronRombos(p, 15, CARD_W - 15, CARD_H - 13.5, acc, 8);
+      patronPuntos(p, 9, 9, CARD_W - 9, CARD_H - 9, mezclar(linea, fondo, .3), 8.5);
+      p.rect(7, 7, CARD_W - 14, CARD_H - 14, linea, .8);
+      p.rect(9.5, 9.5, CARD_W - 19, CARD_H - 19, mezclar(linea, fondo, .55), .3);
+      patronRombos(p, 15, CARD_W - 15, 13.5, linea, 8);
+      patronRombos(p, 15, CARD_W - 15, CARD_H - 13.5, linea, 8);
 
       var yEnc = 24;
-      p.line(CARD_W / 2 - 16, yEnc, CARD_W / 2 - 4, yEnc, acc, .6);
-      p.line(CARD_W / 2 + 4, yEnc, CARD_W / 2 + 16, yEnc, acc, .6);
-      p.circle(CARD_W / 2, yEnc, 1.7, acc, .6, fondo);
+      p.line(CARD_W / 2 - 16, yEnc, CARD_W / 2 - 4, yEnc, linea, .6);
+      p.line(CARD_W / 2 + 4, yEnc, CARD_W / 2 + 16, yEnc, linea, .6);
+      p.circle(CARD_W / 2, yEnc, 1.7, linea, .6, fondo);
 
       var lineas = wrapTexto(mensaje, 33);
       var y = yEnc + 10, lh = 6;
@@ -674,8 +830,8 @@
         // Solo la despedida final (no cualquier mencion a "Cascadas Hotel" en medio del texto).
         var esFirma = /^(con cari|con afecto|con respeto|warmly|with warmth|with respect)/i.test(l) ||
           /^(el equipo de cascadas hotel|the cascadas hotel team)\.?$/i.test(l.trim());
-        p.text(l, CARD_W / 2, y, esFirma ? 6.6 : 7.4, esFirma ? acc : INK, { font: 'times', style: esFirma ? 'italic' : 'normal' });
-        y += (l === '' ? lh * 0.5 : lh);
+        p.text(l, CARD_W / 2, y, esFirma ? 8.6 : 7.4, esFirma ? textoFuerte : textoBase, { font: 'times', style: esFirma ? 'italic' : 'normal' });
+        y += (l === '' ? lh * 0.5 : (esFirma ? lh * 1.15 : lh));
       });
     }
 
@@ -683,68 +839,156 @@
       return 'Detalle_' + o.nombre.es.replace(/[^a-zA-Z0-9]/g, '_') + '_' + new Date().toISOString().slice(0, 10) + '.pdf';
     }
 
-    function construirHojaTarjeta(doc, o, d, mensaje) {
-      [0, CARD_H].forEach(function (offY) {
+    function construirHojaTarjeta(doc, o, d, mensaje, copias) {
+      // 1 o 2 copias (a eleccion), apiladas verticalmente en la hoja A4.
+      copias = copias === 2 ? 2 : 1;
+      var offsets = copias === 2 ? [0, CARD_H] : [(297 - CARD_H) / 2];
+      offsets.forEach(function (offY) {
         var tfIzq = function (x, y) { return [x, offY + y]; };
         var tfDer = function (x, y) { return [CARD_W + x, offY + y]; };
         dibujarPagPortada(penFor(doc, tfIzq, false), o, d);
         dibujarPagMensaje(penFor(doc, tfDer, false), o, d, mensaje);
       });
-      // Guias: 1 corte horizontal al medio de la hoja + 1 doblez vertical por copia.
+
+      // Guias: cortes horizontales (separan cada tarjeta del resto de la
+      // hoja / entre copias) + 1 doblez vertical al medio de cada una.
       doc.setDrawColor(185, 185, 185); doc.setLineWidth(.2);
       if (doc.setLineDashPattern) doc.setLineDashPattern([1.4, 1.4], 0);
-      doc.line(6, CARD_H, 204, CARD_H);
-      doc.line(CARD_W, 4, CARD_W, CARD_H - 4);
-      doc.line(CARD_W, CARD_H + 4, CARD_W, 297 - 4);
+      if (copias === 2) {
+        doc.line(6, CARD_H, 204, CARD_H);
+        offsets.forEach(function (offY) { doc.line(CARD_W, offY + 4, CARD_W, offY + CARD_H - 4); });
+      } else {
+        var offY = offsets[0];
+        doc.line(6, offY, 204, offY);
+        doc.line(6, offY + CARD_H, 204, offY + CARD_H);
+        doc.line(CARD_W, offY + 4, CARD_W, offY + CARD_H - 4);
+      }
       if (doc.setLineDashPattern) doc.setLineDashPattern([], 0);
-      doc.setFontSize(6.5); doc.setTextColor(150, 150, 150); doc.setFont('helvetica', 'normal');
-      doc.text(APP.idioma === 'en' ? 'cut' : 'cortar', 4, CARD_H + 2, { align: 'left' });
-      doc.text(APP.idioma === 'en' ? 'fold' : 'doblar', CARD_W, 2.6, { align: 'center' });
-      doc.text(APP.idioma === 'en' ? 'fold' : 'doblar', CARD_W, 296, { align: 'center' });
 
-      // Pagina 2: reverso solido a sangre completa (sirve para las 2 copias).
+      // Pagina 2: reverso solido a sangre completa, con el logo centrado en
+      // cada mitad (izq/der) de cada copia para que quede bien puesto sea
+      // cual sea la tapa que termine al frente despues de doblar.
       doc.addPage();
       doc.setFillColor(GRAFITO[0], GRAFITO[1], GRAFITO[2]);
       doc.rect(0, 0, 210, 297, 'F');
+      offsets.forEach(function (offY) {
+        var tfLogoIzq = function (x, y) { return [x, offY + y]; };
+        var tfLogoDer = function (x, y) { return [CARD_W + x, offY + y]; };
+        dibujarMarca(penFor(doc, tfLogoIzq, false), CARD_W / 2, CARD_H / 2, 26, [235, 233, 230], [200, 197, 193], 78);
+        dibujarMarca(penFor(doc, tfLogoDer, false), CARD_W / 2, CARD_H / 2, 26, [235, 233, 230], [200, 197, 193], 78);
+      });
     }
 
     // =====================================================================
-    //  CUPONES (Gift Card, Welcome Drink): NO se doblan. Una tarjeta chica,
-    //  plana, tipo boleto/ticket. Se imprimen 4 por hoja A4, listas para
-    //  cortar entre si (sin necesidad de reverso).
+    //  VARIANTES "minimalista grafito" y "color, sin reverso": una sola
+    //  tarjeta horizontal y autocontenida (portada + mensaje juntos en un
+    //  solo marco), sin doblez ni pagina de reverso — a proposito con un
+    //  diseño bien distinto del de la variante clasica (que es un libro de
+    //  2 paneles separados). Comparten el mismo armado fisico; lo unico que
+    //  cambia entre ambas es la paleta: "oscuro" = solo grafito/crema (sin
+    //  el color de la ocasion), o los colores de siempre.
+    // =====================================================================
+    var MINI_W = 148.5, MINI_H = 105;
+
+    function dibujarTarjetaUnica(p, o, d, mensaje, oscuro) {
+      var acc = o.acc, W = MINI_W, H = MINI_H;
+      var fondo = oscuro ? GRAFITO : mezclar(acc, PAPEL, .16);
+      var linea = oscuro ? mezclar(CREMA, GRAFITO, .4) : acc;
+      var textoFuerte = oscuro ? CREMA : acc;
+      var textoSuave = oscuro ? mezclar(CREMA, GRAFITO, .68) : INK_SOFT;
+      var textoBase = oscuro ? mezclar(CREMA, GRAFITO, .85) : INK;
+
+      var FL = 8, FT = 8, FR = W - 8, FB = H - 8;
+      p.bg(0, 0, W, H, fondo);
+      patronPuntos(p, FL + 1, FT + 1, FR - 1, FB - 1, mezclar(linea, fondo, .3), 8);
+      p.rect(FL, FT, W - 16, H - 16, linea, .8);
+      p.rect(FL + 2.5, FT + 2.5, W - 21, H - 21, mezclar(linea, fondo, .55), .3);
+      patronRombos(p, FL + 6, FR - 6, FT + 6, linea, 7);
+      patronRombos(p, FL + 6, FR - 6, FB - 6, linea, 7);
+
+      var xDiv = 58, xIzq = (FL + xDiv) / 2, xMsg = (xDiv + FR) / 2;
+      p.line(xDiv, FT + 10, xDiv, FB - 10, linea, .4);
+
+      // Logo bien grande, centrado en la columna izquierda.
+      dibujarMarca(p, xIzq, 32, 32, textoFuerte, textoSuave, 64);
+
+      if (o.kicker) p.text(o.kicker[APP.idioma], xIzq, 55, 3.8, textoSuave, { font: 'helvetica', charSpace: 1.1 });
+
+      var tit = o.tituloCampo ? wrapTexto(d.titulo || (APP.idioma === 'en' ? 'Special Event' : 'Evento Especial'), 12)
+        : wrapTexto((o.titulo[APP.idioma] || []).join(' '), 12);
+      var ty = o.kicker ? 64 : 60;
+      tit.forEach(function (l, i) { p.text(l, xIzq, ty + i * 8, 11, textoFuerte, { font: 'times', style: 'italic' }); });
+      var sub = o.sub ? o.sub(d) : '';
+      if (sub) p.text(sub, xIzq, ty + tit.length * 8 + 7, 10.5, textoSuave, { font: 'times', style: 'italic' });
+
+      var lineas = wrapTexto(mensaje, 40);
+      var y = 22, lh = 5.6;
+      lineas.forEach(function (l) {
+        var esFirma = /^(con cari|con afecto|con respeto|warmly|with warmth|with respect)/i.test(l) ||
+          /^(el equipo de cascadas hotel|the cascadas hotel team)\.?$/i.test(l.trim());
+        p.text(l, xMsg, y, esFirma ? 7 : 6.3, esFirma ? textoFuerte : textoBase, { font: 'times', style: esFirma ? 'italic' : 'normal' });
+        y += (l === '' ? lh * 0.5 : lh);
+      });
+    }
+
+    function construirHojaUnica(doc, o, d, mensaje, oscuro, copias) {
+      copias = copias === 2 ? 2 : 1;
+      var left = (210 - MINI_W) / 2;
+      if (copias === 2) {
+        var gap = 10, totalH = MINI_H * 2 + gap, topMargin = (297 - totalH) / 2;
+        [0, 1].forEach(function (i) {
+          var offY = topMargin + i * (MINI_H + gap);
+          var tf = function (x, y) { return [left + x, offY + y]; };
+          dibujarTarjetaUnica(penFor(doc, tf, false), o, d, mensaje, oscuro);
+        });
+        var yCorte = topMargin + MINI_H + gap / 2;
+        doc.setDrawColor(185, 185, 185); doc.setLineWidth(.2);
+        if (doc.setLineDashPattern) doc.setLineDashPattern([1.4, 1.4], 0);
+        doc.line(left - 4, yCorte, left + MINI_W + 4, yCorte);
+        if (doc.setLineDashPattern) doc.setLineDashPattern([], 0);
+      } else {
+        var offY1 = (297 - MINI_H) / 2;
+        var tf1 = function (x, y) { return [left + x, offY1 + y]; };
+        dibujarTarjetaUnica(penFor(doc, tf1, false), o, d, mensaje, oscuro);
+      }
+    }
+
+    // =====================================================================
+    //  CUPON (Welcome Drink): NO se dobla. Un boleto plano, fondo grafito
+    //  (a juego con el reverso de las tarjetas), con el logo del hotel en
+    //  vez de un icono. Se imprimen 4 por hoja A4, listos para repartir.
     // =====================================================================
     var CUPON_W = 182, CUPON_H = 66, CUPON_GAP = 6, CUPON_TOP = 11;
+    var CREMA = [228, 224, 216];
+    function aclararAcc(acc, f) { return mezclar([255, 255, 255], acc, f === undefined ? 0.5 : f); }
 
     function dibujarCupon(p, o, d, mensaje) {
-      var acc = o.acc, W = CUPON_W, H = CUPON_H;
-      var fondo = mezclar(acc, PAPEL, 0.16);
-      p.bg(0, 0, W, H, fondo);
-      patronPuntos(p, 8, 8, W - 8, H - 8, mezclar(acc, fondo, .3), 7.5);
+      var acc = aclararAcc(o.acc, .55), W = CUPON_W, H = CUPON_H;
+      p.bg(0, 0, W, H, GRAFITO);
+      patronPuntos(p, 8, 8, W - 8, H - 8, mezclar(acc, GRAFITO, .18), 7.5);
       p.rect(4, 4, W - 8, H - 8, acc, .8, [2.8, 2.2]);
-      p.circle(4, H / 2, 3, fondo, .6, fondo); p.circle(4, H / 2, 3, acc, .6);
-      p.circle(W - 4, H / 2, 3, fondo, .6, fondo); p.circle(W - 4, H / 2, 3, acc, .6);
+      p.circle(4, H / 2, 3, GRAFITO, .6, GRAFITO); p.circle(4, H / 2, 3, acc, .6);
+      p.circle(W - 4, H / 2, 3, GRAFITO, .6, GRAFITO); p.circle(W - 4, H / 2, 3, acc, .6);
 
-      var xIcono = 30, xDivA = 54, xDetalles = 83, xDivB = 112, xTerm = 148;
-      p.line(xDivA, 11, xDivA, H - 11, acc, .3);
-      p.line(xDivB, 11, xDivB, H - 11, acc, .3);
+      var xLogo = 33, xDivA = 60, xDetalles = 88, xDivB = 116, xTerm = 150;
+      p.line(xDivA, 10, xDivA, H - 10, acc, .3);
+      p.line(xDivB, 10, xDivB, H - 10, acc, .3);
 
-      dibujarMarca(p, xIcono, 13, 7.5, INK, INK_SOFT, 40);
-      p.circle(xIcono, H / 2 + 6, 14, null, 0, mezclar(acc, fondo, .22));
-      if (o.motivo) o.motivo(p, xIcono, H / 2 + 6, acc);
+      dibujarMarca(p, xLogo, H / 2, 21, CREMA, mezclar(acc, CREMA, .5), 54);
 
-      if (o.kicker) p.text(o.kicker[APP.idioma], xDetalles, 22, 4, INK_SOFT, { font: 'helvetica', charSpace: 1.4 });
-      p.text(o.valor(d), xDetalles, H / 2 + 5, (o.valorSize || 16) * 0.9, acc, { font: 'times', style: 'bold' });
+      if (o.kicker) p.text(o.kicker[APP.idioma], xDetalles, 20, 4.4, mezclar(acc, CREMA, .4), { font: 'helvetica', charSpace: 1.4 });
+      p.text(o.valor(d), xDetalles, H / 2 + 4, (o.valorSize || 16), acc, { font: 'times', style: 'bold' });
       var vs = o.valorSub ? o.valorSub(d) : '';
       if (vs) {
-        wrapTexto(vs, 20).forEach(function (l, i) { p.text(l, xDetalles, H / 2 + 13 + i * 4.6, 3.9, INK_SOFT, { font: 'helvetica', charSpace: .8 }); });
+        wrapTexto(vs, 20).forEach(function (l, i) { p.text(l, xDetalles, H / 2 + 15 + i * 5.2, 4.4, mezclar(acc, CREMA, .3), { font: 'helvetica', charSpace: .8 }); });
       }
 
-      var lineas = wrapTexto(mensaje, 27);
-      var lh = 5.4;
-      var y = Math.max(13, H / 2 - (lineas.length - 1) * lh / 2);
+      var lineas = wrapTexto(mensaje, 25);
+      var lh = 6.1;
+      var y = Math.max(14, H / 2 - (lineas.length - 1) * lh / 2);
       lineas.forEach(function (l) {
         var esFirma = /^(una cortesía|a courtesy)/i.test(l);
-        p.text(l, xTerm, y, esFirma ? 5.8 : 6.1, esFirma ? acc : INK, { font: 'times', style: esFirma ? 'italic' : 'normal' });
+        p.text(l, xTerm, y, esFirma ? 6.6 : 6.9, esFirma ? acc : CREMA, { font: 'times', style: esFirma ? 'italic' : 'normal' });
         y += (l === '' ? lh * 0.5 : lh);
       });
     }
@@ -765,8 +1009,72 @@
           if (doc.setLineDashPattern) doc.setLineDashPattern([], 0);
         }
       }
-      doc.setFontSize(6.5); doc.setTextColor(150, 150, 150); doc.setFont('helvetica', 'normal');
-      doc.text(APP.idioma === 'en' ? 'cut along the dashed lines' : 'recorta por las lineas punteadas', 105, 291, { align: 'center' });
+    }
+
+    // =====================================================================
+    //  GIFT CARD: documento elegante de 1 sola pagina, tamano carta apaisado.
+    //  No es un ticket chico: es un certificado completo, fondo grafito,
+    //  con toda la informacion (para quien, de quien, vigencia, codigo).
+    // =====================================================================
+    var GC_W = 279.4, GC_H = 215.9; // carta (letter) apaisado, en mm
+
+    function codigoGiftCard() {
+      if (!APP.codigoGift) APP.codigoGift = 'CAS-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+      return APP.codigoGift;
+    }
+
+    function dibujarGiftCard(p, o, d, mensaje) {
+      var acc = aclararAcc(o.acc, .6), W = GC_W, H = GC_H;
+      p.bg(0, 0, W, H, GRAFITO);
+      patronPuntos(p, 16, 16, W - 16, H - 16, mezclar(acc, GRAFITO, .16), 9.5);
+      p.rect(12, 12, W - 24, H - 24, acc, 1);
+      p.rect(15, 15, W - 30, H - 30, mezclar(acc, GRAFITO, .45), .35);
+      patronRombos(p, 26, W - 26, 24, acc, 15);
+      patronRombos(p, 26, W - 26, H - 27, acc, 15);
+
+      dibujarMarca(p, W / 2, 36, 17, CREMA, mezclar(acc, CREMA, .5), 90);
+
+      if (o.kicker) p.text(o.kicker[APP.idioma], W / 2, 54, 5.2, mezclar(acc, CREMA, .4), { font: 'helvetica', charSpace: 2.2 });
+      p.text(o.valor(d), W / 2, 78, 30, acc, { font: 'times', style: 'bold' });
+      var vs = o.valorSub ? o.valorSub(d) : '';
+      if (vs) p.text(vs, W / 2, 89, 9.5, mezclar(acc, CREMA, .35), { font: 'helvetica', charSpace: 1.3 });
+
+      p.line(W / 2 - 26, 98, W / 2 - 6, 98, acc, .6);
+      p.line(W / 2 + 6, 98, W / 2 + 26, 98, acc, .6);
+      p.circle(W / 2, 98, 1.9, acc, .6, GRAFITO);
+
+      var lineas = wrapTexto(mensaje, 88);
+      var y = 108, lh = 7;
+      lineas.forEach(function (l) {
+        p.text(l, W / 2, y, 10, CREMA, { font: 'times', style: 'normal' });
+        y += (l === '' ? lh * 0.45 : lh);
+      });
+
+      // Letra chica FIJA con las condiciones reales (vigencia, disponibilidad,
+      // meses validos si se eligieron). Arranca justo debajo del mensaje (no
+      // en una posicion fija) y se calculan cuantas lineas entran antes del
+      // ribete inferior, para que crezca si hay mas condiciones sin cortarse.
+      var chica = construirLetraChica(o, d);
+      if (chica) {
+        var lhChica = 4.3;
+        var yChicaTope = H - 27 - 4;
+        var yChica = Math.max(y + 6, 150);
+        var maxLineasChica = Math.max(1, Math.floor((yChicaTope - yChica) / lhChica) + 1);
+        wrapTexto(chica, 128).slice(0, maxLineasChica).forEach(function (l) {
+          p.text(l, W / 2, yChica, 5.8, mezclar(acc, CREMA, .18), { font: 'helvetica', style: 'italic' });
+          yChica += lhChica;
+        });
+      }
+
+      // Pie: codigo unico a la izquierda, fecha de emision a la derecha.
+      var hoy = new Date();
+      var fecha = (hoy.getDate() + '').padStart(2, '0') + '/' + ((hoy.getMonth() + 1) + '').padStart(2, '0') + '/' + hoy.getFullYear();
+      p.text((APP.idioma === 'en' ? 'No. ' : 'N.º ') + codigoGiftCard(), 30, H - 19, 7.2, mezclar(acc, CREMA, .3), { align: 'left', font: 'helvetica' });
+      p.text((APP.idioma === 'en' ? 'Issued on ' : 'Emitida el ') + fecha, W - 30, H - 19, 7.2, mezclar(acc, CREMA, .3), { align: 'right', font: 'helvetica' });
+    }
+
+    function construirHojaGiftCard(doc, o, d, mensaje) {
+      dibujarGiftCard(penFor(doc, function (x, y) { return [x, y]; }, false), o, d, mensaje);
     }
 
     async function generarPDF() {
@@ -774,10 +1082,75 @@
       var o = T[APP.ocasion], d = datosForm();
       var mensaje = document.getElementById('inpMensaje').value;
       await obtenerLogo().then(function (logo) { APP.logo = logo; });
-      var doc = new jspdf.jsPDF('p', 'mm', 'a4');
-      if (o.cupon) construirHojaCupones(doc, o, d, mensaje);
-      else construirHojaTarjeta(doc, o, d, mensaje);
+      var doc;
+      if (o.full) {
+        doc = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
+        construirHojaGiftCard(doc, o, d, mensaje);
+        guardarGiftCardEmitida(d, mensaje);
+      } else if (o.cupon) {
+        doc = new jspdf.jsPDF('p', 'mm', 'a4');
+        construirHojaCupones(doc, o, d, mensaje);
+      } else if (APP.variante === 'grafito') {
+        doc = new jspdf.jsPDF('p', 'mm', 'a4');
+        construirHojaUnica(doc, o, d, mensaje, true, APP.copias);
+      } else if (APP.variante === 'color') {
+        doc = new jspdf.jsPDF('p', 'mm', 'a4');
+        construirHojaUnica(doc, o, d, mensaje, false, APP.copias);
+      } else {
+        doc = new jspdf.jsPDF('p', 'mm', 'a4');
+        construirHojaTarjeta(doc, o, d, mensaje, APP.copias);
+      }
       doc.save(nombreDeArchivo(o));
+    }
+
+    // Guarda la Gift Card recien generada en la planilla (si la app corre
+    // como Web App de Apps Script; si se abre como archivo local para
+    // pruebas, "google" no existe y esto simplemente no hace nada).
+    function guardarGiftCardEmitida(d, mensaje) {
+      if (typeof google === 'undefined' || !google.script || !google.script.run) return;
+      google.script.run
+        .withFailureHandler(function () { /* silencioso: no bloquear la descarga del PDF por esto */ })
+        .withSuccessHandler(function () { if (APP.ocasion === 'giftcard') cargarGiftCardsEmitidas(); })
+        .guardarGiftCard({
+          codigo: codigoGiftCard(), noches: d.noches, vigencia: d.vigencia, mesesValidos: d.mesesValidos,
+          inclusiones: d.inclusiones, destinatario: d.destinatario, remitente: d.remitente,
+          idioma: APP.idioma, mensaje: mensaje
+        });
+      APP.codigoGift = null; // la proxima Gift Card que se genere tendra su propio codigo
+    }
+
+    // ---- Listado de Gift Cards ya emitidas (solo visible en la ocasion Gift Card) ----
+    function cargarGiftCardsEmitidas() {
+      var cont = document.getElementById('giftcardsLista');
+      if (!cont) return;
+      if (typeof google === 'undefined' || !google.script || !google.script.run) {
+        cont.innerHTML = '<p class="hint">' + (APP.idioma === 'en'
+          ? 'Issued Gift Cards list is only available once this app runs as a deployed Web App.'
+          : 'El listado de Gift Cards emitidas solo está disponible cuando la app corre como Web App.') + '</p>';
+        return;
+      }
+      cont.innerHTML = '<p class="hint">' + (APP.idioma === 'en' ? 'Loading…' : 'Cargando…') + '</p>';
+      google.script.run
+        .withFailureHandler(function (err) { cont.innerHTML = '<p class="hint">' + (APP.idioma === 'en' ? 'Could not load the list.' : 'No se pudo cargar el listado.') + '</p>'; })
+        .withSuccessHandler(function (filas) { pintarGiftCardsEmitidas(filas || []); })
+        .listarGiftCards(30);
+    }
+    function pintarGiftCardsEmitidas(filas) {
+      var cont = document.getElementById('giftcardsLista');
+      if (!cont) return;
+      if (!filas.length) { cont.innerHTML = '<p class="hint">' + (APP.idioma === 'en' ? 'No Gift Cards issued yet.' : 'Todavía no se ha emitido ninguna Gift Card.') + '</p>'; return; }
+      var cab = APP.idioma === 'en'
+        ? ['Code', 'Issued', 'Nights', 'Validity', 'Valid months', 'To', 'From']
+        : ['Código', 'Emitida', 'Noches', 'Vigencia', 'Meses válidos', 'Para', 'De'];
+      var html = '<div style="overflow-x:auto"><table class="tabla-gc"><thead><tr>' +
+        cab.map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr></thead><tbody>' +
+        filas.map(function (f) {
+          return '<tr><td>' + (f.Codigo || '') + '</td><td>' + (f.FechaEmision || '') + '</td><td>' + (f.Noches || '') +
+            '</td><td>' + (f.VigenciaMeses || '') + (f.VigenciaMeses ? (APP.idioma === 'en' ? ' mo.' : ' m.') : '') +
+            '</td><td>' + (f.MesesValidos || '—') +
+            '</td><td>' + (f.Para || '') + '</td><td>' + (f.De || '') + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+      cont.innerHTML = html;
     }
 
     // ---- Vista previa ----
@@ -788,13 +1161,20 @@
       var cont = document.getElementById('previa');
       var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
 
-      if (o.cupon) {
+      if (o.full) {
+        svg.setAttribute('viewBox', '0 0 ' + GC_W + ' ' + GC_H);
+        dibujarGiftCard(penSVG(svg), o, d, mensaje);
+        document.getElementById('previaRevSection').classList.add('oculto');
+      } else if (o.cupon) {
         svg.setAttribute('viewBox', '0 0 ' + CUPON_W + ' ' + CUPON_H);
         dibujarCupon(penSVG(svg), o, d, mensaje);
         document.getElementById('previaRevSection').classList.add('oculto');
+      } else if (APP.variante === 'grafito' || APP.variante === 'color') {
+        svg.setAttribute('viewBox', '0 0 ' + MINI_W + ' ' + MINI_H);
+        dibujarTarjetaUnica(penSVG(svg), o, d, mensaje, APP.variante === 'grafito');
+        document.getElementById('previaRevSection').classList.add('oculto');
       } else {
         svg.setAttribute('viewBox', '0 0 ' + (CARD_W * 2) + ' ' + CARD_H);
-        var p = penSVG(svg);
         var pIzq = penSVGOffset(svg, 0, 0), pDer = penSVGOffset(svg, CARD_W, 0);
         dibujarPagPortada(pIzq, o, d);
         dibujarPagMensaje(pDer, o, d, mensaje);
