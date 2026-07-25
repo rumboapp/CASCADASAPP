@@ -1454,3 +1454,87 @@ function ajustarAlturaPagina(docId, alturaEstimada) {
     console.log("Error ajustando altura de página: " + e.toString());
   }
 }
+
+
+// =================================================================
+// LISTA DE RECEPCIONISTAS (compartida entre todos los computadores)
+// -----------------------------------------------------------------
+// Antes vivía en el localStorage de cada navegador, así que cada puesto
+// de recepción tenía su propia lista y partía vacío. Ahora se guarda en
+// las propiedades del script, que son únicas para toda la aplicación.
+// El nombre que queda *seleccionado* sí sigue siendo local a cada
+// computador: eso es una preferencia del puesto, no del hotel.
+// =================================================================
+var _PROP_RECEPCIONISTAS = "RECEPCIONISTAS";
+
+function _leerRecepcionistas() {
+  try {
+    var crudo = PropertiesService.getScriptProperties().getProperty(_PROP_RECEPCIONISTAS);
+    if (!crudo) return [];
+    var lista = JSON.parse(crudo);
+    return Array.isArray(lista) ? lista : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function _escribirRecepcionistas(lista) {
+  var limpia = [];
+  for (var i = 0; i < lista.length; i++) {
+    var n = String(lista[i] == null ? "" : lista[i]).trim();
+    if (n && limpia.indexOf(n) === -1) limpia.push(n);
+  }
+  limpia.sort(function(a, b) { return a.localeCompare(b, "es"); });
+  PropertiesService.getScriptProperties()
+    .setProperty(_PROP_RECEPCIONISTAS, JSON.stringify(limpia));
+  return limpia;
+}
+
+/* Devuelve la lista compartida. `migrar` son los nombres que el navegador
+   tenía guardados de la versión anterior: se suman una sola vez para no
+   perder lo que ya estaba cargado en cada computador. */
+function obtenerRecepcionistas(migrar) {
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch (e) { return _leerRecepcionistas(); }
+  try {
+    var lista = _leerRecepcionistas();
+    if (migrar && migrar.length) {
+      var antes = lista.length;
+      for (var i = 0; i < migrar.length; i++) {
+        var n = String(migrar[i] || "").trim();
+        if (n && lista.indexOf(n) === -1) lista.push(n);
+      }
+      if (lista.length !== antes) return _escribirRecepcionistas(lista);
+    }
+    return lista;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function agregarRecepcionistaServidor(nombre) {
+  var n = String(nombre || "").trim();
+  if (!n) return _leerRecepcionistas();
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch (e) { throw new Error("El sistema está ocupado, inténtalo de nuevo."); }
+  try {
+    var lista = _leerRecepcionistas();
+    if (lista.indexOf(n) === -1) lista.push(n);
+    return _escribirRecepcionistas(lista);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function eliminarRecepcionistaServidor(nombre) {
+  var n = String(nombre || "").trim();
+  if (!n) return _leerRecepcionistas();
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch (e) { throw new Error("El sistema está ocupado, inténtalo de nuevo."); }
+  try {
+    var lista = _leerRecepcionistas().filter(function(x) { return x !== n; });
+    return _escribirRecepcionistas(lista);
+  } finally {
+    lock.releaseLock();
+  }
+}
