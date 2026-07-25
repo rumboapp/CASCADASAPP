@@ -643,7 +643,7 @@
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div>
             <div class="rpt-title" style="font-size:18px;">¿Quién envía este correo?</div>
-            <div class="rpt-subtitle">Se usa para firmar el mensaje. Al continuar se descarga el correo; ábrelo y Outlook lo mostrará listo para enviar.</div>
+            <div class="rpt-subtitle">Se usa para firmar el mensaje. La lista es compartida: lo que agregues o elimines aquí se ve en todos los computadores de recepción.</div>
           </div>
           <button onclick="cerrarModalRecepcionista()" class="btn-cerrar-modal"><i class="fa-solid fa-xmark"></i></button>
         </div>
@@ -654,15 +654,15 @@
           <input type="text" id="nuevoRecepcionistaInput" placeholder="Agregar nombre nuevo..."
                  style="flex:1;background:white;border:1px solid #e2e8f0;border-radius:10px;padding:9px 12px;font-size:13px;outline:none;"
                  onkeydown="if(event.key==='Enter'){event.preventDefault();agregarRecepcionista();}">
-          <button onclick="agregarRecepcionista()" style="background:#0f172a;color:white;border:none;border-radius:10px;padding:9px 14px;font-size:12px;font-weight:700;cursor:pointer;">Agregar</button>
+          <button id="btnAgregarRecepcionista" onclick="agregarRecepcionista()" style="background:#0f172a;color:white;border:none;border-radius:10px;padding:9px 14px;font-size:12px;font-weight:700;cursor:pointer;">Agregar</button>
         </div>
-        <button onclick="eliminarRecepcionistaSeleccionado()" style="background:none;border:none;color:#b91c1c;font-size:12px;font-weight:700;cursor:pointer;padding:4px 0;">
+        <button id="btnEliminarRecepcionista" onclick="eliminarRecepcionistaSeleccionado()" style="background:none;border:none;color:#b91c1c;font-size:12px;font-weight:700;cursor:pointer;padding:4px 0;">
           <i class="fa-solid fa-trash"></i> Eliminar seleccionado de la lista
         </button>
       </div>
       <div style="padding:14px 20px;display:flex;gap:10px;justify-content:flex-end;background:#f8fafc;">
         <button onclick="cerrarModalRecepcionista()" style="background:#e2e8f0;color:#334155;border:none;border-radius:10px;padding:11px 18px;font-size:12px;font-weight:700;cursor:pointer;">Cancelar</button>
-        <button onclick="continuarCorreoOutlook()" style="background:#0072C6;color:white;border:none;border-radius:10px;padding:11px 22px;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:8px;">
+        <button id="btnContinuarCorreo" onclick="continuarCorreoOutlook()" style="background:#0072C6;color:white;border:none;border-radius:10px;padding:11px 22px;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:8px;">
           <i class="fa-solid fa-envelope"></i> ABRIR CORREO
         </button>
       </div>
@@ -2797,45 +2797,104 @@ function refrescarDatosServidor() {
     // ═══════════════════════════════════════════════════════════
     //  ABRIR CORREO NUEVO EN OUTLOOK (mailto)
     // ═══════════════════════════════════════════════════════════
-    // Lista de recepcionistas (se guarda en este navegador: agregar/quitar
-    // se hace desde el propio modal de "¿Quién envía este correo?").
-    function _listaRecepcionistas() {
+    /* Lista de recepcionistas — vive en el servidor, así que es la misma en
+       todos los computadores de recepción. Agregar o eliminar a alguien desde
+       cualquier puesto se ve de inmediato en los demás.
+       Lo único local a cada computador es qué nombre queda seleccionado
+       (clave 'cotizador_recepcionista_actual'): eso es del puesto, no del hotel. */
+    let recepcionistasCache = null;     // último listado traído del servidor
+
+    /* Los nombres que este navegador tenía de la versión anterior se envían
+       una sola vez para sumarlos a la lista compartida y no perderlos. */
+    function _recepcionistasPorMigrar() {
+      if (localStorage.getItem('cotizador_recepcionistas_migrados') === '1') return [];
       try {
         let lista = JSON.parse(localStorage.getItem('cotizador_recepcionistas') || '[]');
         return Array.isArray(lista) ? lista : [];
       } catch(e) { return []; }
     }
-    function _guardarListaRecepcionistas(lista) {
-      localStorage.setItem('cotizador_recepcionistas', JSON.stringify(lista));
-    }
+
     function _renderSelectRecepcionistas(seleccionar) {
-      let lista = _listaRecepcionistas();
       let sel = document.getElementById('selRecepcionista');
-      if (!lista.length) {
+      if (recepcionistasCache === null) {
+        sel.innerHTML = '<option value="">Cargando…</option>';
+        return;
+      }
+      if (!recepcionistasCache.length) {
         sel.innerHTML = '<option value="">— agrega un nombre abajo —</option>';
         return;
       }
-      sel.innerHTML = lista.map(function(n) { return '<option value="' + escTx(n) + '">' + escTx(n) + '</option>'; }).join('');
-      if (seleccionar && lista.indexOf(seleccionar) !== -1) sel.value = seleccionar;
+      sel.innerHTML = recepcionistasCache.map(function(n) {
+        return '<option value="' + escTx(n) + '">' + escTx(n) + '</option>';
+      }).join('');
+      if (seleccionar && recepcionistasCache.indexOf(seleccionar) !== -1) sel.value = seleccionar;
     }
+
+    function _bloquearControlesRecepcionistas(bloquear) {
+      ['selRecepcionista', 'nuevoRecepcionistaInput', 'btnAgregarRecepcionista',
+       'btnEliminarRecepcionista', 'btnContinuarCorreo'].forEach(function(id) {
+        let el = document.getElementById(id);
+        if (el) { el.disabled = !!bloquear; el.style.opacity = bloquear ? '.5' : ''; }
+      });
+    }
+
+    function cargarRecepcionistas(seleccionar) {
+      let migrar = _recepcionistasPorMigrar();
+      _bloquearControlesRecepcionistas(true);
+      google.script.run
+        .withSuccessHandler(function(lista) {
+          recepcionistasCache = Array.isArray(lista) ? lista : [];
+          // La migración ya se hizo: no volver a enviarla.
+          localStorage.setItem('cotizador_recepcionistas_migrados', '1');
+          localStorage.removeItem('cotizador_recepcionistas');
+          _bloquearControlesRecepcionistas(false);
+          _renderSelectRecepcionistas(seleccionar);
+        })
+        .withFailureHandler(function(err) {
+          recepcionistasCache = [];
+          _bloquearControlesRecepcionistas(false);
+          _renderSelectRecepcionistas(seleccionar);
+          mostrarToast('error', 'No se pudo cargar la lista de recepcionistas: ' + err);
+        })
+        .obtenerRecepcionistas(migrar);
+    }
+
     function agregarRecepcionista() {
       let input = document.getElementById('nuevoRecepcionistaInput');
       let nombre = (input.value || '').trim();
       if (!nombre) return;
-      let lista = _listaRecepcionistas();
-      if (lista.indexOf(nombre) === -1) lista.push(nombre);
-      _guardarListaRecepcionistas(lista);
-      input.value = '';
-      _renderSelectRecepcionistas(nombre);
+      _bloquearControlesRecepcionistas(true);
+      google.script.run
+        .withSuccessHandler(function(lista) {
+          recepcionistasCache = Array.isArray(lista) ? lista : [];
+          input.value = '';
+          _bloquearControlesRecepcionistas(false);
+          _renderSelectRecepcionistas(nombre);
+        })
+        .withFailureHandler(function(err) {
+          _bloquearControlesRecepcionistas(false);
+          mostrarToast('error', 'No se pudo agregar: ' + err);
+        })
+        .agregarRecepcionistaServidor(nombre);
     }
+
     function eliminarRecepcionistaSeleccionado() {
       let sel = document.getElementById('selRecepcionista');
       let actual = sel.value;
       if (!actual) return;
-      if (!confirm('¿Eliminar "' + actual + '" de la lista?')) return;
-      let lista = _listaRecepcionistas().filter(function(n) { return n !== actual; });
-      _guardarListaRecepcionistas(lista);
-      _renderSelectRecepcionistas();
+      if (!confirm('¿Eliminar "' + actual + '" de la lista?\n\nSe quita en todos los computadores de recepción.')) return;
+      _bloquearControlesRecepcionistas(true);
+      google.script.run
+        .withSuccessHandler(function(lista) {
+          recepcionistasCache = Array.isArray(lista) ? lista : [];
+          _bloquearControlesRecepcionistas(false);
+          _renderSelectRecepcionistas();
+        })
+        .withFailureHandler(function(err) {
+          _bloquearControlesRecepcionistas(false);
+          mostrarToast('error', 'No se pudo eliminar: ' + err);
+        })
+        .eliminarRecepcionistaServidor(actual);
     }
 
     /* ═══════════════════════════════════════════════════════════════════════
@@ -2981,8 +3040,12 @@ function refrescarDatosServidor() {
 
     function abrirCorreoOutlook() {
       if (!payloadParaWhatsApp) return;
-      _renderSelectRecepcionistas(localStorage.getItem('cotizador_recepcionista_actual') || '');
+      let actual = localStorage.getItem('cotizador_recepcionista_actual') || '';
+      // Se muestra lo último que se sabía y en paralelo se refresca desde el
+      // servidor, por si otro puesto agregó o quitó a alguien.
+      _renderSelectRecepcionistas(actual);
       document.getElementById('modal-recepcionista').style.display = 'flex';
+      cargarRecepcionistas(actual);
     }
     function cerrarModalRecepcionista() {
       document.getElementById('modal-recepcionista').style.display = 'none';
