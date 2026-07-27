@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auditoría diaria · Cascadas Hotel</title>
+<style>
+  :root{
+    --grafito:#414143; --grafito-osc:#2F2F31; --linea:#E4E2DF;
+    --papel:#F6F5F3; --tinta:#222224; --suave:#78767A; --dorado:#C1945C;
+    --ok:#2F6B4F; --alerta:#9A3B2E;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--papel); color:var(--tinta);
+        font-family:"Segoe UI",system-ui,-apple-system,sans-serif; font-size:14px; }
+
+  /* ---------- barra superior ---------- */
+  .barra{ background:linear-gradient(160deg,#4E4E51,#414143 55%,#2F2F31); color:#E9E7E5;
+          padding:14px 26px; display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+  .barra h1{ margin:0; font-size:15px; letter-spacing:2.4px; text-transform:uppercase; font-weight:600; }
+  .barra .fecha{ font-size:12px; color:#B7B4AF; letter-spacing:.6px; }
+  .barra .der{ margin-left:auto; display:flex; gap:10px; align-items:center; }
+  .pill{ background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.16); color:#E9E7E5;
+         border-radius:999px; padding:5px 13px; font-size:11.5px; letter-spacing:.4px; }
+  .pill.demo{ background:rgba(193,148,92,.22); border-color:rgba(193,148,92,.5); color:#EBD4B2; }
+
+  .envoltura{ max-width:1180px; margin:0 auto; padding:22px 26px 60px; }
+
+  /* ---------- avisos ---------- */
+  .aviso{ border-radius:12px; padding:13px 16px; margin-bottom:18px; font-size:13px; line-height:1.55;
+          border:1px solid; display:flex; gap:11px; align-items:flex-start; }
+  .aviso.err{ background:#FBEFEC; border-color:#E7C4BA; color:#7C3122; }
+  .aviso.info{ background:#FFF; border-color:var(--linea); color:var(--suave); }
+  .aviso b{ color:inherit; }
+
+  /* ---------- tarjetas ---------- */
+  .tarjeta{ background:#fff; border:1px solid var(--linea); border-radius:16px; padding:20px 22px;
+            margin-bottom:18px; box-shadow:0 1px 2px rgba(0,0,0,.03); }
+  .tarjeta > h2{ margin:0 0 4px; font-size:12px; letter-spacing:1.6px; text-transform:uppercase;
+                 color:var(--suave); font-weight:700; }
+  .tarjeta > .sub{ margin:0 0 16px; font-size:12.5px; color:var(--suave); }
+
+  /* ---------- formulario ---------- */
+  .fila{ display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
+  .campo{ display:flex; flex-direction:column; gap:6px; }
+  .campo label{ font-size:11px; text-transform:uppercase; letter-spacing:.9px; color:var(--suave); font-weight:700; }
+  input[type=text], input[type=number], select{
+    border:1px solid var(--linea); border-radius:10px; padding:11px 13px; font-size:14px;
+    font-family:inherit; color:var(--tinta); background:#fff; outline:none; min-width:150px; }
+  input:focus, select:focus{ border-color:var(--grafito); }
+
+  .tipos{ display:flex; gap:8px; flex-wrap:wrap; }
+  .tipo{ border:1.5px solid var(--linea); background:#fff; border-radius:10px; padding:10px 15px;
+         font-size:13px; font-weight:600; cursor:pointer; color:var(--suave); font-family:inherit; }
+  .tipo:hover{ border-color:#BFBCB8; color:var(--tinta); }
+  .tipo.act{ background:var(--grafito); border-color:var(--grafito); color:#fff; }
+
+  .btn{ border:none; border-radius:10px; padding:12px 22px; font-size:13px; font-weight:700;
+        cursor:pointer; font-family:inherit; letter-spacing:.3px; }
+  .btn.principal{ background:var(--grafito); color:#fff; }
+  .btn.principal:hover{ background:var(--grafito-osc); }
+  .btn.suave{ background:#EFEDEA; color:#4A484C; }
+  .btn.suave:hover{ background:#E4E2DF; }
+  .btn.linea{ background:#fff; border:1.5px dashed #C9C6C2; color:#5A585C; }
+  .btn.linea:hover{ border-color:var(--grafito); color:var(--tinta); }
+  .btn.peligro{ background:none; color:#9A3B2E; padding:6px 8px; font-size:12px; }
+  .btn:disabled{ opacity:.45; cursor:default; }
+
+  /* ---------- listado ---------- */
+  .vacio{ text-align:center; color:var(--suave); font-size:13px; padding:34px 10px; }
+  .doc{ border:1px solid var(--linea); border-radius:14px; margin-bottom:12px; overflow:hidden; background:#fff; }
+  .doc-cab{ display:flex; align-items:center; gap:14px; padding:14px 18px; flex-wrap:wrap; }
+  .doc-num{ font-size:17px; font-weight:700; letter-spacing:.4px; }
+  .doc-tipo{ font-size:10.5px; text-transform:uppercase; letter-spacing:1.1px; font-weight:700;
+             border-radius:999px; padding:4px 11px; background:#EFEDEA; color:#5A585C; }
+  .doc-tipo.exento{ background:rgba(193,148,92,.16); color:#8A6329; }
+  .doc-meta{ font-size:12px; color:var(--suave); }
+  .doc-acc{ margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .doc-pags{ display:flex; gap:10px; padding:0 18px 16px; flex-wrap:wrap; }
+  .pag{ width:104px; border:1px solid var(--linea); border-radius:10px; overflow:hidden; background:#FAF9F8; }
+  .pag img{ width:100%; height:118px; object-fit:cover; display:block; background:#EFEDEA; }
+  .pag .et{ font-size:10.5px; padding:5px 7px; color:var(--suave); text-align:center;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pag .quitar{ display:block; width:100%; border:none; border-top:1px solid var(--linea);
+                background:#fff; color:#9A3B2E; font-size:10.5px; padding:5px; cursor:pointer; font-family:inherit; }
+
+  /* ---------- superposición mientras escanea ---------- */
+  .capa{ position:fixed; inset:0; background:rgba(47,47,49,.72); display:none;
+         align-items:center; justify-content:center; z-index:50; }
+  .capa.ver{ display:flex; }
+  .capa .caja{ background:#fff; border-radius:16px; padding:30px 40px; text-align:center; max-width:420px; }
+  .capa h3{ margin:0 0 8px; font-size:15px; letter-spacing:1px; text-transform:uppercase; color:var(--grafito); }
+  .capa p{ margin:0; font-size:13px; color:var(--suave); line-height:1.6; }
+  .giro{ width:34px; height:34px; margin:0 auto 16px; border:3px solid var(--linea);
+         border-top-color:var(--grafito); border-radius:50%; animation:girar .9s linear infinite; }
+  @keyframes girar{ to{ transform:rotate(360deg); } }
+
+  .aviso-flotante{ position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px);
+        background:var(--grafito-osc); color:#fff; padding:13px 22px; border-radius:12px; font-size:13px;
+        box-shadow:0 12px 30px -12px rgba(0,0,0,.6); opacity:0; transition:all .25s; z-index:60; max-width:80vw; }
+  .aviso-flotante.ver{ opacity:1; transform:translateX(-50%) translateY(0); }
+  .aviso-flotante.malo{ background:#8A3325; }
+
+  .config-linea{ font-size:12px; color:var(--suave); word-break:break-all; }
+  .config-linea b{ color:var(--tinta); font-weight:600; }
+</style>
+</head>
+<body>
+
+<div class="barra">
+  <h1>Auditoría diaria</h1>
+  <span class="fecha" id="lblFecha"></span>
+  <div class="der">
+    <span class="pill demo" id="pillDemo" style="display:none;">Escáner simulado</span>
+    <span class="pill" id="pillEscaner">Buscando escáner…</span>
+    <button class="btn suave" onclick="abrirCarpeta()">Ver carpeta del día</button>
+    <button class="btn suave" onclick="alternarConfig()">Configuración</button>
+  </div>
+</div>
+
+<div class="envoltura">
+
+  <div id="avisos"></div>
+
+  <!-- ─────────── CONFIGURACIÓN ─────────── -->
+  <div class="tarjeta" id="tarjetaConfig" style="display:none;">
+    <h2>Configuración</h2>
+    <p class="sub">Dónde se guardan los escaneos y con qué calidad.</p>
+    <div class="fila">
+      <div class="campo" style="flex:1; min-width:340px;">
+        <label>Carpeta de escaneados</label>
+        <input type="text" id="cfgBase" placeholder="C:\Documentos Recepcion\Escaneados Boletas y Facturas">
+      </div>
+      <div class="campo">
+        <label>Resolución</label>
+        <select id="cfgResolucion">
+          <option value="150">150 ppp — liviano</option>
+          <option value="200">200 ppp — recomendado</option>
+          <option value="300">300 ppp — detalle</option>
+        </select>
+      </div>
+      <div class="campo">
+        <label>Color</label>
+        <select id="cfgColor">
+          <option value="gris">Escala de grises</option>
+          <option value="color">Color</option>
+        </select>
+      </div>
+      <button class="btn principal" onclick="guardarConfig()">Guardar</button>
+    </div>
+    <p class="config-linea" style="margin-top:14px;">
+      Carpeta de hoy: <b id="lblCarpeta">—</b>
+    </p>
+  </div>
+
+  <!-- ─────────── NUEVO DOCUMENTO ─────────── -->
+  <div class="tarjeta">
+    <h2>Escanear documento</h2>
+    <p class="sub">Pon el documento en el vidrio, elige el tipo, escribe el número y escanea.</p>
+
+    <div class="campo" style="margin-bottom:14px;">
+      <label>Tipo de documento</label>
+      <div class="tipos" id="tipos"></div>
+    </div>
+
+    <div class="fila">
+      <div class="campo">
+        <label>Número</label>
+        <input type="text" id="inpNumero" placeholder="12345" autocomplete="off"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();nuevoDocumento();}">
+      </div>
+      <button class="btn principal" id="btnEscanear" onclick="nuevoDocumento()">Escanear</button>
+    </div>
+  </div>
+
+  <!-- ─────────── LISTADO ─────────── -->
+  <div class="tarjeta">
+    <h2>Documentos de hoy <span id="lblConteo" style="color:var(--tinta);"></span></h2>
+    <p class="sub">Cada documento es un PDF en la carpeta del día, con su número como nombre.</p>
+    <div id="listado"></div>
+  </div>
+
+</div>
+
+<div class="capa" id="capa">
+  <div class="caja">
+    <div class="giro"></div>
+    <h3 id="capaTitulo">Escaneando</h3>
+    <p id="capaTexto">No muevas el documento del vidrio.</p>
+  </div>
+</div>
+
+<div class="aviso-flotante" id="flotante"></div>
+
+<script>
+// =====================================================================
+//  ESTADO
+// =====================================================================
+var DATOS = null;
+var tipoElegido = 'boleta';
+
+function esc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function avisar(texto, malo){
+  var el = document.getElementById('flotante');
+  el.textContent = texto;
+  el.className = 'aviso-flotante ver' + (malo ? ' malo' : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.className = 'aviso-flotante'; }, malo ? 6000 : 3000);
+}
+
+function capa(ver, titulo, texto){
+  document.getElementById('capa').className = 'capa' + (ver ? ' ver' : '');
+  if (titulo) document.getElementById('capaTitulo').textContent = titulo;
+  if (texto) document.getElementById('capaTexto').textContent = texto;
+}
+
+async function pedir(ruta, cuerpo){
+  var opciones = { method: cuerpo ? 'POST' : 'GET' };
+  if (cuerpo) {
+    opciones.headers = { 'Content-Type': 'application/json' };
+    opciones.body = JSON.stringify(cuerpo);
+  }
+  var r = await fetch(ruta, opciones);
+  var j = await r.json().catch(function(){ return { ok:false, error:'Respuesta ilegible del programa.' }; });
+  if (!j.ok) throw new Error(j.error || 'Error desconocido.');
+  return j;
+}
+
+// =====================================================================
+//  CARGA
+// =====================================================================
+async function cargar(){
+  try {
+    var j = await pedir('/api/estado');
+    DATOS = j.datos;
+    pintar();
+  } catch (e) {
+    document.getElementById('avisos').innerHTML =
+      '<div class="aviso err"><span>No se pudo leer el estado: ' + esc(e.message) + '</span></div>';
+  }
+}
+
+async function buscarEscaner(){
+  var pill = document.getElementById('pillEscaner');
+  try {
+    var j = await pedir('/api/escaneres');
+    if (!j.equipos.length) {
+      pill.textContent = 'Sin escáner detectado';
+      pill.style.background = 'rgba(154,59,46,.3)';
+      return;
+    }
+    pill.textContent = j.equipos[0].nombre;
+  } catch (e) {
+    pill.textContent = 'Escáner: ' + e.message;
+    pill.style.background = 'rgba(154,59,46,.3)';
+  }
+}
+
+// =====================================================================
+//  PINTADO
+// =====================================================================
+function pintar(){
+  document.getElementById('lblFecha').textContent = DATOS.fechaTexto;
+  document.getElementById('lblCarpeta').textContent = DATOS.carpetaDestino;
+  document.getElementById('pillDemo').style.display = DATOS.demo ? '' : 'none';
+
+  document.getElementById('cfgBase').value = DATOS.config.carpeta_base || '';
+  document.getElementById('cfgResolucion').value = String(DATOS.config.resolucion || 200);
+  document.getElementById('cfgColor').value = DATOS.config.color || 'gris';
+
+  document.getElementById('tipos').innerHTML = DATOS.tipos.map(function(t){
+    return '<button type="button" class="tipo' + (t.clave === tipoElegido ? ' act' : '') +
+           '" onclick="elegirTipo(\'' + t.clave + '\')">' + esc(t.etiqueta) + '</button>';
+  }).join('');
+
+  var avisos = '';
+  if (!DATOS.baseExiste) {
+    avisos += '<div class="aviso err"><span><b>No encuentro la carpeta de escaneados.</b><br>' +
+      'Busqué en <b>' + esc(DATOS.config.carpeta_base) + '</b> y no existe. ' +
+      'Abre Configuración y pega la ruta correcta: se copia desde la barra de direcciones del Explorador de Windows.' +
+      '</span></div>';
+  }
+  document.getElementById('avisos').innerHTML = avisos;
+
+  var docs = DATOS.documentos || [];
+  document.getElementById('lblConteo').textContent = docs.length ? '· ' + docs.length : '';
+
+  if (!docs.length) {
+    document.getElementById('listado').innerHTML =
+      '<div class="vacio">Todavía no has escaneado nada hoy.</div>';
+    return;
+  }
+
+  var mapaTipos = {};
+  DATOS.tipos.forEach(function(t){ mapaTipos[t.clave] = t; });
+
+  document.getElementById('listado').innerHTML = docs.map(function(d){
+    var t = mapaTipos[d.tipo] || { etiqueta: d.tipo, exento: false };
+    var pags = (d.paginas || []).map(function(p, i){
+      return '<div class="pag">' +
+        '<img src="/api/vista?doc=' + d.id + '&pag=' + i + '&v=' + Date.now() + '" alt="">' +
+        '<div class="et" title="' + esc(p.etiqueta) + '">' + esc(p.etiqueta) + '</div>' +
+        '<button class="quitar" onclick="quitarPagina(' + d.id + ',' + i + ')">Quitar</button>' +
+        '</div>';
+    }).join('');
+
+    return '<div class="doc">' +
+      '<div class="doc-cab">' +
+        '<span class="doc-num">' + esc(d.numero) + '</span>' +
+        '<span class="doc-tipo' + (t.exento ? ' exento' : '') + '">' + esc(t.etiqueta) + '</span>' +
+        '<span class="doc-meta">' + (d.paginas || []).length + ' pág. · ' + esc(d.creado) + '</span>' +
+        '<div class="doc-acc">' +
+          '<button class="btn linea" onclick="agregarPagina(' + d.id + ')">Agregar página</button>' +
+          '<button class="btn suave" onclick="editarDocumento(' + d.id + ')">Corregir</button>' +
+          '<button class="btn peligro" onclick="borrarDocumento(' + d.id + ')">Eliminar</button>' +
+        '</div>' +
+      '</div>' +
+      (pags ? '<div class="doc-pags">' + pags + '</div>' : '') +
+      '</div>';
+  }).join('');
+}
+
+function elegirTipo(clave){
+  tipoElegido = clave;
+  pintar();
+  document.getElementById('inpNumero').focus();
+}
+
+function alternarConfig(){
+  var el = document.getElementById('tarjetaConfig');
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+// =====================================================================
+//  ACCIONES
+// =====================================================================
+async function guardarConfig(){
+  try {
+    await pedir('/api/config', {
+      carpeta_base: document.getElementById('cfgBase').value,
+      resolucion: parseInt(document.getElementById('cfgResolucion').value, 10),
+      color: document.getElementById('cfgColor').value
+    });
+    await cargar();
+    avisar('Configuración guardada.');
+  } catch (e) { avisar(e.message, true); }
+}
+
+async function nuevoDocumento(){
+  var numero = document.getElementById('inpNumero').value.trim();
+  if (!numero) { avisar('Escribe el número del documento.', true); return; }
+  var boton = document.getElementById('btnEscanear');
+  boton.disabled = true;
+  try {
+    var j = await pedir('/api/documento', { tipo: tipoElegido, numero: numero });
+    capa(true, 'Escaneando', 'No muevas el documento del vidrio.');
+    await pedir('/api/escanear', { id: j.documento.id, etiqueta: 'Documento' });
+    document.getElementById('inpNumero').value = '';
+    await cargar();
+    avisar('Documento ' + numero + ' guardado.');
+  } catch (e) {
+    avisar(e.message, true);
+    await cargar();
+  } finally {
+    capa(false);
+    boton.disabled = false;
+    document.getElementById('inpNumero').focus();
+  }
+}
+
+async function agregarPagina(id){
+  var etiqueta = prompt('¿Qué estás escaneando?\n\nPor ejemplo: voucher, transferencia, pasaporte, documento PDI.', 'Voucher');
+  if (etiqueta === null) return;
+  try {
+    capa(true, 'Escaneando', 'No muevas el documento del vidrio.');
+    await pedir('/api/escanear', { id: id, etiqueta: etiqueta });
+    await cargar();
+    avisar('Página agregada.');
+  } catch (e) {
+    avisar(e.message, true);
+  } finally { capa(false); }
+}
+
+/* Corregir un número mal tecleado: se renombra el PDF de la carpeta, no se
+   deja el archivo viejo dando vueltas. */
+async function editarDocumento(id){
+  var doc = (DATOS.documentos || []).find(function(d){ return d.id === id; });
+  if (!doc) return;
+  var numero = prompt('Número correcto del documento:', doc.numero);
+  if (numero === null) return;
+  numero = numero.trim();
+  if (!numero) { avisar('El número no puede quedar vacío.', true); return; }
+
+  var etiquetas = DATOS.tipos.map(function(t, i){ return (i + 1) + ') ' + t.etiqueta; }).join('\n');
+  var actual = DATOS.tipos.findIndex(function(t){ return t.clave === doc.tipo; }) + 1;
+  var eleccion = prompt('Tipo de documento:\n\n' + etiquetas, String(actual));
+  if (eleccion === null) return;
+  var indice = parseInt(eleccion, 10) - 1;
+  if (isNaN(indice) || indice < 0 || indice >= DATOS.tipos.length) {
+    avisar('Tipo no válido.', true); return;
+  }
+
+  try {
+    await pedir('/api/documento/editar', { id: id, tipo: DATOS.tipos[indice].clave, numero: numero });
+    await cargar();
+    avisar('Documento corregido.');
+  } catch (e) { avisar(e.message, true); }
+}
+
+async function quitarPagina(id, indice){
+  if (!confirm('¿Quitar esta página del documento?')) return;
+  try {
+    await pedir('/api/pagina/eliminar', { id: id, indice: indice });
+    await cargar();
+    avisar('Página quitada.');
+  } catch (e) { avisar(e.message, true); }
+}
+
+async function borrarDocumento(id){
+  if (!confirm('¿Eliminar el documento completo?\n\nSe borra también su PDF de la carpeta del día.')) return;
+  try {
+    await pedir('/api/documento/eliminar', { id: id });
+    await cargar();
+    avisar('Documento eliminado.');
+  } catch (e) { avisar(e.message, true); }
+}
+
+async function abrirCarpeta(){
+  try { await pedir('/api/abrir-carpeta', {}); }
+  catch (e) { avisar(e.message, true); }
+}
+
+cargar();
+buscarEscaner();
+</script>
+</body>
+</html>
