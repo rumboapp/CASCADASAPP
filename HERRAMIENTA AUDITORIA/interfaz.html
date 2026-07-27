@@ -130,6 +130,12 @@
   .grilla input.calc{ color:#8B8894; font-style:italic; }
   .grilla tr.exenta td.fijo{ color:#8A6329; }
   .grilla .mini{ font-size:11.5px; color:var(--suave); }
+  .grilla .acciones{ display:flex; gap:6px; }
+  .mini-btn{ border:1px solid var(--linea); background:#FBF8F4; color:#63606A; border-radius:999px;
+             padding:6px 13px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;
+             white-space:nowrap; transition:all .15s; }
+  .mini-btn:hover{ background:#fff; border-color:#CFC8BC; color:var(--tinta); }
+  .mini-btn.borrar:hover{ background:#FBEDE9; border-color:#E4BFB6; color:var(--alerta); }
 
   .totales{ display:flex; gap:30px; flex-wrap:wrap; margin-top:20px; padding-top:18px;
             border-top:1px solid var(--linea); }
@@ -502,18 +508,22 @@ function pintarGrilla(){
           'placeholder="' + (t.exento ? 'monto' : 'afecto') + '"></td>' +
       '<td><input class="monto campo-neto" value="' + esc(fmtMonto(aNumero(d.neto))) + '"></td>' +
       '<td><input class="monto campo-iva" value="' + esc(fmtMonto(aNumero(d.iva))) + '"' +
-          (t.exento ? ' disabled placeholder="exenta"' : '') + '></td>' +
+          (t.exento ? ' disabled placeholder="—"' : '') + '></td>' +
       '<td class="fijo monto-total"></td>' +
       '<td><input class="campo-pago" list="formasPago" value="' + esc(d.formaPago || '') + '"></td>' +
       '<td><input class="campo-autorizacion" value="' + esc(d.autorizacion || '') + '"></td>' +
       '<td><input class="campo-observacion" value="' + esc(d.observacion || '') + '"></td>' +
+      '<td class="fijo"><div class="acciones">' +
+        '<button class="mini-btn" title="Corregir número o tipo" onclick="editarDocumento(' + d.id + ')">Corregir</button>' +
+        '<button class="mini-btn borrar" title="Eliminar el documento y su escaneo" onclick="borrarDocumento(' + d.id + ')">Borrar</button>' +
+      '</div></td>' +
       '</tr>';
   }).join('');
 
   tabla.innerHTML =
     '<thead><tr>' +
       '<th>Documento</th><th></th><th>Afecto</th><th>Neto</th><th>IVA</th><th>Total</th>' +
-      '<th>Forma de pago</th><th>N.º autorización</th><th>Observación</th>' +
+      '<th>Forma de pago</th><th>N.º autorización</th><th>Observación</th><th></th>' +
     '</tr></thead><tbody>' + filas + '</tbody>' +
     '<datalist id="formasPago">' + lista + '</datalist>';
 
