@@ -8,14 +8,17 @@ Herramienta local para el cierre diario de boletas y facturas.
 Corre en el computador de recepcion: un servidor pequeno en Python que hace
 el trabajo con el escaner y los archivos, y una pantalla en el navegador.
 
-Esta primera entrega cubre:
+Cubre el cierre completo:
   - escanear desde el Canon (WIA), eligiendo tipo y numero de documento
   - agregar paginas al mismo documento (voucher, transferencia, pasaporte)
-  - armar el PDF y dejarlo en la carpeta del dia, con el numero como nombre
+  - archivar en la carpeta del dia: JPEG si es una pagina, PDF si son varias
+  - la grilla de valores, con validaciones antes de cerrar
+  - escribir la hoja del dia en la planilla de auditoria
+  - abrir el correo a contabilidad con todo adjunto
+  - buscar documentos de cualquier dia por su numero
 
-El listado con valores, el Excel y el correo vienen en las siguientes
-entregas. El avance del dia se guarda solo: si se apaga el computador, al
-volver a abrir esta todo donde estaba.
+El avance del dia se guarda solo: si se apaga el computador, al volver a
+abrir esta todo donde estaba.
 
 Se ejecuta con:  python auditoria.py
 Para probar la pantalla sin escaner:  python auditoria.py --demo
@@ -498,43 +501,73 @@ class Escaner(object):
 # ===========================================================================
 #  ARMADO DEL PDF
 # ===========================================================================
-def nombre_archivo(doc):
-    """Nombre del PDF: el numero del documento, como se hace hoy a mano."""
-    numero = re.sub(r'[\\/:*?"<>|]', "-", (doc.get("numero") or "").strip())
-    return (numero or ("sin numero %d" % doc["id"])) + ".pdf"
+def nombre_documento(doc, cantidad_paginas):
+    """Nombre del archivo en la carpeta del dia, como se ha archivado siempre:
+    'B 137.854.jpeg'. Un documento de una sola pagina queda en JPEG; con varias
+    tiene que ser PDF, porque un JPEG no admite mas de una."""
+    prefijo = PREFIJO_ADJUNTO.get(doc["tipo"], "")
+    base = ("%s %s" % (prefijo, _numero_con_puntos(doc.get("numero")))).strip()
+    base = re.sub(r'[\\/:*?"<>|]', "-", base) or ("documento %d" % doc["id"])
+    return base + (".jpeg" if cantidad_paginas == 1 else ".pdf")
 
 
-def construir_pdf(doc, carpeta_destino, cfg):
-    """Rehace el PDF del documento con todas sus paginas, en orden."""
+def archivo_actual(doc):
+    return doc.get("archivoSalida") or doc.get("archivoPdf")
+
+
+def construir_salida(doc, carpeta_destino, cfg):
+    """Rehace el archivo del documento y borra el que hubiera antes (el nombre
+    cambia si se corrige el numero, y la extension si cambia la cantidad de
+    paginas)."""
     paginas = [p["archivo"] for p in doc.get("paginas", []) if os.path.exists(p["archivo"])]
     if not paginas:
+        borrar_salida_anterior(doc)
         return None
 
-    calidad = int(cfg.get("calidad_jpeg", 65))
-    resolucion = int(cfg.get("resolucion", 200))
-    imagenes = []
-    try:
-        for ruta in paginas:
-            img = Image.open(ruta)
-            img.load()
-            imagenes.append(img.convert("RGB" if cfg.get("color") == "color" else "L"))
+    os.makedirs(carpeta_destino, exist_ok=True)
+    destino = os.path.join(carpeta_destino, nombre_documento(doc, len(paginas)))
 
-        os.makedirs(carpeta_destino, exist_ok=True)
-        destino = os.path.join(carpeta_destino, nombre_archivo(doc))
-
-        # Se escribe primero un archivo temporal: si algo falla a medio camino,
-        # el PDF que ya estaba en la carpeta no se pierde.
+    if len(paginas) == 1:
+        # La pagina ya esta en JPEG desde el escaneo: se copia tal cual.
         temporal = destino + ".tmp"
-        imagenes[0].save(temporal, "PDF", save_all=True, append_images=imagenes[1:],
-                         resolution=resolucion, quality=calidad)
+        shutil.copy2(paginas[0], temporal)
         os.replace(temporal, destino)
-        return destino
-    finally:
-        for img in imagenes:
-            try:
-                img.close()
-            except Exception:
-                pass
+    else:
+        calidad = int(cfg.get("calidad_jpeg", 65))
+        resolucion = int(cfg.get("resolucion", 200))
+        imagenes = []
+        try:
+            for ruta in paginas:
+                img = Image.open(ruta)
+                img.load()
+                imagenes.append(img.convert("RGB" if cfg.get("color") == "color" else "L"))
+            # Se escribe primero un temporal: si algo falla a medio camino, el
+            # archivo que ya estaba en la carpeta no se pierde.
+            temporal = destino + ".tmp"
+            imagenes[0].save(temporal, "PDF", save_all=True, append_images=imagenes[1:],
+                             resolution=resolucion, quality=calidad)
+            os.replace(temporal, destino)
+        finally:
+            for img in imagenes:
+                try:
+                    img.close()
+                except Exception:
+                    pass
+
+    borrar_salida_anterior(doc, excepto=destino)
+    return destino
+
+
+def borrar_salida_anterior(doc, excepto=None):
+    anterior = archivo_actual(doc)
+    if not anterior or not os.path.exists(anterior):
+        return
+    if excepto and os.path.abspath(anterior) == os.path.abspath(excepto):
+        return
+    try:
+        os.remove(anterior)
+    except OSError:
+        pass
 
 
 # ===========================================================================
@@ -617,24 +650,13 @@ def validar(documentos, carpeta_destino):
 
     # Archivos sueltos en la carpeta del dia que no estan en el listado.
     if carpeta_destino and os.path.isdir(carpeta_destino):
-        esperados = {nombre_archivo(d).lower() for d in documentos}
+        esperados = {os.path.basename(archivo_actual(d)).lower()
+                     for d in documentos if archivo_actual(d)}
         for archivo in sorted(os.listdir(carpeta_destino)):
             if archivo.lower().endswith(".pdf") and archivo.lower() not in esperados:
                 avisos.append("En la carpeta hay un PDF que no está en el listado: %s" % archivo)
 
     return errores, avisos
-
-
-def borrar_pdf_anterior(doc, carpeta_destino):
-    """Si cambio el numero, se saca el PDF con el nombre viejo."""
-    anterior = doc.get("archivoPdf")
-    if anterior and os.path.exists(anterior):
-        nuevo = os.path.join(carpeta_destino, nombre_archivo(doc))
-        if os.path.abspath(anterior) != os.path.abspath(nuevo):
-            try:
-                os.remove(anterior)
-            except OSError:
-                pass
 
 
 # ===========================================================================
@@ -809,39 +831,16 @@ def _numero_con_puntos(numero):
     return "{:,}".format(int(texto)).replace(",", ".") if texto.isdigit() else texto
 
 
-def nombre_adjunto(doc, extension):
-    prefijo = PREFIJO_ADJUNTO.get(doc["tipo"], "")
-    base = ("%s %s" % (prefijo, _numero_con_puntos(doc.get("numero")))).strip()
-    return re.sub(r'[\\/:*?"<>|]', "-", base) + extension
-
-
 def preparar_adjuntos(documentos, carpeta_trabajo, ruta_excel):
-    """Deja en una carpeta aparte los archivos con el nombre que va al correo."""
-    salida = os.path.join(carpeta_trabajo, "adjuntos")
-    shutil.rmtree(salida, ignore_errors=True)
-    os.makedirs(salida, exist_ok=True)
-
+    """Los adjuntos son los mismos archivos de la carpeta del dia: ya estan con
+    el nombre y el formato correctos, no hace falta copiarlos a ningun lado."""
     rutas = []
     if ruta_excel and os.path.exists(ruta_excel):
-        destino = os.path.join(salida, os.path.basename(ruta_excel))
-        shutil.copy2(ruta_excel, destino)
-        rutas.append(destino)
-
+        rutas.append(ruta_excel)
     for doc in documentos:
-        paginas = [p["archivo"] for p in doc.get("paginas", []) if os.path.exists(p["archivo"])]
-        if not paginas:
-            continue
-        if len(paginas) == 1:
-            destino = os.path.join(salida, nombre_adjunto(doc, ".jpeg"))
-            shutil.copy2(paginas[0], destino)
-        else:
-            # Varias paginas no caben en un JPEG: va el PDF que ya se armo.
-            origen = doc.get("archivoPdf")
-            if not origen or not os.path.exists(origen):
-                continue
-            destino = os.path.join(salida, nombre_adjunto(doc, ".pdf"))
-            shutil.copy2(origen, destino)
-        rutas.append(destino)
+        archivo = archivo_actual(doc)
+        if archivo and os.path.exists(archivo):
+            rutas.append(archivo)
     return rutas
 
 
@@ -1114,7 +1113,7 @@ class Aplicacion(object):
                 "tipo": tipo,
                 "numero": numero,
                 "paginas": [],
-                "archivoPdf": None,
+                "archivoSalida": None,
                 "creado": datetime.datetime.now().strftime("%H:%M"),
             }
             self.estado.siguiente_id += 1
@@ -1138,7 +1137,7 @@ class Aplicacion(object):
                 "etiqueta": (etiqueta or "Documento").strip() or "Documento",
                 "archivo": destino_img,
             })
-            doc["archivoPdf"] = construir_pdf(doc, self.carpeta_destino(), self.cfg)
+            doc["archivoSalida"] = construir_salida(doc, self.carpeta_destino(), self.cfg)
             self.estado.guardar()
         return doc
 
@@ -1155,11 +1154,7 @@ class Aplicacion(object):
                     os.remove(pagina["archivo"])
             except OSError:
                 pass
-            if doc["paginas"]:
-                doc["archivoPdf"] = construir_pdf(doc, self.carpeta_destino(), self.cfg)
-            else:
-                borrar_pdf_anterior(doc, self.carpeta_destino(crear=False))
-                doc["archivoPdf"] = None
+            doc["archivoSalida"] = construir_salida(doc, self.carpeta_destino(), self.cfg)
             self.estado.guardar()
         return doc
 
@@ -1177,14 +1172,9 @@ class Aplicacion(object):
         if choque:
             raise ValueError("Ya hay una %s con el número %s." % (TIPOS[tipo]["etiqueta"].lower(), numero))
         with self.estado.lock:
-            carpeta = self.carpeta_destino()
-            anterior_nombre = nombre_archivo(doc)
             doc["tipo"] = tipo
             doc["numero"] = numero
-            if nombre_archivo(doc) != anterior_nombre:
-                borrar_pdf_anterior(doc, carpeta)
-            if doc["paginas"]:
-                doc["archivoPdf"] = construir_pdf(doc, carpeta, self.cfg)
+            doc["archivoSalida"] = construir_salida(doc, self.carpeta_destino(), self.cfg)
             self.estado.guardar()
         return doc
 
@@ -1193,13 +1183,7 @@ class Aplicacion(object):
         if not doc:
             return
         with self.estado.lock:
-            borrar_pdf_anterior(doc, self.carpeta_destino(crear=False))
-            pdf = doc.get("archivoPdf")
-            if pdf and os.path.exists(pdf):
-                try:
-                    os.remove(pdf)
-                except OSError:
-                    pass
+            borrar_salida_anterior(doc)
             carpeta_doc = os.path.join(self.estado.carpeta_trabajo, "doc-%d" % doc_id)
             shutil.rmtree(carpeta_doc, ignore_errors=True)
             self.estado.documentos = [d for d in self.estado.documentos if d["id"] != doc_id]
