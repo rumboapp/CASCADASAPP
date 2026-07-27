@@ -74,7 +74,19 @@ CONFIG_POR_DEFECTO = {
     # van sumando solas a esta lista para tenerlas a mano el dia siguiente.
     "formas_pago": ["EFECTIVO", "DB", "CREDITO", "MC", "VISA", "VISA USD",
                     "TRANSFERENCIA", "MC Y TRANSFERENCIA"],
+    # --- Correo a contabilidad ---
+    "correo_para": "jisla@hotelantofagasta.cl",
+    "correo_cc": "npizarro@cascadashotel.cl; administracion@cascadashotel.cl; "
+                 "contabilidad@cascadasantofagasta.cl",
+    "correo_saludo": "Estimada Josefa",
+    # Quien firma el correo. La lista es del hotel; el elegido queda por
+    # computador, porque no siempre audita la misma persona.
+    "remitentes": [],
 }
+
+# Prefijo con que se nombran los adjuntos del correo, como los recibe
+# contabilidad hoy: "B 137.854.jpeg".
+PREFIJO_ADJUNTO = {"boleta": "B", "factura": "F", "exportacion": "FE"}
 
 # ---------------------------------------------------------------------------
 # Planilla de auditoria: encabezados en la fila 3, datos desde la 4,
@@ -781,6 +793,115 @@ def escribir_en_planilla(ruta_excel, fecha, documentos):
             pass
 
 
+# ===========================================================================
+#  CORREO A CONTABILIDAD
+#  Se arma en Outlook y se deja ABIERTO para revisar: nunca se envia solo.
+#  Los documentos de una sola pagina van como JPEG (que es como los recibe
+#  contabilidad hoy) y los de varias como PDF, que es lo unico que soporta
+#  mas de una pagina.
+# ===========================================================================
+class ErrorCorreo(Exception):
+    pass
+
+
+def _numero_con_puntos(numero):
+    texto = str(numero or "").strip()
+    return "{:,}".format(int(texto)).replace(",", ".") if texto.isdigit() else texto
+
+
+def nombre_adjunto(doc, extension):
+    prefijo = PREFIJO_ADJUNTO.get(doc["tipo"], "")
+    base = ("%s %s" % (prefijo, _numero_con_puntos(doc.get("numero")))).strip()
+    return re.sub(r'[\\/:*?"<>|]', "-", base) + extension
+
+
+def preparar_adjuntos(documentos, carpeta_trabajo, ruta_excel):
+    """Deja en una carpeta aparte los archivos con el nombre que va al correo."""
+    salida = os.path.join(carpeta_trabajo, "adjuntos")
+    shutil.rmtree(salida, ignore_errors=True)
+    os.makedirs(salida, exist_ok=True)
+
+    rutas = []
+    if ruta_excel and os.path.exists(ruta_excel):
+        destino = os.path.join(salida, os.path.basename(ruta_excel))
+        shutil.copy2(ruta_excel, destino)
+        rutas.append(destino)
+
+    for doc in documentos:
+        paginas = [p["archivo"] for p in doc.get("paginas", []) if os.path.exists(p["archivo"])]
+        if not paginas:
+            continue
+        if len(paginas) == 1:
+            destino = os.path.join(salida, nombre_adjunto(doc, ".jpeg"))
+            shutil.copy2(paginas[0], destino)
+        else:
+            # Varias paginas no caben en un JPEG: va el PDF que ya se armo.
+            origen = doc.get("archivoPdf")
+            if not origen or not os.path.exists(origen):
+                continue
+            destino = os.path.join(salida, nombre_adjunto(doc, ".pdf"))
+            shutil.copy2(origen, destino)
+        rutas.append(destino)
+    return rutas
+
+
+def cuerpo_correo(cfg, fecha, remitente):
+    dia = fecha.strftime("%d-%m-%Y")
+    saludo = (cfg.get("correo_saludo") or "Estimada Josefa").strip().rstrip(",")
+    return (
+        '<div style="font-family:Aptos,Calibri,\'Segoe UI\',sans-serif;font-size:11pt;color:#000000;">'
+        '<p style="margin:0 0 11pt 0;">' + saludo + ',</p>'
+        '<p style="margin:0 0 11pt 0;">Junto con saludar, adjunto planilla de auditoría '
+        'y documentos de pagos del ' + dia + '.</p>'
+        '<p style="margin:0 0 11pt 0;">Quedamos atentos</p>'
+        '<p style="margin:0 0 11pt 0;">Se despide cordialmente</p>'
+        '<p style="margin:0 0 14pt 0;">' + (remitente or "").strip() + '.</p>'
+        '</div>'
+    )
+
+
+def abrir_correo(cfg, fecha, documentos, remitente, carpeta_trabajo):
+    """Abre el correo en Outlook con todo adjunto, listo para revisar y enviar."""
+    if not (remitente or "").strip():
+        raise ErrorCorreo("Elige quién envía el correo.")
+
+    adjuntos = preparar_adjuntos(documentos, carpeta_trabajo, cfg.get("archivo_excel"))
+    if not adjuntos:
+        raise ErrorCorreo("No hay nada que adjuntar.")
+
+    asunto = "Cascadas Hotel/ Recibimientos y Pagos %s." % fecha.strftime("%d-%m-%Y")
+    cuerpo = cuerpo_correo(cfg, fecha, remitente)
+
+    import pythoncom
+    pythoncom.CoInitialize()
+    try:
+        import win32com.client
+        outlook = win32com.client.Dispatch("Outlook.Application")
+        mensaje = outlook.CreateItem(0)          # 0 = correo nuevo
+        mensaje.To = cfg.get("correo_para", "")
+        mensaje.CC = cfg.get("correo_cc", "")
+        mensaje.Subject = asunto
+        for ruta in adjuntos:
+            mensaje.Attachments.Add(os.path.abspath(ruta))
+        # Se muestra primero para que Outlook ponga la firma del computador, y
+        # el cuerpo se antepone a lo que quedo: asi la firma es la de verdad,
+        # no una imitacion.
+        mensaje.Display()
+        try:
+            firma = mensaje.HTMLBody or ""
+        except Exception:
+            firma = ""
+        mensaje.HTMLBody = cuerpo + firma
+        return {"via": "outlook", "adjuntos": len(adjuntos), "asunto": asunto}
+    except Exception as e:
+        raise ErrorCorreo("No se pudo abrir Outlook: %s" % e)
+    finally:
+        try:
+            pythoncom.CoUninitialize()
+        except Exception:
+            pass
+
+
 class Aplicacion(object):
     def __init__(self):
         self.cfg = leer_config()
@@ -836,6 +957,32 @@ class Aplicacion(object):
             raise ErrorExcel("No hay documentos que escribir.")
         return escribir_en_planilla(self.cfg.get("archivo_excel"), self.fecha, self.estado.documentos)
 
+    def abrir_correo(self, remitente):
+        errores, _avisos = validar(self.estado.documentos, self.carpeta_destino(crear=False))
+        if errores:
+            raise ErrorCorreo("Faltan datos por completar:\n\n· " + "\n· ".join(errores))
+        nombre = (remitente or "").strip()
+        if nombre and nombre not in self.cfg.get("remitentes", []):
+            self.cfg.setdefault("remitentes", []).append(nombre)
+            guardar_config(self.cfg)
+        return abrir_correo(self.cfg, self.fecha, self.estado.documentos,
+                            nombre, self.estado.carpeta_trabajo)
+
+    def agregar_remitente(self, nombre):
+        nombre = (nombre or "").strip()
+        if not nombre:
+            raise ValueError("Escribe un nombre.")
+        if nombre not in self.cfg.get("remitentes", []):
+            self.cfg.setdefault("remitentes", []).append(nombre)
+            self.cfg["remitentes"].sort()
+            guardar_config(self.cfg)
+        return self.cfg["remitentes"]
+
+    def eliminar_remitente(self, nombre):
+        self.cfg["remitentes"] = [n for n in self.cfg.get("remitentes", []) if n != nombre]
+        guardar_config(self.cfg)
+        return self.cfg["remitentes"]
+
     def resumen(self):
         base = (self.cfg.get("carpeta_base") or "").strip()
         excel = (self.cfg.get("archivo_excel") or "").strip()
@@ -851,6 +998,9 @@ class Aplicacion(object):
             "documentos": self.estado.documentos,
             "tipos": [{"clave": k, "etiqueta": v["etiqueta"], "exento": v["exento"]} for k, v in TIPOS.items()],
             "formasPago": self.cfg.get("formas_pago", []),
+            "remitentes": self.cfg.get("remitentes", []),
+            "correoPara": self.cfg.get("correo_para", ""),
+            "correoCc": self.cfg.get("correo_cc", ""),
             "errores": errores,
             "avisos": avisos,
             "demo": MODO_DEMO or not ES_WINDOWS,
@@ -1107,7 +1257,13 @@ class Manejador(http.server.BaseHTTPRequestHandler):
                 return self._json({"ok": True, "documento": doc})
             if ruta == "/api/excel/escribir":
                 return self._json({"ok": True, "resultado": APP.escribir_excel()})
-        except (ValueError, ErrorEscaner, ErrorExcel) as e:
+            if ruta == "/api/correo":
+                return self._json({"ok": True, "resultado": APP.abrir_correo(cuerpo.get("remitente"))})
+            if ruta == "/api/remitente/agregar":
+                return self._json({"ok": True, "remitentes": APP.agregar_remitente(cuerpo.get("nombre"))})
+            if ruta == "/api/remitente/eliminar":
+                return self._json({"ok": True, "remitentes": APP.eliminar_remitente(cuerpo.get("nombre"))})
+        except (ValueError, ErrorEscaner, ErrorExcel, ErrorCorreo) as e:
             return self._error(str(e))
         except Exception as e:
             traceback.print_exc()

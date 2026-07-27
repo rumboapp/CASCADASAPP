@@ -6,128 +6,143 @@
 <title>Auditoría diaria · Cascadas Hotel</title>
 <style>
   :root{
-    --grafito:#414143; --grafito-osc:#2F2F31; --linea:#E4E2DF;
-    --papel:#F6F5F3; --tinta:#222224; --suave:#78767A; --dorado:#C1945C;
-    --ok:#2F6B4F; --alerta:#9A3B2E;
+    --grafito:#43424A; --grafito-osc:#33323A; --dorado:#C1945C;
+    --papel:#F7F4EF; --crema:#FFFDFA; --tinta:#2E2D33; --suave:#87848E;
+    --linea:#EAE4DA; --ok:#3E7D5D; --alerta:#B0503F;
+    --sombra:0 2px 14px -6px rgba(60,55,45,.22);
+    --sombra-alta:0 10px 28px -12px rgba(60,55,45,.3);
   }
   *{ box-sizing:border-box; }
   body{ margin:0; background:var(--papel); color:var(--tinta);
-        font-family:"Segoe UI",system-ui,-apple-system,sans-serif; font-size:14px; }
+        font-family:"Segoe UI",system-ui,-apple-system,sans-serif; font-size:14.5px; }
 
   /* ---------- barra superior ---------- */
-  .barra{ background:linear-gradient(160deg,#4E4E51,#414143 55%,#2F2F31); color:#E9E7E5;
-          padding:14px 26px; display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
-  .barra h1{ margin:0; font-size:15px; letter-spacing:2.4px; text-transform:uppercase; font-weight:600; }
-  .barra .fecha{ font-size:12px; color:#B7B4AF; letter-spacing:.6px; }
-  .barra .der{ margin-left:auto; display:flex; gap:10px; align-items:center; }
-  .pill{ background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.16); color:#E9E7E5;
-         border-radius:999px; padding:5px 13px; font-size:11.5px; letter-spacing:.4px; }
-  .pill.demo{ background:rgba(193,148,92,.22); border-color:rgba(193,148,92,.5); color:#EBD4B2; }
+  .barra{ background:linear-gradient(150deg,#55535E,#43424A 55%,#33323A); color:#F3EFE9;
+          padding:16px 30px; display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+          border-radius:0 0 26px 26px; box-shadow:var(--sombra-alta); }
+  .barra h1{ margin:0; font-size:16px; letter-spacing:1.6px; font-weight:600; }
+  .barra .fecha{ font-size:13px; color:#C8C3BB; }
+  .barra .der{ margin-left:auto; display:flex; gap:9px; align-items:center; flex-wrap:wrap; }
+  .pill{ background:rgba(255,255,255,.13); border:1px solid rgba(255,255,255,.2); color:#F3EFE9;
+         border-radius:999px; padding:7px 15px; font-size:12.5px; }
+  .pill.demo{ background:rgba(193,148,92,.28); border-color:rgba(193,148,92,.55); color:#F0DBB9; }
 
-  .envoltura{ max-width:1180px; margin:0 auto; padding:22px 26px 60px; }
+  .envoltura{ max-width:1220px; margin:0 auto; padding:26px 30px 70px; }
 
   /* ---------- avisos ---------- */
-  .aviso{ border-radius:12px; padding:13px 16px; margin-bottom:18px; font-size:13px; line-height:1.55;
-          border:1px solid; display:flex; gap:11px; align-items:flex-start; }
-  .aviso.err{ background:#FBEFEC; border-color:#E7C4BA; color:#7C3122; }
-  .aviso.info{ background:#FFF; border-color:var(--linea); color:var(--suave); }
-  .aviso b{ color:inherit; }
+  .aviso{ border-radius:18px; padding:15px 19px; margin-bottom:16px; font-size:13.5px; line-height:1.6;
+          border:1px solid; }
+  .aviso.err{ background:#FCF0EC; border-color:#F0D2C7; color:#8C4132; }
+  .aviso.info{ background:var(--crema); border-color:var(--linea); color:var(--suave); }
 
   /* ---------- tarjetas ---------- */
-  .tarjeta{ background:#fff; border:1px solid var(--linea); border-radius:16px; padding:20px 22px;
-            margin-bottom:18px; box-shadow:0 1px 2px rgba(0,0,0,.03); }
-  .tarjeta > h2{ margin:0 0 4px; font-size:12px; letter-spacing:1.6px; text-transform:uppercase;
-                 color:var(--suave); font-weight:700; }
-  .tarjeta > .sub{ margin:0 0 16px; font-size:12.5px; color:var(--suave); }
+  .tarjeta{ background:var(--crema); border:1px solid var(--linea); border-radius:24px; padding:24px 26px;
+            margin-bottom:20px; box-shadow:var(--sombra); }
+  .tarjeta > h2{ margin:0 0 3px; font-size:16px; color:var(--tinta); font-weight:700; letter-spacing:.2px; }
+  .tarjeta > .sub{ margin:0 0 18px; font-size:13px; color:var(--suave); line-height:1.6; }
 
   /* ---------- formulario ---------- */
   .fila{ display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
-  .campo{ display:flex; flex-direction:column; gap:6px; }
-  .campo label{ font-size:11px; text-transform:uppercase; letter-spacing:.9px; color:var(--suave); font-weight:700; }
+  .campo{ display:flex; flex-direction:column; gap:7px; }
+  .campo label{ font-size:12.5px; color:var(--suave); font-weight:600; }
   input[type=text], input[type=number], select{
-    border:1px solid var(--linea); border-radius:10px; padding:11px 13px; font-size:14px;
-    font-family:inherit; color:var(--tinta); background:#fff; outline:none; min-width:150px; }
-  input:focus, select:focus{ border-color:var(--grafito); }
+    border:1.5px solid var(--linea); border-radius:14px; padding:12px 15px; font-size:15px;
+    font-family:inherit; color:var(--tinta); background:#fff; outline:none; min-width:150px;
+    transition:border-color .15s, box-shadow .15s; }
+  input:focus, select:focus{ border-color:var(--grafito); box-shadow:0 0 0 4px rgba(67,66,74,.09); }
 
-  .tipos{ display:flex; gap:8px; flex-wrap:wrap; }
-  .tipo{ border:1.5px solid var(--linea); background:#fff; border-radius:10px; padding:10px 15px;
-         font-size:13px; font-weight:600; cursor:pointer; color:var(--suave); font-family:inherit; }
-  .tipo:hover{ border-color:#BFBCB8; color:var(--tinta); }
-  .tipo.act{ background:var(--grafito); border-color:var(--grafito); color:#fff; }
+  .tipos{ display:flex; gap:9px; flex-wrap:wrap; }
+  .tipo{ border:1.5px solid var(--linea); background:#fff; border-radius:999px; padding:11px 20px;
+         font-size:14px; font-weight:600; cursor:pointer; color:var(--suave); font-family:inherit;
+         transition:all .15s; }
+  .tipo:hover{ border-color:#CFC8BC; color:var(--tinta); transform:translateY(-1px); }
+  .tipo.act{ background:var(--grafito); border-color:var(--grafito); color:#fff;
+             box-shadow:0 5px 14px -6px rgba(67,66,74,.7); }
 
-  .btn{ border:none; border-radius:10px; padding:12px 22px; font-size:13px; font-weight:700;
-        cursor:pointer; font-family:inherit; letter-spacing:.3px; }
-  .btn.principal{ background:var(--grafito); color:#fff; }
-  .btn.principal:hover{ background:var(--grafito-osc); }
-  .btn.suave{ background:#EFEDEA; color:#4A484C; }
-  .btn.suave:hover{ background:#E4E2DF; }
-  .btn.linea{ background:#fff; border:1.5px dashed #C9C6C2; color:#5A585C; }
-  .btn.linea:hover{ border-color:var(--grafito); color:var(--tinta); }
-  .btn.peligro{ background:none; color:#9A3B2E; padding:6px 8px; font-size:12px; }
-  .btn:disabled{ opacity:.45; cursor:default; }
+  .btn{ border:none; border-radius:999px; padding:12px 24px; font-size:14px; font-weight:600;
+        cursor:pointer; font-family:inherit; transition:all .15s; }
+  .btn.principal{ background:var(--grafito); color:#fff; box-shadow:0 5px 14px -6px rgba(67,66,74,.7); }
+  .btn.principal:hover{ background:var(--grafito-osc); transform:translateY(-1px); }
+  .btn.suave{ background:#EFEAE1; color:#57545E; }
+  .btn.suave:hover{ background:#E6E0D5; }
+  .btn.linea{ background:#fff; border:1.5px dashed #CFC8BC; color:#57545E; }
+  .btn.linea:hover{ border-color:var(--grafito); color:var(--tinta); background:#FCFAF6; }
+  .btn.peligro{ background:none; color:var(--alerta); padding:8px 12px; font-size:13px; }
+  .btn.peligro:hover{ background:#FBEDE9; }
+  .btn:disabled{ opacity:.4; cursor:default; transform:none; box-shadow:none; }
 
-  /* ---------- listado ---------- */
-  .vacio{ text-align:center; color:var(--suave); font-size:13px; padding:34px 10px; }
-  .doc{ border:1px solid var(--linea); border-radius:14px; margin-bottom:12px; overflow:hidden; background:#fff; }
-  .doc-cab{ display:flex; align-items:center; gap:14px; padding:14px 18px; flex-wrap:wrap; }
-  .doc-num{ font-size:17px; font-weight:700; letter-spacing:.4px; }
-  .doc-tipo{ font-size:10.5px; text-transform:uppercase; letter-spacing:1.1px; font-weight:700;
-             border-radius:999px; padding:4px 11px; background:#EFEDEA; color:#5A585C; }
-  .doc-tipo.exento{ background:rgba(193,148,92,.16); color:#8A6329; }
-  .doc-meta{ font-size:12px; color:var(--suave); }
-  .doc-acc{ margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  .doc-pags{ display:flex; gap:10px; padding:0 18px 16px; flex-wrap:wrap; }
-  .pag{ width:104px; border:1px solid var(--linea); border-radius:10px; overflow:hidden; background:#FAF9F8; }
-  .pag img{ width:100%; height:118px; object-fit:cover; display:block; background:#EFEDEA; }
-  .pag .et{ font-size:10.5px; padding:5px 7px; color:var(--suave); text-align:center;
+  /* ---------- burbujas de documento ---------- */
+  .vacio{ text-align:center; color:var(--suave); font-size:13.5px; padding:36px 10px; }
+  .doc{ background:#fff; border:1px solid var(--linea); border-radius:22px; margin-bottom:14px;
+        box-shadow:var(--sombra); overflow:hidden; }
+  .doc-cab{ display:flex; align-items:center; gap:14px; padding:17px 22px; flex-wrap:wrap; }
+  .doc-num{ font-size:20px; font-weight:700; }
+  .doc-tipo{ font-size:12px; font-weight:600; border-radius:999px; padding:6px 14px;
+             background:#F0EBE2; color:#63606A; }
+  .doc-tipo.exento{ background:rgba(193,148,92,.2); color:#8A6329; }
+  .doc-meta{ font-size:12.5px; color:var(--suave); }
+  .doc-acc{ margin-left:auto; display:flex; gap:9px; align-items:center; flex-wrap:wrap; }
+  .doc-pags{ display:flex; gap:12px; padding:0 22px 20px; flex-wrap:wrap; }
+  .pag{ width:116px; border:1px solid var(--linea); border-radius:16px; overflow:hidden; background:#FBF8F4; }
+  .pag img{ width:100%; height:128px; object-fit:cover; display:block; background:#F0EBE2; }
+  .pag .et{ font-size:11.5px; padding:7px; color:var(--suave); text-align:center;
             white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .pag .quitar{ display:block; width:100%; border:none; border-top:1px solid var(--linea);
-                background:#fff; color:#9A3B2E; font-size:10.5px; padding:5px; cursor:pointer; font-family:inherit; }
+                background:#fff; color:var(--alerta); font-size:11.5px; padding:7px; cursor:pointer;
+                font-family:inherit; }
+  .pag .quitar:hover{ background:#FBEDE9; }
 
-  /* ---------- superposición mientras escanea ---------- */
-  .capa{ position:fixed; inset:0; background:rgba(47,47,49,.72); display:none;
-         align-items:center; justify-content:center; z-index:50; }
+  /* ---------- capa de escaneo ---------- */
+  .capa{ position:fixed; inset:0; background:rgba(51,50,58,.7); display:none;
+         align-items:center; justify-content:center; z-index:50; backdrop-filter:blur(2px); }
   .capa.ver{ display:flex; }
-  .capa .caja{ background:#fff; border-radius:16px; padding:30px 40px; text-align:center; max-width:420px; }
-  .capa h3{ margin:0 0 8px; font-size:15px; letter-spacing:1px; text-transform:uppercase; color:var(--grafito); }
-  .capa p{ margin:0; font-size:13px; color:var(--suave); line-height:1.6; }
-  .giro{ width:34px; height:34px; margin:0 auto 16px; border:3px solid var(--linea);
-         border-top-color:var(--grafito); border-radius:50%; animation:girar .9s linear infinite; }
+  .capa .caja{ background:var(--crema); border-radius:26px; padding:36px 46px; text-align:center; max-width:430px;
+               box-shadow:var(--sombra-alta); }
+  .capa h3{ margin:0 0 9px; font-size:17px; color:var(--tinta); font-weight:700; }
+  .capa p{ margin:0; font-size:13.5px; color:var(--suave); line-height:1.65; }
+  .giro{ width:38px; height:38px; margin:0 auto 18px; border:3px solid var(--linea);
+         border-top-color:var(--dorado); border-radius:50%; animation:girar .9s linear infinite; }
   @keyframes girar{ to{ transform:rotate(360deg); } }
 
-  .aviso-flotante{ position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px);
-        background:var(--grafito-osc); color:#fff; padding:13px 22px; border-radius:12px; font-size:13px;
-        box-shadow:0 12px 30px -12px rgba(0,0,0,.6); opacity:0; transition:all .25s; z-index:60; max-width:80vw; }
+  .aviso-flotante{ position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(80px);
+        background:var(--grafito-osc); color:#fff; padding:14px 24px; border-radius:999px; font-size:13.5px;
+        box-shadow:var(--sombra-alta); opacity:0; transition:all .25s; z-index:60; max-width:80vw; }
   .aviso-flotante.ver{ opacity:1; transform:translateX(-50%) translateY(0); }
-  .aviso-flotante.malo{ background:#8A3325; }
+  .aviso-flotante.malo{ background:#96422F; }
 
-  .config-linea{ font-size:12px; color:var(--suave); word-break:break-all; }
+  .config-linea{ font-size:12.5px; color:var(--suave); word-break:break-all; }
   .config-linea b{ color:var(--tinta); font-weight:600; }
 
   /* ---------- grilla de valores ---------- */
-  .grilla{ border-collapse:collapse; width:100%; font-size:13px; }
-  .grilla th{ background:#F2EFEA; border:1px solid #DAD6D0; padding:7px 8px; font-size:10.5px;
-              text-transform:uppercase; letter-spacing:.7px; color:#5A585C; font-weight:700; white-space:nowrap; }
-  .grilla td{ border:1px solid var(--linea); padding:0; }
-  .grilla td.fijo{ padding:7px 9px; white-space:nowrap; }
-  .grilla input{ border:none; border-radius:0; width:100%; min-width:0; padding:8px 9px;
-                 font-size:13px; background:transparent; }
-  .grilla input:focus{ background:#FFFDF6; box-shadow:inset 0 0 0 2px var(--grafito); }
+  .grilla{ border-collapse:separate; border-spacing:0 7px; width:100%; font-size:14px; }
+  .grilla th{ padding:4px 12px; font-size:12px; color:var(--suave); font-weight:600;
+              white-space:nowrap; text-align:left; }
+  .grilla td{ background:#fff; border-top:1px solid var(--linea); border-bottom:1px solid var(--linea);
+              padding:0; }
+  .grilla td:first-child{ border-left:1px solid var(--linea); border-radius:16px 0 0 16px; }
+  .grilla td:last-child{ border-right:1px solid var(--linea); border-radius:0 16px 16px 0; }
+  .grilla tr{ box-shadow:var(--sombra); }
+  .grilla td.fijo{ padding:11px 14px; white-space:nowrap; }
+  .grilla input{ border:none; border-radius:12px; width:100%; min-width:0; padding:11px 12px;
+                 font-size:14px; background:transparent; font-family:inherit; }
+  .grilla input:focus{ background:#FFFBF2; box-shadow:inset 0 0 0 2px var(--dorado); }
   .grilla input.monto{ text-align:right; font-variant-numeric:tabular-nums; }
-  .grilla input.calc{ color:#6E6C70; font-style:italic; }
+  .grilla input.calc{ color:#8B8894; font-style:italic; }
   .grilla tr.exenta td.fijo{ color:#8A6329; }
-  .grilla .mini{ font-size:10px; color:var(--suave); text-transform:uppercase; letter-spacing:.6px; }
+  .grilla .mini{ font-size:11.5px; color:var(--suave); }
 
-  .totales{ display:flex; gap:26px; flex-wrap:wrap; margin-top:16px; padding-top:14px;
+  .totales{ display:flex; gap:30px; flex-wrap:wrap; margin-top:20px; padding-top:18px;
             border-top:1px solid var(--linea); }
-  .totales div{ font-size:12px; color:var(--suave); }
-  .totales b{ display:block; font-size:19px; color:var(--tinta); font-variant-numeric:tabular-nums; }
+  .totales div{ font-size:12.5px; color:var(--suave); }
+  .totales b{ display:block; font-size:21px; color:var(--tinta); font-variant-numeric:tabular-nums;
+              margin-top:2px; }
 
-  .revi{ border-radius:10px; padding:11px 14px; margin-bottom:8px; font-size:13px; line-height:1.5;
+  .revi{ border-radius:16px; padding:13px 17px; margin-bottom:9px; font-size:13.5px; line-height:1.55;
          border:1px solid; }
-  .revi.mal{ background:#FBEFEC; border-color:#E7C4BA; color:#7C3122; }
-  .revi.ojo{ background:#FDF7EC; border-color:#E8D5AE; color:#7A5B20; }
-  .revi.bien{ background:#EEF5F0; border-color:#C2DACB; color:#2F6B4F; }
+  .revi.mal{ background:#FCF0EC; border-color:#F0D2C7; color:#8C4132; }
+  .revi.ojo{ background:#FDF6E9; border-color:#EDDCBB; color:#7E5F24; }
+  .revi.bien{ background:#EFF6F1; border-color:#CBE0D3; color:var(--ok); }
+</style>
 </style>
 </head>
 <body>
@@ -243,6 +258,38 @@
     <p class="config-linea" style="margin-top:12px;">
       Hoja <b id="lblHoja">—</b> en <b id="lblExcel">—</b>
     </p>
+  </div>
+
+  <!-- ─────────── CORREO ─────────── -->
+  <div class="tarjeta">
+    <h2>Correo a contabilidad</h2>
+    <p class="sub">Se abre en Outlook con todo adjunto, para que lo revises antes de enviarlo.</p>
+
+    <div class="fila">
+      <div class="campo">
+        <label>¿Quién envía?</label>
+        <select id="selRemitente" style="min-width:230px;"></select>
+      </div>
+      <div class="campo">
+        <label>Agregar a la lista</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="inpRemitente" placeholder="Nombre y apellido"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();agregarRemitente();}">
+          <button class="btn suave" onclick="agregarRemitente()">Agregar</button>
+        </div>
+      </div>
+      <button class="btn peligro" onclick="quitarRemitente()">Quitar el elegido</button>
+    </div>
+
+    <div style="margin-top:18px;">
+      <button class="btn principal" id="btnCorreo" onclick="abrirCorreo()">Abrir el correo en Outlook</button>
+    </div>
+
+    <div class="config-linea" style="margin-top:14px; line-height:1.7;">
+      Para <b id="lblPara">—</b><br>
+      Con copia a <b id="lblCc">—</b><br>
+      Adjunta la planilla y <b id="lblAdjuntos">0</b> documento(s), en JPEG cuando son de una sola página.
+    </div>
   </div>
 
 </div>
@@ -399,6 +446,7 @@ function pintar(){
 
   pintarGrilla();
   pintarRevision();
+  pintarCorreo();
 }
 
 // =====================================================================
@@ -585,6 +633,69 @@ function pintarRevision(){
   document.getElementById('revision').innerHTML = html;
   document.getElementById('btnExcel').disabled =
     !!(DATOS.errores || []).length || !(DATOS.documentos || []).length || !DATOS.excelExiste;
+}
+
+// =====================================================================
+//  CORREO
+// =====================================================================
+function pintarCorreo(){
+  var sel = document.getElementById('selRemitente');
+  var lista = DATOS.remitentes || [];
+  var elegido = localStorage.getItem('auditoria_remitente') || '';
+  sel.innerHTML = lista.length
+    ? lista.map(function(n){ return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('')
+    : '<option value="">— agrega un nombre —</option>';
+  if (elegido && lista.indexOf(elegido) !== -1) sel.value = elegido;
+  sel.onchange = function(){ localStorage.setItem('auditoria_remitente', sel.value); };
+
+  document.getElementById('lblPara').textContent = DATOS.correoPara || '—';
+  document.getElementById('lblCc').textContent = DATOS.correoCc || '—';
+  document.getElementById('lblAdjuntos').textContent = (DATOS.documentos || []).length;
+  document.getElementById('btnCorreo').disabled =
+    !!(DATOS.errores || []).length || !(DATOS.documentos || []).length;
+}
+
+async function agregarRemitente(){
+  var campo = document.getElementById('inpRemitente');
+  var nombre = campo.value.trim();
+  if (!nombre) return;
+  try {
+    await pedir('/api/remitente/agregar', { nombre: nombre });
+    campo.value = '';
+    localStorage.setItem('auditoria_remitente', nombre);
+    await cargar();
+    avisar('Agregado a la lista.');
+  } catch (e) { avisar(e.message, true); }
+}
+
+async function quitarRemitente(){
+  var nombre = document.getElementById('selRemitente').value;
+  if (!nombre) return;
+  if (!confirm('¿Quitar a "' + nombre + '" de la lista?')) return;
+  try {
+    await pedir('/api/remitente/eliminar', { nombre: nombre });
+    await cargar();
+    avisar('Quitado de la lista.');
+  } catch (e) { avisar(e.message, true); }
+}
+
+async function abrirCorreo(){
+  var remitente = document.getElementById('selRemitente').value;
+  if (!remitente) { avisar('Elige o agrega quién envía el correo.', true); return; }
+  localStorage.setItem('auditoria_remitente', remitente);
+  var boton = document.getElementById('btnCorreo');
+  boton.disabled = true;
+  capa(true, 'Preparando el correo', 'Se están copiando los adjuntos y abriendo Outlook.');
+  try {
+    var j = await pedir('/api/correo', { remitente: remitente });
+    avisar('Correo abierto en Outlook con ' + j.resultado.adjuntos + ' adjunto(s).');
+  } catch (e) {
+    alert(e.message);
+  } finally {
+    capa(false);
+    boton.disabled = false;
+    pintarCorreo();
+  }
 }
 
 async function escribirExcel(){
