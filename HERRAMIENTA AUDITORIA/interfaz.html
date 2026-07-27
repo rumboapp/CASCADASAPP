@@ -129,7 +129,11 @@
     <div class="fila">
       <div class="campo" style="flex:1; min-width:340px;">
         <label>Carpeta de escaneados</label>
-        <input type="text" id="cfgBase" placeholder="C:\Documentos Recepcion\Escaneados Boletas y Facturas">
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="cfgBase" style="flex:1;"
+                 placeholder="…\DOCUMENTOS RECEPCIÓN\ESCANEADOS BOLETAS - FACTURAS (AUDITORIA)">
+          <button class="btn suave" onclick="elegirCarpeta()">Buscar…</button>
+        </div>
       </div>
       <div class="campo">
         <label>Resolución</label>
@@ -279,9 +283,10 @@ function pintar(){
 
   var avisos = '';
   if (!DATOS.baseExiste) {
-    avisos += '<div class="aviso err"><span><b>No encuentro la carpeta de escaneados.</b><br>' +
-      'Busqué en <b>' + esc(DATOS.config.carpeta_base) + '</b> y no existe. ' +
-      'Abre Configuración y pega la ruta correcta: se copia desde la barra de direcciones del Explorador de Windows.' +
+    var base = (DATOS.config.carpeta_base || '').trim();
+    avisos += '<div class="aviso err"><span><b>Falta indicar la carpeta de escaneados.</b><br>' +
+      (base ? 'Busqué en <b>' + esc(base) + '</b> y no existe. ' : 'No logré reconocerla sola. ') +
+      'Abre <b>Configuración</b> y apreta <b>Buscar…</b> para elegirla.' +
       '</span></div>';
   }
   document.getElementById('avisos').innerHTML = avisos;
@@ -338,6 +343,17 @@ function alternarConfig(){
 // =====================================================================
 //  ACCIONES
 // =====================================================================
+/* Abre el buscador de carpetas de Windows: evita tener que escribir a mano una
+   ruta con eñes, tildes y paréntesis. */
+async function elegirCarpeta(){
+  try {
+    var j = await pedir('/api/elegir-carpeta', {});
+    if (!j.carpeta) return;                 // cerró la ventana sin elegir
+    document.getElementById('cfgBase').value = j.carpeta;
+    await guardarConfig();
+  } catch (e) { avisar(e.message, true); }
+}
+
 async function guardarConfig(){
   try {
     await pedir('/api/config', {

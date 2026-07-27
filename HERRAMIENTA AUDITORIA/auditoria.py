@@ -65,7 +65,7 @@ TIPOS = {
 }
 
 CONFIG_POR_DEFECTO = {
-    "carpeta_base": r"C:\Documentos Recepcion\Escaneados Boletas y Facturas",
+    "carpeta_base": "",       # se busca sola la primera vez (ver buscar_carpeta_escaneados)
     "resolucion": 200,
     "color": "gris",          # 'gris' o 'color'
     "calidad_jpeg": 65,
@@ -89,6 +89,66 @@ def leer_config():
 def guardar_config(cfg):
     with open(ARCHIVO_CONFIG, "w", encoding="utf-8") as f:
         json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+
+# ===========================================================================
+#  ENCONTRAR LA CARPETA DE ESCANEADOS
+#  La ruta lleva enes y tildes y esta en el Escritorio, que ademas puede
+#  estar redirigido a OneDrive. Escribirla a mano es la parte mas facil de
+#  equivocar, asi que la herramienta la busca sola la primera vez.
+# ===========================================================================
+def _raices_probables():
+    raices = []
+    perfil = os.environ.get("USERPROFILE") or os.path.expanduser("~")
+    for sub in ("Desktop", "Escritorio", "OneDrive\\Desktop", "OneDrive\\Escritorio",
+                "Documents", "Documentos"):
+        raices.append(os.path.join(perfil, sub))
+    raices.append(perfil)
+    one = os.environ.get("OneDrive") or os.environ.get("OneDriveConsumer")
+    if one:
+        raices.extend([os.path.join(one, "Desktop"), os.path.join(one, "Escritorio"), one])
+    return [r for r in raices if os.path.isdir(r)]
+
+
+def _parece_carpeta_escaneados(nombre):
+    n = _sin_tildes(nombre)
+    return "escaneado" in n and ("boleta" in n or "factura" in n)
+
+
+def buscar_carpeta_escaneados():
+    """Devuelve la carpeta de escaneados si logra reconocerla, o cadena vacia.
+    Solo mira unos pocos niveles: no recorre el disco entero."""
+    for raiz in _raices_probables():
+        for base, carpetas, _archivos in os.walk(raiz):
+            profundidad = base[len(raiz):].count(os.sep)
+            if profundidad >= 3:
+                carpetas[:] = []
+                continue
+            carpetas[:] = [c for c in carpetas if not c.startswith(".")]
+            for carpeta in carpetas:
+                if _parece_carpeta_escaneados(carpeta):
+                    return os.path.join(base, carpeta)
+    return ""
+
+
+def elegir_carpeta_con_ventana(inicial=""):
+    """Abre el buscador de carpetas de Windows. Se lanza como proceso aparte
+    para no mezclar la ventana con el servidor."""
+    codigo = (
+        "import sys, tkinter as tk\n"
+        "from tkinter import filedialog\n"
+        "r = tk.Tk(); r.withdraw(); r.attributes('-topmost', True)\n"
+        "ruta = filedialog.askdirectory(title='Elige la carpeta de escaneados', "
+        "initialdir=sys.argv[1] if len(sys.argv) > 1 else '')\n"
+        "sys.stdout.write(ruta or '')\n"
+    )
+    try:
+        salida = subprocess.run([sys.executable, "-c", codigo, inicial or ""],
+                                capture_output=True, timeout=180)
+        return salida.stdout.decode("utf-8", "replace").strip()
+    except Exception:
+        traceback.print_exc()
+        return ""
 
 
 # ===========================================================================
@@ -421,19 +481,29 @@ class Aplicacion(object):
         self.fecha = datetime.date.today()
         self.estado = EstadoDia(self.fecha)
         self.escaner = Escaner()
+        # Primera vez: se intenta reconocer sola la carpeta de escaneados.
+        if not (self.cfg.get("carpeta_base") or "").strip():
+            encontrada = buscar_carpeta_escaneados()
+            if encontrada:
+                self.cfg["carpeta_base"] = encontrada
+                guardar_config(self.cfg)
+                print("  Carpeta de escaneados reconocida automaticamente.")
 
     def carpeta_destino(self, crear=True):
-        return carpeta_del_dia(self.cfg["carpeta_base"], self.fecha, crear=crear)
+        base = (self.cfg.get("carpeta_base") or "").strip()
+        if not base:
+            return ""
+        return carpeta_del_dia(base, self.fecha, crear=crear)
 
     # ---- consultas ----
     def resumen(self):
-        base = self.cfg["carpeta_base"]
+        base = (self.cfg.get("carpeta_base") or "").strip()
         return {
             "fecha": self.fecha.isoformat(),
             "fechaTexto": "%d de %s de %d" % (self.fecha.day, MESES[self.fecha.month - 1].lower(), self.fecha.year),
             "config": self.cfg,
             "carpetaDestino": self.carpeta_destino(crear=False),
-            "baseExiste": os.path.isdir(base),
+            "baseExiste": bool(base) and os.path.isdir(base),
             "documentos": self.estado.documentos,
             "tipos": [{"clave": k, "etiqueta": v["etiqueta"], "exento": v["exento"]} for k, v in TIPOS.items()],
             "demo": MODO_DEMO or not ES_WINDOWS,
@@ -672,6 +742,13 @@ class Manejador(http.server.BaseHTTPRequestHandler):
                 return self._json({"ok": True, "documento": doc})
             if ruta == "/api/abrir-carpeta":
                 return self._json({"ok": True, "carpeta": APP.abrir_carpeta()})
+            if ruta == "/api/elegir-carpeta":
+                elegida = elegir_carpeta_con_ventana(APP.cfg.get("carpeta_base") or "")
+                if not elegida:
+                    return self._json({"ok": True, "carpeta": ""})
+                return self._json({"ok": True, "carpeta": os.path.normpath(elegida)})
+            if ruta == "/api/buscar-carpeta":
+                return self._json({"ok": True, "carpeta": buscar_carpeta_escaneados()})
         except (ValueError, ErrorEscaner) as e:
             return self._error(str(e))
         except Exception as e:
