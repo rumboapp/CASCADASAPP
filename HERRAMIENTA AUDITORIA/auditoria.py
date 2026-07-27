@@ -66,10 +66,33 @@ TIPOS = {
 
 CONFIG_POR_DEFECTO = {
     "carpeta_base": "",       # se busca sola la primera vez (ver buscar_carpeta_escaneados)
+    "archivo_excel": "",      # la planilla de auditoria, tambien se busca sola
     "resolucion": 200,
     "color": "gris",          # 'gris' o 'color'
     "calidad_jpeg": 65,
+    # Formas de pago sugeridas. Se puede escribir cualquier otra: las nuevas se
+    # van sumando solas a esta lista para tenerlas a mano el dia siguiente.
+    "formas_pago": ["EFECTIVO", "DB", "CREDITO", "MC", "VISA", "VISA USD",
+                    "TRANSFERENCIA", "MC Y TRANSFERENCIA"],
 }
+
+# ---------------------------------------------------------------------------
+# Planilla de auditoria: encabezados en la fila 3, datos desde la 4,
+# columnas C a J. El TOTAL de la planilla es el monto AFECTO (neto + IVA):
+# la propina va exenta y se controla por otro lado, no entra aqui.
+# ---------------------------------------------------------------------------
+EXCEL_FILA_DATOS = 4
+COL_TIPO, COL_FOLIO, COL_NETO, COL_IVA = 3, 4, 5, 6         # C, D, E, F
+COL_TOTAL, COL_PAGO, COL_AUTORIZACION, COL_OBS = 7, 8, 9, 10  # G, H, I, J
+
+# Como se escribe cada tipo en la columna TIPO DE DOCUMENTO.
+TIPO_EN_PLANILLA = {
+    "boleta": "BOLETA",
+    "factura": "FACTURA",
+    "exportacion": "FACTURA EXPORTACION",
+}
+
+IVA_TASA = 0.19
 
 
 # ===========================================================================
@@ -129,6 +152,48 @@ def buscar_carpeta_escaneados():
                 if _parece_carpeta_escaneados(carpeta):
                     return os.path.join(base, carpeta)
     return ""
+
+
+def buscar_planilla_auditoria(pistas=()):
+    """Ubica la planilla de auditoria (.xlsx) sin recorrer el disco entero."""
+    raices = [p for p in pistas if p and os.path.isdir(p)]
+    for p in list(raices):
+        padre = os.path.dirname(p)
+        if padre and os.path.isdir(padre):
+            raices.append(padre)
+    raices.extend(_raices_probables())
+    for raiz in raices:
+        for base, carpetas, archivos in os.walk(raiz):
+            if base[len(raiz):].count(os.sep) >= 2:
+                carpetas[:] = []
+                continue
+            carpetas[:] = [c for c in carpetas if not c.startswith(".")]
+            for archivo in archivos:
+                if archivo.startswith("~$") or not archivo.lower().endswith((".xlsx", ".xlsm")):
+                    continue
+                if "auditoria" in _sin_tildes(archivo):
+                    return os.path.join(base, archivo)
+    return ""
+
+
+def elegir_archivo_con_ventana(inicial=""):
+    """Abre el selector de archivos de Windows para elegir la planilla."""
+    codigo = (
+        "import sys, tkinter as tk\n"
+        "from tkinter import filedialog\n"
+        "r = tk.Tk(); r.withdraw(); r.attributes('-topmost', True)\n"
+        "ruta = filedialog.askopenfilename(title='Elige la planilla de auditoria', "
+        "initialdir=sys.argv[1] if len(sys.argv) > 1 else '', "
+        "filetypes=[('Planillas de Excel', '*.xlsx *.xlsm'), ('Todos', '*.*')])\n"
+        "sys.stdout.write(ruta or '')\n"
+    )
+    try:
+        salida = subprocess.run([sys.executable, "-c", codigo, inicial or ""],
+                                capture_output=True, timeout=180)
+        return salida.stdout.decode("utf-8", "replace").strip()
+    except Exception:
+        traceback.print_exc()
+        return ""
 
 
 def elegir_carpeta_con_ventana(inicial=""):
@@ -460,6 +525,94 @@ def construir_pdf(doc, carpeta_destino, cfg):
                 pass
 
 
+# ===========================================================================
+#  MONTOS
+#  Se parte del monto AFECTO (el "SUBTOTAL" del voucher o la linea "CONSUMO"
+#  de la boleta), NO del total impreso: ese ultimo incluye la propina, que es
+#  exenta, y por eso no se puede dividir por 1,19.
+#  Las facturas de exportacion van exentas y en dolares: no se calcula IVA.
+# ===========================================================================
+def desglosar(afecto, exento):
+    try:
+        monto = float(afecto)
+    except (TypeError, ValueError):
+        return None, None
+    if monto <= 0:
+        return None, None
+    if exento:
+        return int(round(monto)), None
+    # El neto se redondea y el IVA se saca por diferencia: asi neto + IVA da
+    # siempre exactamente el afecto, sin descuadres de un peso.
+    neto = int(round(monto / (1 + IVA_TASA)))
+    return neto, int(round(monto)) - neto
+
+
+def _numero(valor):
+    """Acepta '3.600', '3600', ' 3600 ' y devuelve 3600. None si no es numero."""
+    if valor is None:
+        return None
+    if isinstance(valor, (int, float)):
+        return valor
+    texto = str(valor).strip().replace("$", "").replace(" ", "")
+    if not texto:
+        return None
+    texto = texto.replace(".", "").replace(",", ".")
+    try:
+        return float(texto)
+    except ValueError:
+        return None
+
+
+def validar(documentos, carpeta_destino):
+    """Revisa el listado antes de escribir la planilla o mandar el correo.
+    Devuelve dos listas: lo que impide continuar y lo que solo advierte."""
+    errores, avisos = [], []
+
+    for d in documentos:
+        etiqueta = "%s %s" % (TIPOS.get(d["tipo"], {}).get("etiqueta", d["tipo"]), d.get("numero") or "?")
+        exento = TIPOS.get(d["tipo"], {}).get("exento", False)
+        neto, iva = _numero(d.get("neto")), _numero(d.get("iva"))
+        total = _numero(d.get("total"))
+
+        if not d.get("paginas"):
+            errores.append("%s no tiene ninguna página escaneada." % etiqueta)
+        if neto is None:
+            errores.append("%s no tiene neto." % etiqueta)
+        if not (d.get("formaPago") or "").strip():
+            errores.append("%s no tiene forma de pago." % etiqueta)
+
+        if neto is not None:
+            suma = neto + (iva or 0)
+            if total is not None and abs(suma - total) > 1:
+                errores.append("%s: neto más IVA da %s y el total dice %s."
+                               % (etiqueta, int(suma), int(total)))
+        if exento and iva:
+            avisos.append("%s es de exportación y tiene IVA cargado." % etiqueta)
+        if not exento and neto is not None and not iva:
+            avisos.append("%s no tiene IVA. Revisa que corresponda." % etiqueta)
+
+    # Folios saltados dentro de cada serie: la señal mas clara de un documento
+    # que se emitio y quedo sin escanear.
+    for clave, nombre in (("boleta", "boletas"), ("factura", "facturas"), ("exportacion", "facturas de exportación")):
+        folios = sorted(int(d["numero"]) for d in documentos
+                        if d["tipo"] == clave and str(d.get("numero", "")).strip().isdigit())
+        for anterior, siguiente in zip(folios, folios[1:]):
+            faltantes = list(range(anterior + 1, siguiente))
+            if 0 < len(faltantes) <= 20:
+                avisos.append("Entre las %s %d y %d faltan: %s."
+                              % (nombre, anterior, siguiente,
+                                 ", ".join(str(x) for x in faltantes)))
+
+    # Archivos sueltos en la carpeta del dia que no estan en el listado.
+    if carpeta_destino and os.path.isdir(carpeta_destino):
+        esperados = {nombre_archivo(d).lower() for d in documentos}
+        for archivo in sorted(os.listdir(carpeta_destino)):
+            if archivo.lower().endswith(".pdf") and archivo.lower() not in esperados:
+                avisos.append("En la carpeta hay un PDF que no está en el listado: %s" % archivo)
+
+    return errores, avisos
+
+
 def borrar_pdf_anterior(doc, carpeta_destino):
     """Si cambio el numero, se saca el PDF con el nombre viejo."""
     anterior = doc.get("archivoPdf")
@@ -475,6 +628,159 @@ def borrar_pdf_anterior(doc, carpeta_destino):
 # ===========================================================================
 #  SERVIDOR
 # ===========================================================================
+# ===========================================================================
+#  ESCRITURA EN LA PLANILLA
+#  Se maneja el propio Excel del computador en vez de reescribir el archivo:
+#  asi los bordes, colores, fuentes y formulas quedan intactos, porque no se
+#  tocan. La hoja del dia se crea DUPLICANDO la del dia anterior y borrando
+#  sus datos, que es la unica forma de que el formato sea identico.
+# ===========================================================================
+class ErrorExcel(Exception):
+    pass
+
+
+def _ultima_fila_del_bloque(hoja):
+    """Hasta donde llega el bloque ya formateado (las filas que muestran $0)."""
+    ultima = EXCEL_FILA_DATOS
+    for fila in range(EXCEL_FILA_DATOS, EXCEL_FILA_DATOS + 400):
+        celda_total = hoja.Cells(fila, COL_TOTAL)
+        tiene_formula = False
+        try:
+            tiene_formula = bool(celda_total.HasFormula)
+        except Exception:
+            pass
+        borde = False
+        try:                       # 7 = borde izquierdo; 0 = sin linea
+            borde = hoja.Cells(fila, COL_TIPO).Borders(7).LineStyle != -4142
+        except Exception:
+            pass
+        if tiene_formula or borde:
+            ultima = fila
+        elif fila > EXCEL_FILA_DATOS + 2:
+            break
+    return ultima
+
+
+def _limpiar_datos(hoja, ultima):
+    """Borra los valores dejando el formato y las fórmulas donde las haya."""
+    for fila in range(EXCEL_FILA_DATOS, ultima + 1):
+        for columna in (COL_TIPO, COL_FOLIO, COL_NETO, COL_IVA,
+                        COL_PAGO, COL_AUTORIZACION, COL_OBS):
+            hoja.Cells(fila, columna).ClearContents()
+        celda_total = hoja.Cells(fila, COL_TOTAL)
+        try:
+            if not celda_total.HasFormula:
+                celda_total.ClearContents()
+        except Exception:
+            celda_total.ClearContents()
+
+
+def _extender_filas(hoja, ultima, necesarias):
+    """Agrega filas copiando el formato de la última, como se hace a mano."""
+    faltan = necesarias - (ultima - EXCEL_FILA_DATOS + 1)
+    if faltan <= 0:
+        return ultima
+    origen = hoja.Range(hoja.Cells(ultima, COL_TIPO), hoja.Cells(ultima, COL_OBS))
+    destino = hoja.Range(hoja.Cells(ultima + 1, COL_TIPO), hoja.Cells(ultima + faltan, COL_OBS))
+    origen.Copy(destino)
+    hoja.Application.CutCopyMode = False
+    nueva_ultima = ultima + faltan
+    _limpiar_datos(hoja, nueva_ultima)
+    return nueva_ultima
+
+
+def escribir_en_planilla(ruta_excel, fecha, documentos):
+    """Crea (o rehace) la hoja del día y devuelve un resumen de lo hecho."""
+    if not ruta_excel or not os.path.exists(ruta_excel):
+        raise ErrorExcel("No encuentro la planilla de auditoría. Indícala en Configuración.")
+
+    import pythoncom
+    import win32com.client
+    pythoncom.CoInitialize()
+
+    # Respaldo antes de tocar nada: si algo sale mal, la planilla original
+    # sigue intacta en la carpeta 'respaldos'.
+    carpeta_respaldos = os.path.join(CARPETA_APP, "respaldos")
+    os.makedirs(carpeta_respaldos, exist_ok=True)
+    marca = datetime.datetime.now().strftime("%Y-%m-%d %H%M%S")
+    respaldo = os.path.join(carpeta_respaldos,
+                            "%s - %s" % (marca, os.path.basename(ruta_excel)))
+    shutil.copy2(ruta_excel, respaldo)
+
+    nombre_hoja = fecha.strftime("%d.%m.%Y")
+    excel = None
+    libro = None
+    try:
+        excel = win32com.client.Dispatch("Excel.Application")
+        excel.DisplayAlerts = False
+        libro = excel.Workbooks.Open(os.path.abspath(ruta_excel))
+        if libro.ReadOnly:
+            raise ErrorExcel("La planilla está abierta en modo solo lectura. "
+                             "Ciérrala en Excel y vuelve a intentar.")
+
+        hoja = None
+        for h in libro.Worksheets:
+            if str(h.Name).strip() == nombre_hoja:
+                hoja = h
+                break
+        creada = hoja is None
+        if creada:
+            plantilla = libro.Worksheets(libro.Worksheets.Count)
+            plantilla.Copy(None, libro.Worksheets(libro.Worksheets.Count))
+            hoja = libro.Worksheets(libro.Worksheets.Count)
+            hoja.Name = nombre_hoja
+
+        ultima = _ultima_fila_del_bloque(hoja)
+        _limpiar_datos(hoja, ultima)
+        ultima = _extender_filas(hoja, ultima, len(documentos))
+
+        fila = EXCEL_FILA_DATOS
+        for d in documentos:
+            exento = TIPOS.get(d["tipo"], {}).get("exento", False)
+            hoja.Cells(fila, COL_TIPO).Value = TIPO_EN_PLANILLA.get(d["tipo"], d["tipo"].upper())
+            folio = d.get("numero") or ""
+            hoja.Cells(fila, COL_FOLIO).Value = int(folio) if str(folio).strip().isdigit() else folio
+
+            neto, iva = _numero(d.get("neto")), _numero(d.get("iva"))
+            hoja.Cells(fila, COL_NETO).Value = neto if neto is not None else ""
+            hoja.Cells(fila, COL_IVA).Value = "" if (exento or not iva) else iva
+            celda_total = hoja.Cells(fila, COL_TOTAL)
+            try:
+                if not celda_total.HasFormula:     # si es fórmula, se respeta
+                    celda_total.Value = (neto or 0) + (iva or 0)
+            except Exception:
+                celda_total.Value = (neto or 0) + (iva or 0)
+
+            hoja.Cells(fila, COL_PAGO).Value = (d.get("formaPago") or "").strip()
+            hoja.Cells(fila, COL_AUTORIZACION).Value = (d.get("autorizacion") or "").strip()
+            hoja.Cells(fila, COL_OBS).Value = (d.get("observacion") or "").strip()
+            fila += 1
+
+        libro.Save()
+        return {"hoja": nombre_hoja, "creada": creada, "filas": len(documentos),
+                "respaldo": respaldo}
+    except ErrorExcel:
+        raise
+    except Exception as e:
+        raise ErrorExcel("Excel devolvió un error: %s\n\n"
+                         "La planilla original quedó respaldada en:\n%s" % (e, respaldo))
+    finally:
+        try:
+            if libro is not None:
+                libro.Close(SaveChanges=False)
+        except Exception:
+            pass
+        try:
+            if excel is not None:
+                excel.Quit()
+        except Exception:
+            pass
+        try:
+            pythoncom.CoUninitialize()
+        except Exception:
+            pass
+
+
 class Aplicacion(object):
     def __init__(self):
         self.cfg = leer_config()
@@ -488,6 +794,12 @@ class Aplicacion(object):
                 self.cfg["carpeta_base"] = encontrada
                 guardar_config(self.cfg)
                 print("  Carpeta de escaneados reconocida automaticamente.")
+        if not (self.cfg.get("archivo_excel") or "").strip():
+            planilla = buscar_planilla_auditoria([self.cfg.get("carpeta_base") or ""])
+            if planilla:
+                self.cfg["archivo_excel"] = planilla
+                guardar_config(self.cfg)
+                print("  Planilla de auditoria reconocida automaticamente.")
 
     def carpeta_destino(self, crear=True):
         base = (self.cfg.get("carpeta_base") or "").strip()
@@ -496,16 +808,51 @@ class Aplicacion(object):
         return carpeta_del_dia(base, self.fecha, crear=crear)
 
     # ---- consultas ----
+    def guardar_valores(self, doc_id, campos):
+        """Guarda los montos y datos de pago de un documento."""
+        doc = self.estado.buscar(doc_id)
+        if not doc:
+            raise ValueError("El documento ya no está en el listado.")
+        with self.estado.lock:
+            for campo in ("afecto", "neto", "iva", "total", "formaPago", "autorizacion", "observacion"):
+                if campo in campos:
+                    doc[campo] = campos[campo]
+            forma = (doc.get("formaPago") or "").strip().upper()
+            if forma and forma not in self.cfg.get("formas_pago", []):
+                self.cfg.setdefault("formas_pago", []).append(forma)
+                guardar_config(self.cfg)
+            self.estado.guardar()
+        return doc
+
+    def validaciones(self):
+        errores, avisos = validar(self.estado.documentos, self.carpeta_destino(crear=False))
+        return {"errores": errores, "avisos": avisos}
+
+    def escribir_excel(self):
+        errores, _avisos = validar(self.estado.documentos, self.carpeta_destino(crear=False))
+        if errores:
+            raise ErrorExcel("Faltan datos por completar:\n\n· " + "\n· ".join(errores))
+        if not self.estado.documentos:
+            raise ErrorExcel("No hay documentos que escribir.")
+        return escribir_en_planilla(self.cfg.get("archivo_excel"), self.fecha, self.estado.documentos)
+
     def resumen(self):
         base = (self.cfg.get("carpeta_base") or "").strip()
+        excel = (self.cfg.get("archivo_excel") or "").strip()
+        errores, avisos = validar(self.estado.documentos, self.carpeta_destino(crear=False))
         return {
             "fecha": self.fecha.isoformat(),
             "fechaTexto": "%d de %s de %d" % (self.fecha.day, MESES[self.fecha.month - 1].lower(), self.fecha.year),
             "config": self.cfg,
             "carpetaDestino": self.carpeta_destino(crear=False),
             "baseExiste": bool(base) and os.path.isdir(base),
+            "excelExiste": bool(excel) and os.path.exists(excel),
+            "hojaDelDia": self.fecha.strftime("%d.%m.%Y"),
             "documentos": self.estado.documentos,
             "tipos": [{"clave": k, "etiqueta": v["etiqueta"], "exento": v["exento"]} for k, v in TIPOS.items()],
+            "formasPago": self.cfg.get("formas_pago", []),
+            "errores": errores,
+            "avisos": avisos,
             "demo": MODO_DEMO or not ES_WINDOWS,
         }
 
@@ -623,6 +970,8 @@ class Aplicacion(object):
         if not base:
             raise ValueError("Falta la carpeta de escaneados.")
         self.cfg["carpeta_base"] = base
+        if "archivo_excel" in nueva:
+            self.cfg["archivo_excel"] = (nueva.get("archivo_excel") or "").strip()
         self.cfg["resolucion"] = max(100, min(600, int(nueva.get("resolucion", 200))))
         self.cfg["color"] = "color" if nueva.get("color") == "color" else "gris"
         self.cfg["calidad_jpeg"] = max(40, min(95, int(nueva.get("calidad_jpeg", 65))))
@@ -749,7 +1098,16 @@ class Manejador(http.server.BaseHTTPRequestHandler):
                 return self._json({"ok": True, "carpeta": os.path.normpath(elegida)})
             if ruta == "/api/buscar-carpeta":
                 return self._json({"ok": True, "carpeta": buscar_carpeta_escaneados()})
-        except (ValueError, ErrorEscaner) as e:
+            if ruta == "/api/elegir-excel":
+                elegido = elegir_archivo_con_ventana(
+                    os.path.dirname(APP.cfg.get("archivo_excel") or "") or APP.cfg.get("carpeta_base") or "")
+                return self._json({"ok": True, "archivo": os.path.normpath(elegido) if elegido else ""})
+            if ruta == "/api/documento/valores":
+                doc = APP.guardar_valores(int(cuerpo.get("id")), cuerpo.get("campos") or {})
+                return self._json({"ok": True, "documento": doc})
+            if ruta == "/api/excel/escribir":
+                return self._json({"ok": True, "resultado": APP.escribir_excel()})
+        except (ValueError, ErrorEscaner, ErrorExcel) as e:
             return self._error(str(e))
         except Exception as e:
             traceback.print_exc()
