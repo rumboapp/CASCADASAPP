@@ -80,7 +80,7 @@ CONFIG_POR_DEFECTO = {
     # --- Correo a contabilidad ---
     "correo_para": "jisla@hotelantofagasta.cl",
     "correo_cc": "npizarro@cascadashotel.cl; administracion@cascadashotel.cl; "
-                 "contabilidad@cascadasantofagasta.cl",
+                 "contabilidad@hotelantofagasta.cl",
     "correo_saludo": "Estimada Josefa",
     # Quien firma el correo. La lista es del hotel; el elegido queda por
     # computador, porque no siempre audita la misma persona.
@@ -119,6 +119,14 @@ def leer_config():
         try:
             with open(ARCHIVO_CONFIG, "r", encoding="utf-8") as f:
                 cfg.update(json.load(f) or {})
+        except Exception:
+            pass
+    # Una version anterior guardo mal el correo de contabilidad. Como el ajuste
+    # ya esta en el disco, hay que corregirlo tambien ahi.
+    if "cascadasantofagasta.cl" in (cfg.get("correo_cc") or ""):
+        cfg["correo_cc"] = cfg["correo_cc"].replace("cascadasantofagasta.cl", "hotelantofagasta.cl")
+        try:
+            guardar_config(cfg)
         except Exception:
             pass
     return cfg
