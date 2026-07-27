@@ -902,6 +902,96 @@ def abrir_correo(cfg, fecha, documentos, remitente, carpeta_trabajo):
             pass
 
 
+# ===========================================================================
+#  BUSCADOR DE DOCUMENTOS
+#  Recorre toda la carpeta de escaneados, no solo lo que paso por esta
+#  herramienta: los documentos de antes tambien aparecen.
+# ===========================================================================
+def buscar_documentos(carpeta_base, consulta, tope=60):
+    consulta = re.sub(r"\D", "", str(consulta or ""))
+    if len(consulta) < 3:
+        raise ValueError("Escribe al menos 3 números del documento.")
+    if not carpeta_base or not os.path.isdir(carpeta_base):
+        raise ValueError("No encuentro la carpeta de escaneados.")
+
+    resultados = []
+    for base, carpetas, archivos in os.walk(carpeta_base):
+        carpetas.sort(reverse=True)          # los años y días recientes primero
+        for archivo in sorted(archivos):
+            if archivo.startswith("~$"):
+                continue
+            solo_numeros = re.sub(r"\D", "", os.path.splitext(archivo)[0])
+            if consulta not in solo_numeros:
+                continue
+            ruta = os.path.join(base, archivo)
+            relativa = os.path.relpath(base, carpeta_base).replace("\\", "/")
+            try:
+                kb = round(os.path.getsize(ruta) / 1024)
+            except OSError:
+                kb = 0
+            resultados.append({
+                "nombre": archivo, "ruta": ruta, "carpeta": relativa, "kb": kb,
+                "ubicacion": relativa.replace("/", " · "),
+            })
+            if len(resultados) >= tope:
+                return resultados
+    return resultados
+
+
+def abrir_archivo(ruta, carpeta_base):
+    """Abre un archivo del buscador. Solo se permite dentro de la carpeta de
+    escaneados: la pantalla corre en un navegador y no conviene que pueda
+    pedir cualquier archivo del computador."""
+    ruta = os.path.abspath(ruta)
+    base = os.path.abspath(carpeta_base or "")
+    if not base or not (ruta == base or ruta.startswith(base + os.sep)):
+        raise ValueError("Ese archivo está fuera de la carpeta de escaneados.")
+    if not os.path.exists(ruta):
+        raise ValueError("El archivo ya no está en el disco.")
+    if ES_WINDOWS:
+        os.startfile(ruta)                                  # noqa: pylint
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", ruta])
+    else:
+        subprocess.Popen(["xdg-open", ruta])
+    return ruta
+
+
+# ===========================================================================
+#  LIMPIEZA
+#  'trabajo' guarda las paginas escaneadas del dia y el avance; 'respaldos'
+#  las copias de la planilla. Ambas hacen falta, pero no para siempre.
+# ===========================================================================
+def limpiar_antiguos(dias_trabajo=60, max_respaldos=20):
+    try:
+        limite = datetime.date.today() - datetime.timedelta(days=dias_trabajo)
+        for nombre in os.listdir(CARPETA_TRABAJO):
+            ruta = os.path.join(CARPETA_TRABAJO, nombre)
+            if not os.path.isdir(ruta):
+                continue
+            try:
+                fecha = datetime.date.fromisoformat(nombre)
+            except ValueError:
+                continue
+            if fecha < limite:
+                shutil.rmtree(ruta, ignore_errors=True)
+    except FileNotFoundError:
+        pass
+
+    carpeta_respaldos = os.path.join(CARPETA_APP, "respaldos")
+    try:
+        archivos = sorted(
+            (os.path.join(carpeta_respaldos, n) for n in os.listdir(carpeta_respaldos)),
+            key=os.path.getmtime, reverse=True)
+        for viejo in archivos[max_respaldos:]:
+            try:
+                os.remove(viejo)
+            except OSError:
+                pass
+    except FileNotFoundError:
+        pass
+
+
 class Aplicacion(object):
     def __init__(self):
         self.cfg = leer_config()
@@ -1246,6 +1336,12 @@ class Manejador(http.server.BaseHTTPRequestHandler):
                 if not elegida:
                     return self._json({"ok": True, "carpeta": ""})
                 return self._json({"ok": True, "carpeta": os.path.normpath(elegida)})
+            if ruta == "/api/buscar-documentos":
+                encontrados = buscar_documentos(APP.cfg.get("carpeta_base"), cuerpo.get("consulta"))
+                return self._json({"ok": True, "resultados": encontrados})
+            if ruta == "/api/abrir-archivo":
+                return self._json({"ok": True,
+                                   "ruta": abrir_archivo(cuerpo.get("ruta"), APP.cfg.get("carpeta_base"))})
             if ruta == "/api/buscar-carpeta":
                 return self._json({"ok": True, "carpeta": buscar_carpeta_escaneados()})
             if ruta == "/api/elegir-excel":
@@ -1290,6 +1386,7 @@ def puerto_libre(desde=8760, intentos=20):
 def main():
     global APP
     os.makedirs(CARPETA_TRABAJO, exist_ok=True)
+    limpiar_antiguos()
     APP = Aplicacion()
 
     puerto = puerto_libre()

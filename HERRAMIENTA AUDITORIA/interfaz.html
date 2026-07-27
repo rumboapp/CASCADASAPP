@@ -137,6 +137,13 @@
   .mini-btn:hover{ background:#fff; border-color:#CFC8BC; color:var(--tinta); }
   .mini-btn.borrar:hover{ background:#FBEDE9; border-color:#E4BFB6; color:var(--alerta); }
 
+  /* ---------- resultados del buscador ---------- */
+  .resultado{ display:flex; align-items:center; gap:14px; background:#fff; border:1px solid var(--linea);
+              border-radius:16px; padding:13px 18px; margin-bottom:9px; box-shadow:var(--sombra); }
+  .resultado > div:first-child{ flex:1; min-width:0; }
+  .resultado b{ font-size:14.5px; }
+  .resultado .mini{ font-size:12px; color:var(--suave); margin-top:2px; }
+
   .totales{ display:flex; gap:30px; flex-wrap:wrap; margin-top:20px; padding-top:18px;
             border-top:1px solid var(--linea); }
   .totales div{ font-size:12.5px; color:var(--suave); }
@@ -159,6 +166,7 @@
   <div class="der">
     <span class="pill demo" id="pillDemo" style="display:none;">Escáner simulado</span>
     <span class="pill" id="pillEscaner">Buscando escáner…</span>
+    <button class="btn suave" onclick="alternarBuscador()">Buscar documento</button>
     <button class="btn suave" onclick="abrirCarpeta()">Ver carpeta del día</button>
     <button class="btn suave" onclick="alternarConfig()">Configuración</button>
   </div>
@@ -210,6 +218,21 @@
     <p class="config-linea" style="margin-top:14px;">
       Carpeta de hoy: <b id="lblCarpeta">—</b>
     </p>
+  </div>
+
+  <!-- ─────────── BUSCADOR ─────────── -->
+  <div class="tarjeta" id="tarjetaBuscador" style="display:none;">
+    <h2>Buscar un documento</h2>
+    <p class="sub">Busca en toda la carpeta de escaneados, de cualquier día o año.</p>
+    <div class="fila">
+      <div class="campo" style="flex:1; min-width:260px;">
+        <label>Número de boleta o factura</label>
+        <input type="text" id="inpBuscar" placeholder="137854" autocomplete="off"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();buscarDocumentos();}">
+      </div>
+      <button class="btn principal" onclick="buscarDocumentos()">Buscar</button>
+    </div>
+    <div id="resultados" style="margin-top:18px;"></div>
   </div>
 
   <!-- ─────────── NUEVO DOCUMENTO ─────────── -->
@@ -731,6 +754,43 @@ function elegirTipo(clave){
   tipoElegido = clave;
   pintar();
   document.getElementById('inpNumero').focus();
+}
+
+// =====================================================================
+//  BUSCADOR
+// =====================================================================
+function alternarBuscador(){
+  var el = document.getElementById('tarjetaBuscador');
+  var abriendo = el.style.display === 'none';
+  el.style.display = abriendo ? '' : 'none';
+  if (abriendo) document.getElementById('inpBuscar').focus();
+}
+
+async function buscarDocumentos(){
+  var consulta = document.getElementById('inpBuscar').value.trim();
+  var caja = document.getElementById('resultados');
+  caja.innerHTML = '<div class="vacio" style="padding:16px 0;">Buscando…</div>';
+  try {
+    var j = await pedir('/api/buscar-documentos', { consulta: consulta });
+    if (!j.resultados.length) {
+      caja.innerHTML = '<div class="vacio" style="padding:16px 0;">' +
+        'No hay ningún archivo con ese número en la carpeta de escaneados.</div>';
+      return;
+    }
+    caja.innerHTML = j.resultados.map(function(r){
+      return '<div class="resultado">' +
+        '<div><b>' + esc(r.nombre) + '</b><div class="mini">' + esc(r.ubicacion) + ' · ' + r.kb + ' KB</div></div>' +
+        '<button class="mini-btn" onclick="abrirArchivo(' + JSON.stringify(r.ruta).replace(/"/g, '&quot;') + ')">Abrir</button>' +
+        '</div>';
+    }).join('');
+  } catch (e) {
+    caja.innerHTML = '<div class="revi mal">' + esc(e.message) + '</div>';
+  }
+}
+
+async function abrirArchivo(ruta){
+  try { await pedir('/api/abrir-archivo', { ruta: ruta }); }
+  catch (e) { avisar(e.message, true); }
 }
 
 function alternarConfig(){
