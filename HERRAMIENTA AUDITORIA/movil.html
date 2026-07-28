@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#33323A">
+<title>Auditoría · fotos desde el teléfono</title>
+<style>
+  :root{
+    --grafito:#43424A; --grafito-osc:#33323A; --dorado:#C1945C;
+    --papel:#F7F4EF; --crema:#FFFDFA; --tinta:#2E2D33; --suave:#87848E;
+    --linea:#EAE4DA; --ok:#3E7D5D; --alerta:#B0503F;
+    --curva:cubic-bezier(.34,1.3,.5,1);
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body{ margin:0; background:var(--papel); color:var(--tinta);
+        font-family:-apple-system,"Segoe UI",system-ui,sans-serif; font-size:16px;
+        padding-bottom:40px; }
+
+  .barra{ background:linear-gradient(150deg,#55535E,#43424A 55%,#33323A); color:#F3EFE9;
+          padding:16px 20px calc(16px + env(safe-area-inset-top)); }
+  .barra h1{ margin:0; font-size:16px; font-weight:600; letter-spacing:.8px; }
+  .barra .dia{ font-size:13px; color:#C8C3BB; margin-top:3px; }
+
+  .caja{ background:var(--crema); border:1px solid var(--linea); border-radius:20px;
+         margin:16px; padding:20px; }
+  .caja h2{ margin:0 0 3px; font-size:15px; font-weight:700; }
+  .caja .sub{ margin:0 0 16px; font-size:13px; color:var(--suave); line-height:1.5; }
+
+  label.et{ display:block; font-size:13px; color:var(--suave); font-weight:600; margin-bottom:7px; }
+  .tipos{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+  .tipo{ flex:1 1 auto; border:1.5px solid var(--linea); background:#fff; border-radius:999px;
+         padding:12px 14px; font-size:14px; font-weight:600; color:var(--suave);
+         font-family:inherit; cursor:pointer; transition:all .16s var(--curva); }
+  .tipo.act{ background:var(--grafito); border-color:var(--grafito); color:#fff; }
+  .tipo:active{ transform:scale(.96); }
+
+  input[type=text]{ width:100%; border:1.5px solid var(--linea); border-radius:14px;
+                    padding:14px 16px; font-size:17px; font-family:inherit; color:var(--tinta);
+                    background:#fff; outline:none; margin-bottom:16px; }
+  input[type=text]:focus{ border-color:var(--dorado); box-shadow:0 0 0 4px rgba(193,148,92,.18); }
+
+  .btn{ display:block; width:100%; border:none; border-radius:999px; padding:17px;
+        font-size:16px; font-weight:700; font-family:inherit; cursor:pointer;
+        transition:transform .16s var(--curva); }
+  .btn:active{ transform:scale(.97); }
+  .btn.foto{ background:linear-gradient(140deg,#C79A61,#B08246); color:#fff;
+             box-shadow:0 8px 20px -8px rgba(176,130,70,.9); }
+  .btn.suave{ background:#EFEAE1; color:#57545E; margin-top:10px; }
+  .btn:disabled{ opacity:.4; }
+  input[type=file]{ display:none; }
+
+  .lista{ margin:16px; }
+  .lista h3{ font-size:13px; color:var(--suave); font-weight:600; margin:0 0 10px 4px; }
+  .doc{ background:#fff; border:1px solid var(--linea); border-radius:16px; padding:14px 17px;
+        margin-bottom:9px; display:flex; align-items:center; gap:12px; }
+  .doc b{ font-size:16px; }
+  .doc .cls{ font-size:11.5px; font-weight:600; border-radius:999px; padding:4px 11px;
+             background:#F0EBE2; color:#63606A; }
+  .doc .cls.exento{ background:rgba(193,148,92,.2); color:#8A6329; }
+  .doc .pag{ margin-left:auto; font-size:12.5px; color:var(--suave); }
+  .doc button{ background:none; border:1px solid var(--linea); border-radius:999px;
+               padding:7px 13px; font-size:12.5px; font-weight:600; color:#63606A;
+               font-family:inherit; }
+
+  .capa{ position:fixed; inset:0; background:rgba(51,50,58,.75); display:none;
+         align-items:center; justify-content:center; z-index:50; padding:24px; }
+  .capa.ver{ display:flex; }
+  .capa .cja{ background:var(--crema); border-radius:22px; padding:30px 34px; text-align:center; }
+  .giro{ width:34px; height:34px; margin:0 auto 14px; border:3px solid var(--linea);
+         border-top-color:var(--dorado); border-radius:50%; animation:girar .85s linear infinite; }
+  @keyframes girar{ to{ transform:rotate(360deg); } }
+  .capa p{ margin:0; font-size:14px; color:var(--suave); }
+
+  .flota{ position:fixed; left:16px; right:16px; bottom:20px; background:var(--grafito-osc);
+          color:#fff; padding:15px 20px; border-radius:16px; font-size:14.5px; text-align:center;
+          opacity:0; transform:translateY(70px); transition:all .28s var(--curva); z-index:60; }
+  .flota.ver{ opacity:1; transform:none; }
+  .flota.malo{ background:#96422F; }
+</style>
+</head>
+<body>
+
+<div class="barra">
+  <h1>Auditoría · fotos de respaldo</h1>
+  <div class="dia" id="dia">—</div>
+</div>
+
+<div class="caja">
+  <h2>Fotografiar un documento</h2>
+  <p class="sub">Usa esto solo si el escáner no está funcionando. Apoya la boleta en una
+    superficie plana y con buena luz.</p>
+
+  <label class="et">Tipo de documento</label>
+  <div class="tipos" id="tipos"></div>
+
+  <label class="et">Número</label>
+  <input type="text" id="numero" placeholder="137854" inputmode="numeric" autocomplete="off">
+
+  <button class="btn foto" onclick="pedirFoto()">Tomar la foto</button>
+  <input type="file" id="camara" accept="image/*" capture="environment" onchange="subirFoto(this)">
+</div>
+
+<div class="lista">
+  <h3>Enviados hoy</h3>
+  <div id="documentos"></div>
+</div>
+
+<div class="capa" id="capa">
+  <div class="cja">
+    <div class="giro"></div>
+    <p id="capaTexto">Enviando la foto…</p>
+  </div>
+</div>
+
+<div class="flota" id="flota"></div>
+
+<script>
+var DATOS = null;
+var tipoElegido = 'boleta';
+var docParaPagina = null;     // si viene puesto, la foto se suma a ese documento
+
+// La clave del arranque viaja en la dirección del QR y hay que devolverla
+// en cada petición: sin ella el programa no atiende a nadie de la red.
+var CLAVE = new URLSearchParams(location.search).get('c') || '';
+
+function esc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function avisar(t, malo){
+  var el = document.getElementById('flota');
+  el.textContent = t;
+  el.className = 'flota ver' + (malo ? ' malo' : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.className = 'flota'; }, malo ? 5000 : 2600);
+}
+function capa(ver, texto){
+  document.getElementById('capa').className = 'capa' + (ver ? ' ver' : '');
+  if (texto) document.getElementById('capaTexto').textContent = texto;
+}
+
+async function pedir(ruta, cuerpo){
+  var url = ruta + (ruta.indexOf('?') >= 0 ? '&' : '?') + 'c=' + encodeURIComponent(CLAVE);
+  var o = { method: cuerpo ? 'POST' : 'GET' };
+  if (cuerpo) { o.headers = { 'Content-Type':'application/json' }; o.body = JSON.stringify(cuerpo); }
+  var r = await fetch(url, o);
+  var j = await r.json().catch(function(){ return { ok:false, error:'Respuesta ilegible.' }; });
+  if (!j.ok) throw new Error(j.error || 'Error desconocido.');
+  return j;
+}
+
+async function cargar(){
+  try {
+    var j = await pedir('/api/movil/estado');
+    DATOS = j.datos;
+    pintar();
+  } catch (e) { avisar(e.message, true); }
+}
+
+function pintar(){
+  document.getElementById('dia').textContent = DATOS.fechaTexto;
+  document.getElementById('tipos').innerHTML = DATOS.tipos.map(function(t){
+    var corto = t.exento ? 'Exportación' : t.etiqueta;
+    return '<button type="button" class="tipo' + (t.clave === tipoElegido ? ' act' : '') +
+           '" onclick="elegirTipo(\'' + t.clave + '\')">' + esc(corto) + '</button>';
+  }).join('');
+
+  var mapa = {};
+  DATOS.tipos.forEach(function(t){ mapa[t.clave] = t; });
+  var docs = DATOS.documentos || [];
+  document.getElementById('documentos').innerHTML = docs.length
+    ? docs.slice().reverse().map(function(d){
+        var t = mapa[d.tipo] || { etiqueta:d.tipo, exento:false };
+        return '<div class="doc"><b>' + esc(d.numero) + '</b>' +
+          '<span class="cls' + (t.exento ? ' exento' : '') + '">' +
+          esc(t.exento ? 'Exportación' : t.etiqueta) + '</span>' +
+          '<span class="pag">' + d.paginas + ' pág.</span>' +
+          '<button onclick="agregarPagina(' + d.id + ',\'' + esc(d.numero) + '\')">+ Foto</button>' +
+          '</div>';
+      }).join('')
+    : '<p class="sub" style="margin:0 4px;">Todavía no has enviado ninguna foto.</p>';
+}
+
+function elegirTipo(c){ tipoElegido = c; pintar(); }
+
+function pedirFoto(){
+  var numero = document.getElementById('numero').value.trim();
+  if (!numero) { avisar('Escribe el número del documento.', true); return; }
+  docParaPagina = null;
+  document.getElementById('camara').click();
+}
+
+function agregarPagina(id, numero){
+  docParaPagina = { id: id, numero: numero };
+  document.getElementById('camara').click();
+}
+
+function subirFoto(input){
+  var archivo = input.files && input.files[0];
+  input.value = '';                       // permite repetir la misma foto
+  if (!archivo) return;
+  var lector = new FileReader();
+  lector.onload = function(){ enviar(lector.result); };
+  lector.onerror = function(){ avisar('No se pudo leer la foto.', true); };
+  lector.readAsDataURL(archivo);
+}
+
+async function enviar(imagen){
+  capa(true, 'Enviando la foto…');
+  try {
+    if (docParaPagina) {
+      var etiqueta = prompt('¿Qué estás fotografiando?\n\nPor ejemplo: voucher, transferencia, pasaporte.',
+                            'Voucher') || 'Documento';
+      await pedir('/api/movil/pagina', { id: docParaPagina.id, etiqueta: etiqueta, imagen: imagen });
+      avisar('Foto agregada a ' + docParaPagina.numero + '.');
+    } else {
+      var numero = document.getElementById('numero').value.trim();
+      await pedir('/api/movil/documento', { tipo: tipoElegido, numero: numero, imagen: imagen });
+      document.getElementById('numero').value = '';
+      avisar('Documento ' + numero + ' enviado.');
+    }
+    await cargar();
+  } catch (e) {
+    avisar(e.message, true);
+  } finally {
+    capa(false);
+    docParaPagina = null;
+  }
+}
+
+cargar();
+setInterval(cargar, 15000);   // por si alguien sigue escaneando desde el computador
+</script>
+</body>
+</html>

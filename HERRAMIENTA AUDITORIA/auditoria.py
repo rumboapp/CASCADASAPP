@@ -25,6 +25,7 @@ Para probar la pantalla sin escaner:  python auditoria.py --demo
 ============================================================================
 """
 
+import base64
 import datetime
 import http.server
 import io
@@ -45,11 +46,18 @@ import webbrowser
 # Pillow es obligatorio (arma los PDF). pywin32 solo en Windows.
 # ---------------------------------------------------------------------------
 try:
-    from PIL import Image, ImageDraw
+    from PIL import Image, ImageDraw, ImageOps
 except ImportError:
     print("\nFalta la libreria Pillow. Abre PowerShell y ejecuta:\n")
-    print("    pip install pillow pywin32\n")
+    print("    py -m pip install pillow pywin32 qrcode\n")
     sys.exit(1)
+
+# qrcode solo se usa para el respaldo con el telefono: si falta, el resto de la
+# herramienta funciona igual.
+try:
+    import qrcode
+except ImportError:
+    qrcode = None
 
 MODO_DEMO = "--demo" in sys.argv
 ES_WINDOWS = os.name == "nt"
@@ -118,6 +126,16 @@ TIPO_EN_PLANILLA = {
 }
 
 IVA_TASA = 0.19
+
+# ---------------------------------------------------------------------------
+# RESPALDO CON EL TELEFONO
+# Si el escaner falla, se puede fotografiar la boleta desde el celular. Para
+# eso el servidor escucha tambien en la red local, asi que todo lo que no venga
+# del propio computador tiene que traer esta clave, que cambia en cada arranque.
+# ---------------------------------------------------------------------------
+import secrets
+CLAVE_MOVIL = secrets.token_urlsafe(9)
+ANCHO_MAX_FOTO = 1700          # px del lado largo al que se reduce la foto
 
 
 # ===========================================================================
@@ -540,6 +558,58 @@ class Escaner(object):
             d.line([60, y, ancho - 60 - (i % 4) * 40, y], fill=200, width=2)
         img.save(destino, "JPEG", quality=90, dpi=(resolucion, resolucion))
         return destino
+
+
+# ===========================================================================
+#  FOTOS DESDE EL TELEFONO
+# ===========================================================================
+def ip_en_la_red():
+    """IP del computador dentro de la red local, para armar la direccion que
+    abre el telefono. No se conecta a ningun lado: solo pregunta al sistema
+    por que interfaz saldria."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("10.255.255.255", 1))
+        return s.getsockname()[0]
+    except OSError:
+        try:
+            return socket.gethostbyname(socket.gethostname())
+        except OSError:
+            return ""
+    finally:
+        s.close()
+
+
+def guardar_foto(datos_base64, destino, cfg):
+    """Deja la foto del celular parecida a un escaneo: derecha segun como se
+    tomo, reducida, y con el contraste realzado, que en las boletas termicas
+    hace bastante diferencia."""
+    if "," in datos_base64:
+        datos_base64 = datos_base64.split(",", 1)[1]
+    crudo = base64.b64decode(datos_base64)
+    with Image.open(io.BytesIO(crudo)) as img:
+        img = ImageOps.exif_transpose(img)          # respeta como se sostuvo el telefono
+        img = img.convert("RGB" if cfg.get("color") == "color" else "L")
+        if max(img.size) > ANCHO_MAX_FOTO:
+            factor = ANCHO_MAX_FOTO / max(img.size)
+            img = img.resize((round(img.width * factor), round(img.height * factor)), Image.LANCZOS)
+        img = ImageOps.autocontrast(img, cutoff=1)
+        img.save(destino, "JPEG", quality=88)
+    return destino
+
+
+def qr_png(texto, lado=440):
+    if qrcode is None:
+        raise ValueError("Falta la librería qrcode. Ejecuta: py -m pip install qrcode")
+    q = qrcode.QRCode(box_size=10, border=2,
+                      error_correction=qrcode.constants.ERROR_CORRECT_M)
+    q.add_data(texto)
+    q.make(fit=True)
+    img = q.make_image(fill_color="#2E2D33", back_color="white").convert("RGB")
+    img = img.resize((lado, lado), Image.NEAREST)
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    return buf.getvalue()
 
 
 # ===========================================================================
@@ -1233,6 +1303,35 @@ class Aplicacion(object):
             self.estado.guardar()
         return doc
 
+    def agregar_foto(self, doc_id, etiqueta, imagen):
+        """Suma una foto del telefono como una pagina mas del documento."""
+        doc = self.estado.buscar(doc_id)
+        if not doc:
+            raise ValueError("El documento ya no está en el listado.")
+        if not imagen:
+            raise ValueError("No llegó ninguna foto.")
+        indice = len(doc["paginas"]) + 1
+        carpeta_doc = os.path.join(self.estado.carpeta_trabajo, "doc-%d" % doc_id)
+        os.makedirs(carpeta_doc, exist_ok=True)
+        destino = os.path.join(carpeta_doc, "pagina-%02d.jpg" % indice)
+        guardar_foto(imagen, destino, self.cfg)
+
+        with self.estado.lock:
+            doc["paginas"].append({
+                "etiqueta": (etiqueta or "Documento").strip() or "Documento",
+                "archivo": destino,
+                "desdeTelefono": True,
+            })
+            doc["archivoSalida"] = construir_salida(doc, self.carpeta_destino(), self.cfg)
+            self.estado.guardar()
+        return doc
+
+    def direccion_movil(self):
+        ip = ip_en_la_red()
+        if not ip:
+            return ""
+        return "http://%s:%d/movil?c=%s" % (ip, PUERTO_ACTUAL[0], CLAVE_MOVIL)
+
     def eliminar_pagina(self, doc_id, indice):
         doc = self.estado.buscar(doc_id)
         if not doc:
@@ -1306,6 +1405,7 @@ class Aplicacion(object):
 
 
 APP = None
+PUERTO_ACTUAL = [0]     # lo llena main(); lo usa la direccion para el telefono
 
 
 class Manejador(http.server.BaseHTTPRequestHandler):
@@ -1339,9 +1439,54 @@ class Manejador(http.server.BaseHTTPRequestHandler):
             return {}
         return json.loads(self.rfile.read(largo).decode("utf-8"))
 
+    # ---- acceso ----
+    def _es_local(self):
+        return self.client_address[0] in ("127.0.0.1", "::1")
+
+    def _clave_ok(self):
+        """El servidor escucha en la red para que el telefono pueda entrar. Todo
+        lo que no venga del propio computador debe traer la clave del arranque:
+        asi nadie mas en la red del hotel puede tocar la auditoria."""
+        if self._es_local():
+            return True
+        from urllib.parse import parse_qs, urlparse
+        clave = parse_qs(urlparse(self.path).query).get("c", [""])[0]
+        if not clave:
+            clave = self.headers.get("X-Clave", "")
+        return secrets.compare_digest(clave, CLAVE_MOVIL)
+
     # ---- rutas ----
+    def _archivo(self, nombre, tipo="text/html; charset=utf-8"):
+        archivo = os.path.join(CARPETA_APP, nombre)
+        if not os.path.exists(archivo):
+            return self._responder(500, "Falta el archivo %s en la carpeta de la herramienta." % nombre,
+                                   "text/plain; charset=utf-8")
+        with open(archivo, "rb") as f:
+            return self._responder(200, f.read(), tipo)
+
     def do_GET(self):
         ruta = self.path.split("?")[0]
+        if not self._clave_ok():
+            return self._responder(403, "Acceso no autorizado.", "text/plain; charset=utf-8")
+
+        # ---- pantalla del telefono ----
+        if ruta == "/movil":
+            return self._archivo("movil.html")
+        if ruta == "/api/movil/estado":
+            d = APP.resumen()
+            return self._json({"ok": True, "datos": {
+                "fechaTexto": d["fechaTexto"], "tipos": d["tipos"],
+                "documentos": [{"id": x["id"], "tipo": x["tipo"], "numero": x["numero"],
+                                "paginas": len(x.get("paginas", []))} for x in d["documentos"]],
+            }})
+        if ruta == "/api/qr":
+            try:
+                return self._responder(200, qr_png(APP.direccion_movil()), "image/png")
+            except Exception as e:
+                return self._error(str(e))
+        if ruta == "/api/direccion-movil":
+            return self._json({"ok": True, "direccion": APP.direccion_movil()})
+
         if ruta in ("/", "/index.html"):
             archivo = os.path.join(CARPETA_APP, "interfaz.html")
             if not os.path.exists(archivo):
@@ -1383,11 +1528,24 @@ class Manejador(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):
         ruta = self.path.split("?")[0]
+        if not self._clave_ok():
+            return self._error("Acceso no autorizado.", 403)
+        # Desde el telefono solo se puede fotografiar: nada de escribir la
+        # planilla, mandar el correo ni cambiar la configuracion.
+        if not self._es_local() and not ruta.startswith("/api/movil/"):
+            return self._error("Desde el teléfono solo se pueden enviar fotos.", 403)
         try:
             cuerpo = self._cuerpo()
         except Exception:
             return self._error("No se entendió la petición.")
         try:
+            if ruta == "/api/movil/documento":
+                doc = APP.crear_documento(cuerpo.get("tipo"), cuerpo.get("numero"))
+                doc = APP.agregar_foto(doc["id"], "Documento", cuerpo.get("imagen"))
+                return self._json({"ok": True, "documento": {"id": doc["id"], "numero": doc["numero"]}})
+            if ruta == "/api/movil/pagina":
+                doc = APP.agregar_foto(int(cuerpo.get("id")), cuerpo.get("etiqueta"), cuerpo.get("imagen"))
+                return self._json({"ok": True, "paginas": len(doc["paginas"])})
             if ruta == "/api/config":
                 return self._json({"ok": True, "config": APP.guardar_config(cuerpo)})
             if ruta == "/api/documento":
@@ -1457,7 +1615,7 @@ def puerto_libre(desde=8760, intentos=20):
     for p in range(desde, desde + intentos):
         with socket.socket() as s:
             try:
-                s.bind(("127.0.0.1", p))
+                s.bind(("0.0.0.0", p))
                 return p
             except OSError:
                 continue
@@ -1471,8 +1629,11 @@ def main():
     APP = Aplicacion()
 
     puerto = puerto_libre()
+    PUERTO_ACTUAL[0] = puerto
     direccion = "http://127.0.0.1:%d/" % puerto
-    servidor = Servidor(("127.0.0.1", puerto), Manejador)
+    # Escucha tambien en la red local para que el telefono pueda entrar. Todo
+    # lo que no venga de este computador necesita la clave del arranque.
+    servidor = Servidor(("0.0.0.0", puerto), Manejador)
 
     print("=" * 66)
     print("  CASCADAS HOTEL - AUDITORIA DIARIA")

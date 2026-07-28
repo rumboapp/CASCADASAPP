@@ -342,6 +342,9 @@
                onkeydown="if(event.key==='Enter'){event.preventDefault();nuevoDocumento();}">
       </div>
       <button class="btn dorado" id="btnEscanear" onclick="nuevoDocumento()">Escanear</button>
+      <button class="btn linea" onclick="abrirQR()" title="Solo si el escáner no está funcionando">
+        Fotografiar con el teléfono
+      </button>
     </div>
   </div>
 
@@ -420,6 +423,27 @@
     <div class="giro"></div>
     <h3 id="capaTitulo">Escaneando</h3>
     <p id="capaTexto">No muevas el documento del vidrio.</p>
+  </div>
+</div>
+
+<!-- QR para fotografiar desde el teléfono -->
+<div class="capa" id="capaQR" onclick="if(event.target===this) cerrarQR()">
+  <div class="modal" style="max-width:520px; text-align:center;">
+    <div class="modal-cab" style="justify-content:center;">
+      <h3>Fotografiar con el teléfono</h3>
+      <button class="btn suave cerrar" onclick="cerrarQR()">Cerrar</button>
+    </div>
+    <p class="sub" style="margin:-6px 0 18px;">
+      Úsalo solo si el escáner no está funcionando. El teléfono debe estar en la
+      <b>misma red WiFi</b> que este computador.
+    </p>
+    <img id="imgQR" alt="" style="width:260px; height:260px; border-radius:18px;
+         border:1px solid var(--linea); background:#fff; padding:10px;">
+    <p class="config-linea" style="margin-top:14px;">
+      Abre la cámara del teléfono y apúntala al código.<br>
+      O escribe en el navegador: <b id="lblDireccion">—</b>
+    </p>
+    <div id="errorQR"></div>
   </div>
 </div>
 
@@ -573,6 +597,23 @@ function pintarGaleria(docs){
       '</div></div>';
   }).join('');
 }
+
+// ---- QR para el teléfono ----
+async function abrirQR(){
+  document.getElementById('capaQR').className = 'capa ver';
+  document.getElementById('errorQR').innerHTML = '';
+  try {
+    var j = await pedir('/api/direccion-movil');
+    if (!j.direccion) throw new Error('No pude averiguar la dirección de este computador en la red.');
+    document.getElementById('lblDireccion').textContent = j.direccion;
+    document.getElementById('imgQR').src = '/api/qr?v=' + Date.now();
+  } catch (e) {
+    document.getElementById('imgQR').removeAttribute('src');
+    document.getElementById('errorQR').innerHTML =
+      '<div class="revi mal" style="margin-top:14px;text-align:left;">' + esc(e.message) + '</div>';
+  }
+}
+function cerrarQR(){ document.getElementById('capaQR').className = 'capa'; }
 
 // ---- modal de páginas ----
 function verPaginas(id){ docAbierto = id; pintarPaginas(id); document.getElementById('capaPaginas').className = 'capa ver'; }
