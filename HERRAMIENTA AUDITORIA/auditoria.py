@@ -67,16 +67,26 @@ TIPOS = {
     "exportacion": {"etiqueta": "Factura de exportación", "exento": True},
 }
 
+FORMAS_PAGO_BASE = [
+    "EFECTIVO", "DB", "CREDITO", "MC", "VISA", "VISA USD", "TRANSFERENCIA",
+    # Pagos divididos entre dos medios.
+    "DB - MC", "DB - VISA", "DB - CREDITO", "DB - EFECTIVO", "DB - TRANSFERENCIA",
+    "MC - VISA", "MC - EFECTIVO", "MC - TRANSFERENCIA",
+    "VISA - EFECTIVO", "VISA - TRANSFERENCIA",
+    "CREDITO - EFECTIVO", "CREDITO - TRANSFERENCIA",
+    "EFECTIVO - TRANSFERENCIA",
+]
+
 CONFIG_POR_DEFECTO = {
     "carpeta_base": "",       # se busca sola la primera vez (ver buscar_carpeta_escaneados)
     "archivo_excel": "",      # la planilla de auditoria, tambien se busca sola
     "resolucion": 200,
     "color": "gris",          # 'gris' o 'color'
     "calidad_jpeg": 65,
-    # Formas de pago sugeridas. Se puede escribir cualquier otra: las nuevas se
-    # van sumando solas a esta lista para tenerlas a mano el dia siguiente.
-    "formas_pago": ["EFECTIVO", "DB", "CREDITO", "MC", "VISA", "VISA USD",
-                    "TRANSFERENCIA", "MC Y TRANSFERENCIA"],
+    # Formas de pago sugeridas, con las combinaciones de pago dividido. El
+    # campo es de texto libre: se puede escribir cualquier otra, y las nuevas
+    # se van sumando solas a esta lista para tenerlas a mano al dia siguiente.
+    "formas_pago": FORMAS_PAGO_BASE,
     # --- Correo a contabilidad ---
     "correo_para": "jisla@hotelantofagasta.cl",
     "correo_cc": "npizarro@cascadashotel.cl; administracion@cascadashotel.cl; "
@@ -121,10 +131,19 @@ def leer_config():
                 cfg.update(json.load(f) or {})
         except Exception:
             pass
-    # Una version anterior guardo mal el correo de contabilidad. Como el ajuste
-    # ya esta en el disco, hay que corregirlo tambien ahi.
+    # Los ajustes ya guardados mandan sobre los valores por defecto, asi que
+    # las correcciones y los agregados hay que aplicarlos tambien al archivo.
+    cambio = False
     if "cascadasantofagasta.cl" in (cfg.get("correo_cc") or ""):
         cfg["correo_cc"] = cfg["correo_cc"].replace("cascadasantofagasta.cl", "hotelantofagasta.cl")
+        cambio = True
+    # Formas de pago nuevas: se suman sin tocar las que el hotel haya agregado.
+    guardadas = cfg.get("formas_pago") or []
+    faltan = [f for f in FORMAS_PAGO_BASE if f not in guardadas]
+    if faltan:
+        cfg["formas_pago"] = guardadas + faltan
+        cambio = True
+    if cambio:
         try:
             guardar_config(cfg)
         except Exception:

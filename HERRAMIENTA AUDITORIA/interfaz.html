@@ -137,9 +137,20 @@
   .grilla tr{ box-shadow:var(--sombra); }
   .grilla tr.guardada td{ background:#F1F8F3; }
   .grilla td.fijo{ padding:11px 14px; white-space:nowrap; }
-  .grilla input{ border:none; border-radius:12px; width:100%; min-width:0; padding:11px 12px;
-                 font-size:14px; background:transparent; font-family:inherit; transition:box-shadow .15s; }
-  .grilla input:focus{ background:#FFFBF2; box-shadow:inset 0 0 0 2px var(--dorado); }
+  .grilla td.editable{ padding:7px 5px; }
+  /* Cada campo se ve como una burbuja: asi se nota que hay que rellenarlo sin
+     tener que hacerle clic para descubrirlo. */
+  .grilla input{ border:1.5px solid var(--linea); border-radius:11px; width:100%; min-width:0;
+                 padding:10px 12px; font-size:14px; background:#FDFCFA; font-family:inherit;
+                 transition:border-color .16s, background .16s, box-shadow .16s; }
+  .grilla input::placeholder{ color:#B6B2BC; }
+  .grilla input:hover:not(:disabled){ border-color:#D6CFC4; background:#fff; }
+  .grilla input:focus{ background:#FFFBF2; border-color:var(--dorado);
+                       box-shadow:0 0 0 3.5px rgba(193,148,92,.2); }
+  .grilla input:disabled{ background:transparent; border-color:transparent; text-align:center; }
+  /* Lo que todavia falta por escribir queda marcado en tono de alerta suave. */
+  .grilla input.falta{ border-color:#E7C4BA; background:#FDF3F0; }
+  .grilla input.falta::placeholder{ color:#C08A7B; }
   .grilla input.monto{ text-align:right; font-variant-numeric:tabular-nums; }
   .grilla input.calc{ color:#8B8894; font-style:italic; }
   .grilla tr.exenta td.fijo{ color:#8A6329; }
@@ -622,13 +633,13 @@ function pintarGrilla(){
     return '<tr class="' + (t.exento ? 'exenta' : '') + '" data-id="' + d.id + '">' +
       '<td class="fijo"><b>' + esc(d.numero) + '</b><div class="mini">' + esc(t.etiqueta) + '</div></td>' +
       '<td class="fijo mini">' + (t.exento ? 'USD' : 'CLP') + '</td>' +
-      '<td><input class="monto campo-afecto" value="' + esc(fmtMonto(aNumero(d.afecto))) + '" placeholder="' + (t.exento ? 'monto' : 'afecto') + '"></td>' +
-      '<td><input class="monto campo-neto" value="' + esc(fmtMonto(aNumero(d.neto))) + '"></td>' +
-      '<td><input class="monto campo-iva" value="' + esc(fmtMonto(aNumero(d.iva))) + '"' + (t.exento ? ' disabled placeholder="—"' : '') + '></td>' +
+      '<td class="editable"><input class="monto campo-afecto" value="' + esc(fmtMonto(aNumero(d.afecto))) + '" placeholder="' + (t.exento ? 'monto' : 'afecto') + '"></td>' +
+      '<td class="editable"><input class="monto campo-neto" value="' + esc(fmtMonto(aNumero(d.neto))) + '" placeholder="neto"></td>' +
+      '<td class="editable"><input class="monto campo-iva" value="' + esc(fmtMonto(aNumero(d.iva))) + '"' + (t.exento ? ' disabled placeholder="—"' : ' placeholder="IVA"') + '></td>' +
       '<td class="fijo monto-total"></td>' +
-      '<td><input class="campo-pago" list="formasPago" value="' + esc(d.formaPago || '') + '"></td>' +
-      '<td><input class="campo-autorizacion" value="' + esc(d.autorizacion || '') + '"></td>' +
-      '<td><input class="campo-observacion" value="' + esc(d.observacion || '') + '"></td>' +
+      '<td class="editable"><input class="campo-pago" list="formasPago" placeholder="DB" value="' + esc(d.formaPago || '') + '"></td>' +
+      '<td class="editable"><input class="campo-autorizacion" placeholder="del voucher" value="' + esc(d.autorizacion || '') + '"></td>' +
+      '<td class="editable"><input class="campo-observacion" placeholder="opcional" value="' + esc(d.observacion || '') + '"></td>' +
       '<td class="fijo"><div class="acciones">' +
         '<button class="mini-btn" onclick="editarDocumento(' + d.id + ')">Corregir</button>' +
         '<button class="mini-btn borrar" onclick="borrarDocumento(' + d.id + ')">Borrar</button>' +
@@ -653,9 +664,20 @@ function engancharFila(tr){
   var neto = tr.querySelector('.campo-neto');
   var iva = tr.querySelector('.campo-iva');
 
+  /* Marca en rojo suave los campos obligatorios que siguen vacios, para que
+     se vea de un vistazo que falta sin tener que leer la revision. */
+  function marcarPendientes(){
+    var pago = tr.querySelector('.campo-pago');
+    afecto.classList.toggle('falta', !aNumero(afecto.value));
+    neto.classList.toggle('falta', !aNumero(neto.value));
+    pago.classList.toggle('falta', !pago.value.trim());
+  }
+  tr._marcar = marcarPendientes;
+
   function recalcularTotal(){
     var suma = (aNumero(neto.value) || 0) + (aNumero(iva.value) || 0);
     tr.querySelector('.monto-total').textContent = suma ? fmtMonto(suma) : '';
+    marcarPendientes();
   }
   afecto.addEventListener('input', function(){
     var r = desglosar(afecto.value, exento);
@@ -668,6 +690,7 @@ function engancharFila(tr){
     el.addEventListener('input', function(){ el.classList.remove('calc'); recalcularTotal(); });
   });
   Array.prototype.forEach.call(tr.querySelectorAll('input'), function(el){
+    el.addEventListener('input', marcarPendientes);
     el.addEventListener('change', function(){ guardarFila(tr); });
     el.addEventListener('keydown', function(ev){
       if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); }
@@ -698,6 +721,7 @@ async function guardarFila(tr){
     // Destello verde: confirma que quedó guardado sin interrumpir el tecleo.
     tr.classList.add('guardada');
     setTimeout(function(){ tr.classList.remove('guardada'); }, 700);
+    if (tr._marcar) tr._marcar();
     refrescarTotales();
     revisar();
   } catch (e) { avisar(e.message, true); }
