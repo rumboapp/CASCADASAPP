@@ -921,7 +921,11 @@ function pintarRevision(){
   var html = '';
   (DATOS.errores || []).forEach(function(x){ html += '<div class="revi mal">' + esc(x) + '</div>'; });
   (DATOS.avisos || []).forEach(function(x){ html += '<div class="revi ojo">' + esc(x) + '</div>'; });
-  if (!html) {
+  if (html) {
+    html += '<p class="config-linea" style="margin-top:10px;">' +
+      'Son advertencias, no impedimentos: si tienen explicación, puedes escribir la planilla ' +
+      'y mandar el correo igual.</p>';
+  } else {
     html = (DATOS.documentos || []).length
       ? '<div class="revi bien">Todo revisado: los documentos están completos y calzan con la carpeta.</div>'
       : '<div class="vacio" style="padding:6px 0;">Sin documentos todavía.</div>';
@@ -930,18 +934,31 @@ function pintarRevision(){
     html += '<div class="revi mal">Falta indicar la planilla de auditoría en Configuración.</div>';
   }
   document.getElementById('revision').innerHTML = html;
+  // Los reparos avisan, no bloquean: puede haber un folio anulado o un
+  // documento que por alguna razón no se escaneó. Lo único que impide escribir
+  // es no tener documentos o no tener planilla indicada.
   document.getElementById('btnExcel').disabled =
-    !!(DATOS.errores || []).length || !(DATOS.documentos || []).length || !DATOS.excelExiste;
+    !(DATOS.documentos || []).length || !DATOS.excelExiste;
+}
+
+/* Si quedaron reparos, se enumeran y se pide confirmación explícita antes de
+   seguir. La decisión es de quien audita. */
+function confirmarConReparos(accion){
+  var reparos = (DATOS.errores || []).concat(DATOS.avisos || []);
+  if (!reparos.length) return true;
+  return confirm('Hay ' + reparos.length + ' punto(s) que conviene revisar:\n\n· ' +
+                 reparos.join('\n· ') + '\n\n¿' + accion + ' de todas formas?');
 }
 
 async function escribirExcel(){
+  if (!confirmarConReparos('Escribir la planilla')) return;
   if (!confirm('Se va a escribir la hoja ' + DATOS.hojaDelDia + ' en la planilla.\n\n' +
                'Antes se guarda una copia de respaldo. ¿Continuar?')) return;
   var boton = document.getElementById('btnExcel');
   boton.disabled = true;
   capa(true, 'Escribiendo la planilla', 'Excel se está abriendo en segundo plano.');
   try {
-    var j = await pedir('/api/excel/escribir', {});
+    var j = await pedir('/api/excel/escribir', { forzar: true });
     var r = j.resultado;
     avisar('Hoja ' + r.hoja + (r.creada ? ' creada' : ' actualizada') + ' con ' + r.filas + ' documento(s).');
   } catch (e) { alert(e.message); }
@@ -962,8 +979,7 @@ function pintarCorreo(){
   sel.onchange = function(){ localStorage.setItem('auditoria_remitente', sel.value); };
   document.getElementById('lblPara').textContent = DATOS.correoPara || '—';
   document.getElementById('lblCc').textContent = DATOS.correoCc || '—';
-  document.getElementById('btnCorreo').disabled =
-    !!(DATOS.errores || []).length || !(DATOS.documentos || []).length;
+  document.getElementById('btnCorreo').disabled = !(DATOS.documentos || []).length;
 }
 
 async function agregarRemitente(){
@@ -993,12 +1009,13 @@ async function quitarRemitente(){
 async function abrirCorreo(){
   var remitente = document.getElementById('selRemitente').value;
   if (!remitente) { avisar('Elige o agrega quién envía el correo.', true); return; }
+  if (!confirmarConReparos('Preparar el correo')) return;
   localStorage.setItem('auditoria_remitente', remitente);
   var boton = document.getElementById('btnCorreo');
   boton.disabled = true;
   capa(true, 'Preparando el correo', 'Se está abriendo Outlook con los adjuntos.');
   try {
-    var j = await pedir('/api/correo', { remitente: remitente });
+    var j = await pedir('/api/correo', { remitente: remitente, forzar: true });
     avisar('Correo abierto en Outlook con ' + j.resultado.adjuntos + ' adjunto(s).');
   } catch (e) { alert(e.message); }
   finally { capa(false); boton.disabled = false; pintarCorreo(); }

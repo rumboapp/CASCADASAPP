@@ -1123,18 +1123,23 @@ class Aplicacion(object):
         errores, avisos = validar(self.estado.documentos, self.carpeta_destino(crear=False))
         return {"errores": errores, "avisos": avisos}
 
-    def escribir_excel(self):
-        errores, _avisos = validar(self.estado.documentos, self.carpeta_destino(crear=False))
-        if errores:
-            raise ErrorExcel("Faltan datos por completar:\n\n· " + "\n· ".join(errores))
+    def escribir_excel(self, forzar=False):
+        """`forzar` deja escribir aunque queden reparos. Las advertencias avisan,
+        no mandan: puede haber un folio anulado o un documento que por alguna
+        razon no se escaneo, y eso lo decide quien audita, no el programa."""
         if not self.estado.documentos:
             raise ErrorExcel("No hay documentos que escribir.")
+        errores, _avisos = validar(self.estado.documentos, self.carpeta_destino(crear=False))
+        if errores and not forzar:
+            raise ErrorExcel("REPAROS\n" + "\n".join(errores))
         return escribir_en_planilla(self.cfg.get("archivo_excel"), self.fecha, self.estado.documentos)
 
-    def abrir_correo(self, remitente):
+    def abrir_correo(self, remitente, forzar=False):
+        if not self.estado.documentos:
+            raise ErrorCorreo("No hay documentos que enviar.")
         errores, _avisos = validar(self.estado.documentos, self.carpeta_destino(crear=False))
-        if errores:
-            raise ErrorCorreo("Faltan datos por completar:\n\n· " + "\n· ".join(errores))
+        if errores and not forzar:
+            raise ErrorCorreo("REPAROS\n" + "\n".join(errores))
         nombre = (remitente or "").strip()
         if nombre and nombre not in self.cfg.get("remitentes", []):
             self.cfg.setdefault("remitentes", []).append(nombre)
@@ -1425,9 +1430,12 @@ class Manejador(http.server.BaseHTTPRequestHandler):
                 doc = APP.guardar_valores(int(cuerpo.get("id")), cuerpo.get("campos") or {})
                 return self._json({"ok": True, "documento": doc})
             if ruta == "/api/excel/escribir":
-                return self._json({"ok": True, "resultado": APP.escribir_excel()})
+                return self._json({"ok": True,
+                                   "resultado": APP.escribir_excel(bool(cuerpo.get("forzar")))})
             if ruta == "/api/correo":
-                return self._json({"ok": True, "resultado": APP.abrir_correo(cuerpo.get("remitente"))})
+                return self._json({"ok": True,
+                                   "resultado": APP.abrir_correo(cuerpo.get("remitente"),
+                                                                 bool(cuerpo.get("forzar")))})
             if ruta == "/api/remitente/agregar":
                 return self._json({"ok": True, "remitentes": APP.agregar_remitente(cuerpo.get("nombre"))})
             if ruta == "/api/remitente/eliminar":
