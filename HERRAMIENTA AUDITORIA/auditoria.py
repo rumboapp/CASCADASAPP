@@ -903,6 +903,16 @@ def preparar_adjuntos(documentos, carpeta_trabajo, ruta_excel):
     return rutas
 
 
+# Solo se usa si Outlook no trae ninguna firma configurada en el computador.
+FIRMA_TEXTO = (
+    '<p style="margin:14pt 0 0;font-family:Aptos,Calibri,sans-serif;font-size:10pt;color:#555;">'
+    '<b>Recepción / Front desk</b><br>'
+    '+56 9 4074 9693 &nbsp;·&nbsp; +56 55 2 538636<br>'
+    'Calle Vicente Pérez Rosales 1A km 71.5, Las Cascadas, Puerto Octay<br>'
+    'cascadashotel.cl</p>'
+)
+
+
 def cuerpo_correo(cfg, fecha, remitente):
     dia = fecha.strftime("%d-%m-%Y")
     saludo = (cfg.get("correo_saludo") or "Estimada Josefa").strip().rstrip(",")
@@ -949,6 +959,10 @@ def abrir_correo(cfg, fecha, documentos, remitente, carpeta_trabajo):
             firma = mensaje.HTMLBody or ""
         except Exception:
             firma = ""
+        # Si en este computador no hay firma configurada, el correo saldria sin
+        # ningun cierre: se agrega uno de texto para que nunca quede pelado.
+        if "<img" not in firma.lower():
+            firma = FIRMA_TEXTO + firma
         mensaje.HTMLBody = cuerpo + firma
         return {"via": "outlook", "adjuntos": len(adjuntos), "asunto": asunto}
     except Exception as e:
