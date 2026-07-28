@@ -25,6 +25,17 @@
           box-shadow:var(--sombra-alta); }
   .barra h1{ margin:0; font-size:16px; letter-spacing:1.4px; font-weight:600; }
   .barra .fecha{ font-size:13px; color:#C8C3BB; }
+  /* El día auditado se puede cambiar: la auditoría suele cerrarse pasada la
+     medianoche y entonces "hoy" no es el día que se está cerrando. */
+  .selector-dia{ position:relative; display:inline-flex; align-items:center; gap:7px;
+                 background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18);
+                 color:#F3EFE9; border-radius:999px; padding:6px 15px; font-size:13px;
+                 cursor:pointer; transition:background .18s; }
+  .selector-dia:hover{ background:rgba(255,255,255,.2); }
+  .selector-dia::after{ content:'▾'; font-size:11px; color:#C8C3BB; }
+  .selector-dia input{ position:absolute; inset:0; opacity:0; cursor:pointer; min-width:0;
+                       width:100%; height:100%; padding:0; border:none; }
+  .pill.aviso-ayer{ background:rgba(193,148,92,.3); border-color:rgba(193,148,92,.55); color:#F0DBB9; }
   .barra .der{ margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .pill{ background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); color:#F3EFE9;
          border-radius:999px; padding:6px 14px; font-size:12.5px; display:inline-flex;
@@ -226,7 +237,11 @@
 
 <div class="barra">
   <h1>Auditoría diaria</h1>
-  <span class="fecha" id="lblFecha"></span>
+  <label class="selector-dia" title="Día que se está auditando">
+    <span id="lblFecha"></span>
+    <input type="date" id="inpFecha" onchange="cambiarFecha()">
+  </label>
+  <span class="pill aviso-ayer" id="pillAyer" style="display:none;">Auditando el día anterior</span>
   <div class="der">
     <span class="pill demo" id="pillDemo" style="display:none;">Escáner simulado</span>
     <span class="pill" id="pillEscaner"><span class="punto" id="puntoEscaner"></span><span id="txtEscaner">Buscando escáner…</span></span>
@@ -490,6 +505,9 @@ async function buscarEscaner(){
 // =====================================================================
 function pintar(){
   document.getElementById('lblFecha').textContent = DATOS.fechaTexto;
+  document.getElementById('inpFecha').value = DATOS.fecha;
+  document.getElementById('inpFecha').max = DATOS.hoyIso;
+  document.getElementById('pillAyer').style.display = DATOS.esDeAyer ? '' : 'none';
   document.getElementById('lblCarpeta').textContent = DATOS.carpetaDestino || '—';
   document.getElementById('pillDemo').style.display = DATOS.demo ? '' : 'none';
   document.getElementById('cfgBase').value = DATOS.config.carpeta_base || '';
@@ -581,6 +599,19 @@ function elegirTipo(clave){
   });
   document.getElementById('inpNumero').focus();
 }
+async function cambiarFecha(){
+  var valor = document.getElementById('inpFecha').value;
+  if (!valor) return;
+  try {
+    await pedir('/api/fecha', { fecha: valor });
+    await cargar();
+    avisar('Ahora estás auditando el ' + DATOS.fechaTexto + '.');
+  } catch (e) {
+    avisar(e.message, true);
+    document.getElementById('inpFecha').value = DATOS.fecha;
+  }
+}
+
 function alternarConfig(){
   var el = document.getElementById('tarjetaConfig');
   el.style.display = el.style.display === 'none' ? '' : 'none';

@@ -299,6 +299,23 @@ def carpeta_del_dia(carpeta_base, fecha, crear=True):
 # ===========================================================================
 #  ESTADO DEL DIA  (se guarda en disco a cada cambio)
 # ===========================================================================
+# ===========================================================================
+#  QUE DIA SE ESTA AUDITANDO
+#  La auditoria del dia suele terminarse pasada la medianoche, asi que "hoy"
+#  no sirve: a las 00:20 del 29 se esta cerrando el 28. Hasta las 6 de la
+#  manana se asume el dia anterior, y de todas formas la fecha se puede
+#  cambiar a mano en la pantalla.
+# ===========================================================================
+HORA_CORTE = 6
+
+
+def fecha_por_defecto(ahora=None):
+    ahora = ahora or datetime.datetime.now()
+    if ahora.hour < HORA_CORTE:
+        return (ahora - datetime.timedelta(days=1)).date()
+    return ahora.date()
+
+
 class EstadoDia(object):
     def __init__(self, fecha):
         self.fecha = fecha
@@ -1036,7 +1053,7 @@ def limpiar_antiguos(dias_trabajo=60, max_respaldos=20):
 class Aplicacion(object):
     def __init__(self):
         self.cfg = leer_config()
-        self.fecha = datetime.date.today()
+        self.fecha = fecha_por_defecto()
         self.estado = EstadoDia(self.fecha)
         self.escaner = Escaner()
         # Primera vez: se intenta reconocer sola la carpeta de escaneados.
@@ -1060,6 +1077,18 @@ class Aplicacion(object):
         return carpeta_del_dia(base, self.fecha, crear=crear)
 
     # ---- consultas ----
+    def cambiar_fecha(self, iso):
+        """Cambia el día que se está auditando y carga su avance."""
+        try:
+            nueva = datetime.date.fromisoformat(str(iso))
+        except ValueError:
+            raise ValueError("Fecha no válida.")
+        if nueva > datetime.date.today():
+            raise ValueError("No se puede auditar un día que todavía no ocurre.")
+        self.fecha = nueva
+        self.estado = EstadoDia(nueva)
+        return nueva.isoformat()
+
     def guardar_valores(self, doc_id, campos):
         """Guarda los montos y datos de pago de un documento."""
         doc = self.estado.buscar(doc_id)
@@ -1126,6 +1155,8 @@ class Aplicacion(object):
             "baseExiste": bool(base) and os.path.isdir(base),
             "excelExiste": bool(excel) and os.path.exists(excel),
             "hojaDelDia": self.fecha.strftime("%d.%m.%Y"),
+            "esDeAyer": self.fecha != datetime.date.today(),
+            "hoyIso": datetime.date.today().isoformat(),
             "documentos": self.estado.documentos,
             "tipos": [{"clave": k, "etiqueta": v["etiqueta"], "exento": v["exento"]} for k, v in TIPOS.items()],
             "formasPago": self.cfg.get("formas_pago", []),
@@ -1374,6 +1405,8 @@ class Manejador(http.server.BaseHTTPRequestHandler):
                 elegido = elegir_archivo_con_ventana(
                     os.path.dirname(APP.cfg.get("archivo_excel") or "") or APP.cfg.get("carpeta_base") or "")
                 return self._json({"ok": True, "archivo": os.path.normpath(elegido) if elegido else ""})
+            if ruta == "/api/fecha":
+                return self._json({"ok": True, "fecha": APP.cambiar_fecha(cuerpo.get("fecha"))})
             if ruta == "/api/documento/valores":
                 doc = APP.guardar_valores(int(cuerpo.get("id")), cuerpo.get("campos") or {})
                 return self._json({"ok": True, "documento": doc})
