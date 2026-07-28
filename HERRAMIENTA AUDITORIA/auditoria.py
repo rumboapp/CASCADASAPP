@@ -736,6 +736,20 @@ def _limpiar_datos(hoja, ultima):
             celda_total.ClearContents()
 
 
+def _recortar_filas(hoja, ultima, usadas):
+    """Deja el bloque del tamano exacto de la auditoria del dia. La plantilla
+    trae filas de sobra con la formula del TOTAL mostrando $0, y con dos o tres
+    documentos quedaban diez lineas vacias colgando debajo."""
+    primera_sobrante = EXCEL_FILA_DATOS + usadas
+    if primera_sobrante > ultima:
+        return ultima
+    sobrantes = hoja.Range(hoja.Cells(primera_sobrante, COL_TIPO),
+                           hoja.Cells(ultima, COL_OBS))
+    sobrantes.ClearContents()
+    sobrantes.ClearFormats()      # se van tambien los bordes y el $0
+    return primera_sobrante - 1
+
+
 def _extender_filas(hoja, ultima, necesarias):
     """Agrega filas copiando el formato de la última, como se hace a mano."""
     faltan = necesarias - (ultima - EXCEL_FILA_DATOS + 1)
@@ -817,6 +831,7 @@ def escribir_en_planilla(ruta_excel, fecha, documentos):
             hoja.Cells(fila, COL_OBS).Value = (d.get("observacion") or "").strip()
             fila += 1
 
+        _recortar_filas(hoja, ultima, len(documentos))
         libro.Save()
         return {"hoja": nombre_hoja, "creada": creada, "filas": len(documentos),
                 "respaldo": respaldo}

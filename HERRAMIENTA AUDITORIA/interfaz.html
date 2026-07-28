@@ -336,8 +336,8 @@
       <div class="paso">2</div>
       <div>
         <h2>Documentos y valores</h2>
-        <p class="sub">Escribe el <b>monto afecto</b> — el <i>SUBTOTAL</i> del voucher, sin la propina.
-          El neto y el IVA se proponen solos y los puedes corregir.</p>
+        <p class="sub">En <b>Total</b> va el <i>SUBTOTAL</i> del voucher o la línea <i>CONSUMO</i> de la boleta,
+          <b>sin la propina</b>. El neto y el IVA se proponen solos y los puedes corregir.</p>
       </div>
       <div class="cuenta"><b id="lblConteo">0</b> hoy</div>
     </div>
@@ -633,10 +633,9 @@ function pintarGrilla(){
     return '<tr class="' + (t.exento ? 'exenta' : '') + '" data-id="' + d.id + '">' +
       '<td class="fijo"><b>' + esc(d.numero) + '</b><div class="mini">' + esc(t.etiqueta) + '</div></td>' +
       '<td class="fijo mini">' + (t.exento ? 'USD' : 'CLP') + '</td>' +
-      '<td class="editable"><input class="monto campo-afecto" value="' + esc(fmtMonto(aNumero(d.afecto))) + '" placeholder="' + (t.exento ? 'monto' : 'afecto') + '"></td>' +
+      '<td class="editable"><input class="monto campo-total" value="' + esc(fmtMonto(aNumero(d.total))) + '" placeholder="total"></td>' +
       '<td class="editable"><input class="monto campo-neto" value="' + esc(fmtMonto(aNumero(d.neto))) + '" placeholder="neto"></td>' +
       '<td class="editable"><input class="monto campo-iva" value="' + esc(fmtMonto(aNumero(d.iva))) + '"' + (t.exento ? ' disabled placeholder="—"' : ' placeholder="IVA"') + '></td>' +
-      '<td class="fijo monto-total"></td>' +
       '<td class="editable"><input class="campo-pago" list="formasPago" placeholder="DB" value="' + esc(d.formaPago || '') + '"></td>' +
       '<td class="editable"><input class="campo-autorizacion" placeholder="del voucher" value="' + esc(d.autorizacion || '') + '"></td>' +
       '<td class="editable"><input class="campo-observacion" placeholder="opcional" value="' + esc(d.observacion || '') + '"></td>' +
@@ -647,7 +646,7 @@ function pintarGrilla(){
   }).join('');
 
   tabla.innerHTML =
-    '<thead><tr><th>Documento</th><th></th><th>Afecto</th><th>Neto</th><th>IVA</th><th>Total</th>' +
+    '<thead><tr><th>Documento</th><th></th><th>Total</th><th>Neto</th><th>IVA</th>' +
     '<th>Forma de pago</th><th>N.º autorización</th><th>Observación</th><th></th></tr></thead>' +
     '<tbody>' + filas + '</tbody><datalist id="formasPago">' + lista + '</datalist>';
 
@@ -660,7 +659,7 @@ function engancharFila(tr){
   var doc = (DATOS.documentos || []).find(function(d){ return d.id === id; });
   var tipo = DATOS.tipos.find(function(t){ return t.clave === doc.tipo; }) || {};
   var exento = !!tipo.exento;
-  var afecto = tr.querySelector('.campo-afecto');
+  var total = tr.querySelector('.campo-total');
   var neto = tr.querySelector('.campo-neto');
   var iva = tr.querySelector('.campo-iva');
 
@@ -668,26 +667,22 @@ function engancharFila(tr){
      se vea de un vistazo que falta sin tener que leer la revision. */
   function marcarPendientes(){
     var pago = tr.querySelector('.campo-pago');
-    afecto.classList.toggle('falta', !aNumero(afecto.value));
+    total.classList.toggle('falta', !aNumero(total.value));
     neto.classList.toggle('falta', !aNumero(neto.value));
     pago.classList.toggle('falta', !pago.value.trim());
   }
   tr._marcar = marcarPendientes;
 
-  function recalcularTotal(){
-    var suma = (aNumero(neto.value) || 0) + (aNumero(iva.value) || 0);
-    tr.querySelector('.monto-total').textContent = suma ? fmtMonto(suma) : '';
-    marcarPendientes();
-  }
-  afecto.addEventListener('input', function(){
-    var r = desglosar(afecto.value, exento);
+  // El total es el monto afecto: de ahi salen el neto y el IVA.
+  total.addEventListener('input', function(){
+    var r = desglosar(total.value, exento);
     neto.value = fmtMonto(r.neto);
     iva.value = fmtMonto(r.iva);
     neto.classList.add('calc'); iva.classList.add('calc');
-    recalcularTotal();
+    marcarPendientes();
   });
   [neto, iva].forEach(function(el){
-    el.addEventListener('input', function(){ el.classList.remove('calc'); recalcularTotal(); });
+    el.addEventListener('input', function(){ el.classList.remove('calc'); marcarPendientes(); });
   });
   Array.prototype.forEach.call(tr.querySelectorAll('input'), function(el){
     el.addEventListener('input', marcarPendientes);
@@ -696,22 +691,21 @@ function engancharFila(tr){
       if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); }
     });
   });
-  recalcularTotal();
+  marcarPendientes();
 }
 
 async function guardarFila(tr){
   var id = parseInt(tr.dataset.id, 10);
-  var neto = aNumero(tr.querySelector('.campo-neto').value);
-  var iva = aNumero(tr.querySelector('.campo-iva').value);
   var campos = {
-    afecto: aNumero(tr.querySelector('.campo-afecto').value),
-    neto: neto, iva: iva, total: (neto || 0) + (iva || 0),
+    total: aNumero(tr.querySelector('.campo-total').value),
+    neto: aNumero(tr.querySelector('.campo-neto').value),
+    iva: aNumero(tr.querySelector('.campo-iva').value),
     formaPago: tr.querySelector('.campo-pago').value.trim().toUpperCase(),
     autorizacion: tr.querySelector('.campo-autorizacion').value.trim(),
     observacion: tr.querySelector('.campo-observacion').value.trim()
   };
   tr.querySelector('.campo-pago').value = campos.formaPago;
-  tr.querySelector('.campo-afecto').value = fmtMonto(campos.afecto);
+  tr.querySelector('.campo-total').value = fmtMonto(campos.total);
   tr.querySelector('.campo-neto').value = fmtMonto(campos.neto);
   tr.querySelector('.campo-iva').value = fmtMonto(campos.iva);
   try {
