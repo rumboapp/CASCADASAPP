@@ -735,7 +735,6 @@ def validar(documentos, carpeta_destino):
         etiqueta = "%s %s" % (TIPOS.get(d["tipo"], {}).get("etiqueta", d["tipo"]), d.get("numero") or "?")
         exento = TIPOS.get(d["tipo"], {}).get("exento", False)
         neto, iva = _numero(d.get("neto")), _numero(d.get("iva"))
-        total = _numero(d.get("total"))
 
         if not d.get("paginas"):
             errores.append("%s no tiene ninguna página escaneada." % etiqueta)
@@ -743,12 +742,6 @@ def validar(documentos, carpeta_destino):
             errores.append("%s no tiene neto." % etiqueta)
         if not (d.get("formaPago") or "").strip():
             errores.append("%s no tiene forma de pago." % etiqueta)
-
-        if neto is not None:
-            suma = neto + (iva or 0)
-            if total is not None and abs(suma - total) > 1:
-                errores.append("%s: neto más IVA da %s y el total dice %s."
-                               % (etiqueta, int(suma), int(total)))
         if exento and iva:
             avisos.append("%s es de exportación y tiene IVA cargado." % etiqueta)
         if not exento and neto is not None and not iva:

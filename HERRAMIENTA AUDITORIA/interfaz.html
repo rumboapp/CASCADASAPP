@@ -354,8 +354,8 @@
       <div class="paso">2</div>
       <div>
         <h2>Documentos y valores</h2>
-        <p class="sub">En <b>Total</b> va el <i>SUBTOTAL</i> del voucher o la línea <i>CONSUMO</i> de la boleta,
-          <b>sin la propina</b>. El neto y el IVA se proponen solos y los puedes corregir.</p>
+        <p class="sub">Escribe el <b>neto</b> y el <b>IVA</b> tal como vienen en la boleta.
+          El total se suma solo.</p>
       </div>
       <div class="cuenta"><b id="lblConteo">0</b> hoy</div>
     </div>
@@ -467,7 +467,6 @@
 var DATOS = null;
 var tipoElegido = 'boleta';
 var docAbierto = null;
-var IVA_TASA = 0.19;
 
 function esc(s){
   return String(s == null ? '' : s)
@@ -678,14 +677,6 @@ function aNumero(v){
 function fmtMonto(n){
   return (n === null || n === undefined || n === '') ? '' : Math.round(n).toLocaleString('es-CL');
 }
-function desglosar(afecto, exento){
-  var m = aNumero(afecto);
-  if (m === null || m <= 0) return { neto:null, iva:null };
-  if (exento) return { neto: Math.round(m), iva: null };
-  var neto = Math.round(m / (1 + IVA_TASA));
-  return { neto: neto, iva: Math.round(m) - neto };
-}
-
 function pintarGrilla(){
   var docs = DATOS.documentos || [];
   var tabla = document.getElementById('grilla');
@@ -705,9 +696,10 @@ function pintarGrilla(){
     return '<tr class="' + (t.exento ? 'exenta' : '') + '" data-id="' + d.id + '">' +
       '<td class="fijo"><b>' + esc(d.numero) + '</b><div class="mini">' + esc(t.etiqueta) + '</div></td>' +
       '<td class="fijo mini">' + (t.exento ? 'USD' : 'CLP') + '</td>' +
-      '<td class="editable"><input class="monto campo-total" value="' + esc(fmtMonto(aNumero(d.total))) + '" placeholder="total"></td>' +
       '<td class="editable"><input class="monto campo-neto" value="' + esc(fmtMonto(aNumero(d.neto))) + '" placeholder="neto"></td>' +
       '<td class="editable"><input class="monto campo-iva" value="' + esc(fmtMonto(aNumero(d.iva))) + '"' + (t.exento ? ' disabled placeholder="—"' : ' placeholder="IVA"') + '></td>' +
+      // El total no se escribe: es la suma de los dos anteriores.
+      '<td class="fijo total-calc"></td>' +
       '<td class="editable"><input class="campo-pago" list="formasPago" placeholder="DB" value="' + esc(d.formaPago || '') + '"></td>' +
       '<td class="editable"><input class="campo-autorizacion" placeholder="del voucher" value="' + esc(d.autorizacion || '') + '"></td>' +
       '<td class="editable"><input class="campo-observacion" placeholder="opcional" value="' + esc(d.observacion || '') + '"></td>' +
@@ -718,7 +710,7 @@ function pintarGrilla(){
   }).join('');
 
   tabla.innerHTML =
-    '<thead><tr><th>Documento</th><th></th><th>Total</th><th>Neto</th><th>IVA</th>' +
+    '<thead><tr><th>Documento</th><th></th><th>Neto</th><th>IVA</th><th>Total</th>' +
     '<th>Forma de pago</th><th>N.º autorización</th><th>Observación</th><th></th></tr></thead>' +
     '<tbody>' + filas + '</tbody><datalist id="formasPago">' + lista + '</datalist>';
 
@@ -727,57 +719,50 @@ function pintarGrilla(){
 }
 
 function engancharFila(tr){
-  var id = parseInt(tr.dataset.id, 10);
-  var doc = (DATOS.documentos || []).find(function(d){ return d.id === id; });
-  var tipo = DATOS.tipos.find(function(t){ return t.clave === doc.tipo; }) || {};
-  var exento = !!tipo.exento;
-  var total = tr.querySelector('.campo-total');
   var neto = tr.querySelector('.campo-neto');
   var iva = tr.querySelector('.campo-iva');
+  var celdaTotal = tr.querySelector('.total-calc');
 
-  /* Marca en rojo suave los campos obligatorios que siguen vacios, para que
-     se vea de un vistazo que falta sin tener que leer la revision. */
+  /* El total es siempre la suma del neto y el IVA: no se escribe. Con propina
+     de por medio, el total de la boleta no sirve para deducir nada, así que
+     ambos montos vienen tal cual del documento. */
+  function refrescarTotal(){
+    var n = aNumero(neto.value), i = aNumero(iva.value);
+    celdaTotal.textContent = (n === null && i === null) ? '' : fmtMonto((n || 0) + (i || 0));
+  }
+
+  /* Marca en rojo suave lo obligatorio que sigue vacío, para verlo de un
+     vistazo sin tener que leer la revisión. */
   function marcarPendientes(){
     var pago = tr.querySelector('.campo-pago');
-    total.classList.toggle('falta', !aNumero(total.value));
     neto.classList.toggle('falta', !aNumero(neto.value));
     pago.classList.toggle('falta', !pago.value.trim());
   }
   tr._marcar = marcarPendientes;
 
-  // El total es el monto afecto: de ahi salen el neto y el IVA.
-  total.addEventListener('input', function(){
-    var r = desglosar(total.value, exento);
-    neto.value = fmtMonto(r.neto);
-    iva.value = fmtMonto(r.iva);
-    neto.classList.add('calc'); iva.classList.add('calc');
-    marcarPendientes();
-  });
-  [neto, iva].forEach(function(el){
-    el.addEventListener('input', function(){ el.classList.remove('calc'); marcarPendientes(); });
-  });
   Array.prototype.forEach.call(tr.querySelectorAll('input'), function(el){
-    el.addEventListener('input', marcarPendientes);
+    el.addEventListener('input', function(){ refrescarTotal(); marcarPendientes(); });
     el.addEventListener('change', function(){ guardarFila(tr); });
     el.addEventListener('keydown', function(ev){
       if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); }
     });
   });
+  refrescarTotal();
   marcarPendientes();
 }
 
 async function guardarFila(tr){
   var id = parseInt(tr.dataset.id, 10);
+  var neto = aNumero(tr.querySelector('.campo-neto').value);
+  var iva = aNumero(tr.querySelector('.campo-iva').value);
   var campos = {
-    total: aNumero(tr.querySelector('.campo-total').value),
-    neto: aNumero(tr.querySelector('.campo-neto').value),
-    iva: aNumero(tr.querySelector('.campo-iva').value),
+    neto: neto, iva: iva,
+    total: (neto === null && iva === null) ? null : (neto || 0) + (iva || 0),
     formaPago: tr.querySelector('.campo-pago').value.trim().toUpperCase(),
     autorizacion: tr.querySelector('.campo-autorizacion').value.trim(),
     observacion: tr.querySelector('.campo-observacion').value.trim()
   };
   tr.querySelector('.campo-pago').value = campos.formaPago;
-  tr.querySelector('.campo-total').value = fmtMonto(campos.total);
   tr.querySelector('.campo-neto').value = fmtMonto(campos.neto);
   tr.querySelector('.campo-iva').value = fmtMonto(campos.iva);
   try {
@@ -953,6 +938,9 @@ async function revisar(){
     var j = await pedir('/api/estado');
     DATOS.errores = j.datos.errores;
     DATOS.avisos = j.datos.avisos;
+    // Los propios cambios también suben la revisión: si no se anota aquí, el
+    // vigilante los confundiría con algo llegado desde el teléfono.
+    DATOS.revision = j.datos.revision;
     pintarRevision();
     pintarCorreo();
   } catch (e) { /* se vuelve a pedir al siguiente cambio */ }
