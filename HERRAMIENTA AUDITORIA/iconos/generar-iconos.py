@@ -138,7 +138,56 @@ def icono_c(tam):
     return rematar(img, tam)
 
 
-VARIANTES = [("A · boleta escaneada", icono_a),
+# ───────── E · boleta con el logo, saliendo del escaner ─────────
+def icono_e(tam):
+    """La boleta de la B entrando al escaner de la C. El emblema lleva el trazo
+    reforzado en los tamanos chicos: la linea fina del logo se pierde al
+    reducir y quedaba una mancha."""
+    T = tam * ESC
+    img = lienzo(tam)
+
+    x0, x1 = T * .295, T * .705
+    y0, y1 = T * .085, T * .73
+
+    papel = Image.new("RGBA", (T, T), (0, 0, 0, 0))
+    ImageDraw.Draw(papel).rounded_rectangle([x0, y0, x1, y1], radius=T * .012, fill=CREMA)
+    img = Image.alpha_composite(img, papel)
+
+    # Emblema impreso arriba, como en las boletas del hotel
+    lado = round((x1 - x0) * .66)
+    fuente = LOGO
+    if tam <= 48:
+        engrosar = 11 if tam <= 20 else (9 if tam <= 32 else 7)   # impar: lo exige MaxFilter
+        alfa = fuente.split()[3].filter(ImageFilter.MaxFilter(engrosar))
+        fuente = Image.merge("RGBA", (*fuente.split()[:3], alfa))
+    emb = fuente.resize((lado, lado), Image.LANCZOS)
+    tinta = Image.new("RGBA", emb.size, TINTA + (255,))
+    tinta.putalpha(emb.split()[3])
+    img.paste(tinta, (round((T - lado) / 2), round(y0 + (y1 - y0) * .07)), tinta)
+
+    # Renglones bajo el emblema
+    renglones = Image.new("RGBA", (T, T), (0, 0, 0, 0))
+    dr = ImageDraw.Draw(renglones)
+    for rel, largo in [(.62, .84), (.72, .64), (.82, .76)]:
+        dr.line([(x0 + (x1 - x0) * .14, y0 + (y1 - y0) * rel),
+                 (x0 + (x1 - x0) * .14 + (x1 - x0) * .72 * largo, y0 + (y1 - y0) * rel)],
+                fill=TINTA, width=max(ESC, round(T * .018)))
+    img = Image.alpha_composite(img, renglones)
+
+    img = haz(img, T, T * .688, T * .17, T * .83, intensidad=1.5)
+
+    cuerpo = Image.new("RGBA", (T, T), (0, 0, 0, 0))
+    dc = ImageDraw.Draw(cuerpo)
+    dc.rounded_rectangle([T * .14, T * .685, T * .86, T * .875], radius=T * .06, fill=DORADO + (255,))
+    dc.rounded_rectangle([T * .14, T * .685, T * .86, T * .755], radius=T * .06,
+                         fill=(0xE4, 0xBB, 0x83, 255))
+    dc.rounded_rectangle([T * .25, T * .705, T * .75, T * .735], radius=T * .015,
+                         fill=GRAFITO_OS + (255,))
+    img = Image.alpha_composite(img, cuerpo)
+    return rematar(img, tam)
+
+
+VARIANTES = [("E · logo + escáner", icono_e),
              ("B · boleta con el logo", icono_b),
              ("C · saliendo del escáner", icono_c)]
 
