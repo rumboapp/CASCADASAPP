@@ -343,6 +343,9 @@ class EstadoDia(object):
         self.lock = threading.Lock()
         self.documentos = []
         self.siguiente_id = 1
+        # Sube con cada cambio. La pantalla la consulta para enterarse de lo que
+        # llega desde el telefono sin tener que recargarla a mano.
+        self.revision = 0
         self._cargar()
 
     def _cargar(self):
@@ -357,6 +360,7 @@ class EstadoDia(object):
             traceback.print_exc()
 
     def guardar(self):
+        self.revision += 1
         tmp = self.archivo + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump({"documentos": self.documentos, "siguienteId": self.siguiente_id},
@@ -1244,6 +1248,7 @@ class Aplicacion(object):
             "baseExiste": bool(base) and os.path.isdir(base),
             "excelExiste": bool(excel) and os.path.exists(excel),
             "hojaDelDia": self.fecha.strftime("%d.%m.%Y"),
+            "revision": self.estado.revision,
             "esDeAyer": self.fecha != datetime.date.today(),
             "hoyIso": datetime.date.today().isoformat(),
             "documentos": self.estado.documentos,
@@ -1496,6 +1501,11 @@ class Manejador(http.server.BaseHTTPRequestHandler):
                 return self._responder(200, f.read(), "text/html; charset=utf-8")
         if ruta == "/api/estado":
             return self._json({"ok": True, "datos": APP.resumen()})
+        if ruta == "/api/revision":
+            # Consulta ligera: la pantalla la hace cada pocos segundos para
+            # enterarse de las fotos que llegan desde el telefono.
+            return self._json({"ok": True, "revision": APP.estado.revision,
+                               "fecha": APP.fecha.isoformat()})
         if ruta == "/api/escaneres":
             try:
                 return self._json({"ok": True, "equipos": APP.escaner.listar()})

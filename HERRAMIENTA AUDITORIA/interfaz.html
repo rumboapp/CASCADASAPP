@@ -1063,11 +1063,53 @@ async function abrirCorreo(){
 }
 
 document.addEventListener('keydown', function(ev){
-  if (ev.key === 'Escape') cerrarPaginas();
+  if (ev.key === 'Escape') { cerrarPaginas(); cerrarQR(); }
+});
+
+// =====================================================================
+//  ATENTO A LO QUE LLEGA DESDE EL TELÉFONO
+//  Se consulta cada 3 segundos un dato mínimo; si cambió, se recarga. Nunca
+//  mientras se está escribiendo en la grilla: eso borraría lo que va a medias.
+// =====================================================================
+var recargaPendiente = false;
+
+function escribiendo(){
+  var el = document.activeElement;
+  return !!(el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA'));
+}
+
+async function comprobarCambios(){
+  if (!DATOS) return;
+  try {
+    var j = await pedir('/api/revision');
+    if (j.fecha !== DATOS.fecha || j.revision === DATOS.revision) return;
+    if (escribiendo()) {
+      // Se avisa igual, pero la pantalla no se toca hasta que suelte el campo.
+      if (!recargaPendiente) avisar('Llegó algo desde el teléfono. Aparecerá al salir del campo.');
+      recargaPendiente = true;
+      return;
+    }
+    var antes = (DATOS.documentos || []).length;
+    await cargar();
+    var ahora = (DATOS.documentos || []).length;
+    if (ahora > antes) {
+      avisar(ahora - antes === 1 ? 'Llegó un documento desde el teléfono.'
+                                 : 'Llegaron ' + (ahora - antes) + ' documentos desde el teléfono.');
+    }
+  } catch (e) { /* si el programa se cerró, se reintenta al siguiente ciclo */ }
+}
+
+// Al salir de un campo se atiende la recarga que quedó esperando.
+document.addEventListener('focusout', function(){
+  if (!recargaPendiente) return;
+  setTimeout(function(){
+    if (recargaPendiente && !escribiendo()) { recargaPendiente = false; comprobarCambios(); }
+  }, 400);
 });
 
 cargar();
 buscarEscaner();
+setInterval(comprobarCambios, 3000);
 </script>
 </body>
 </html>
