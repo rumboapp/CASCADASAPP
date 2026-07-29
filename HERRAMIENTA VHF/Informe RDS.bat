@@ -53,32 +53,28 @@ echo   Programa: %PROGRAMA%
 
 rem =======================================================================
 rem  2. BUSCAR PYTHON
-rem     Visual Hotel es un programa de 32 bits: si esta el Python de 32 con
-rem     pywinauto instalado, se usa ese, que lee bien el listado de informes.
 rem     OJO: "python" a secas suele ser el atajo falso de la Microsoft Store,
 rem     asi que se prueba SIEMPRE despues de "py".
+rem     (Si algun dia se instala el Python de 32 bits, que es el que lee
+rem     mejor el listado de informes, aqui se puede poner primero.)
 rem =======================================================================
 set EJECUTAR=
 
-py -3-32 -c "import pywinauto" >nul 2>nul
-if not errorlevel 1 set EJECUTAR=py -3-32
-if not "%EJECUTAR%"=="" goto :tengo_python
-
-py -c "import pywinauto" >nul 2>nul
+py -c "import pywinauto" >nul 2>&1
 if not errorlevel 1 set EJECUTAR=py
 if not "%EJECUTAR%"=="" goto :tengo_python
 
-python -c "import pywinauto" >nul 2>nul
+python -c "import pywinauto" >nul 2>&1
 if not errorlevel 1 set EJECUTAR=python
 if not "%EJECUTAR%"=="" goto :tengo_python
 
 rem Ninguno tiene pywinauto todavia: se usa el Python que exista y el
 rem programa se encarga de explicar que falta instalarlo.
-py -c "import sys" >nul 2>nul
+py -c "import sys" >nul 2>&1
 if not errorlevel 1 set EJECUTAR=py
 if not "%EJECUTAR%"=="" goto :falta_pywinauto
 
-python -c "import sys" >nul 2>nul
+python -c "import sys" >nul 2>&1
 if not errorlevel 1 set EJECUTAR=python
 if not "%EJECUTAR%"=="" goto :falta_pywinauto
 
