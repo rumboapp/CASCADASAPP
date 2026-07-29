@@ -387,24 +387,27 @@ def elegir_menu_con_teclado(ventana):
 
 
 def elegir_menu(ventana, camino):
-    """Primero por el camino de siempre; si el menu tiene tildes o atajos que
-    no calzan, se busca item por item comparando en limpio."""
+    """Primero por el camino de siempre; si falla por lo que sea (tildes,
+    atajos raros, el choque de 64 contra 32 bits, o el control que se demora
+    en responder), se abre con el teclado, que no depende de leer nada."""
     try:
         ventana.menu_select("->".join(camino))
         return
     except Exception as e:
-        if es_problema_de_bits(e):
-            aviso("4/6", "No puedo leer el menú (64 vs 32 bits): lo abro con el teclado")
-            elegir_menu_con_teclado(ventana)
-            return
+        motivo = "no puedo leer el menú (64 vs 32 bits)" if es_problema_de_bits(e) \
+            else "el camino directo no funcionó (%s)" % e
+        aviso("4/6", "%s: lo abro con el teclado" % motivo)
+
+    try:
+        elegir_menu_con_teclado(ventana)
+        return
+    except Exception:
+        pass          # sigue con el metodo leyendo item por item, mas lento
+
     try:
         menu = ventana.menu()
     except Exception as e:
-        if es_problema_de_bits(e):
-            aviso("4/6", "No puedo leer el menú (64 vs 32 bits): lo abro con el teclado")
-            elegir_menu_con_teclado(ventana)
-            return
-        raise
+        raise ErrorPaso("No pude abrir el menú de ninguna forma: %s" % e)
     if menu is None:
         raise ErrorPaso("Esta ventana no tiene menú donde buscar «%s»." % camino[0])
     actual = menu.items()
@@ -496,8 +499,31 @@ def bajar_por_el_arbol_con_teclado(arbol):
     time.sleep(0.6)
 
 
+def hijos_con_espera(nodo, intentos=6):
+    """Los hijos de una rama recien abierta a veces tardan en aparecer (el
+    arbol los va cargando de a poco). Se insiste varias veces antes de
+    darse por vencido."""
+    for _ in range(intentos):
+        nodos = hijos(nodo)
+        if nodos:
+            return nodos
+        time.sleep(PAUSA)
+    return []
+
+
 def bajar_por_el_arbol(arbol, camino):
-    """Va abriendo carpeta por carpeta hasta llegar al informe."""
+    """Va abriendo carpeta por carpeta hasta llegar al informe. Primero se
+    intenta con get_item, que es una funcion de pywinauto hecha justo para
+    esto: recibe el camino completo y expande cada nivel ella sola, lo que
+    es mas confiable que ir expandiendo y releyendo a mano."""
+    try:
+        item = arbol.get_item(camino, exact=False)
+        item.click_input()
+        time.sleep(PAUSA)
+        return item
+    except Exception:
+        pass          # sigue con el metodo manual, mas lento pero mas claro
+
     nodos = arbol.roots()
     if not nodos:
         raise ErrorPaso("El listado de informes se ve vacío.\n"
@@ -517,10 +543,10 @@ def bajar_por_el_arbol(arbol, camino):
             except Exception:
                 nodo.click_input(double=True)
             time.sleep(PAUSA)
-            nodos = hijos(nodo)
-            if not nodos:                      # a veces tarda en cargar la rama
-                time.sleep(PAUSA * 2)
-                nodos = hijos(nodo)
+            nodos = hijos_con_espera(nodo)
+            if not nodos:
+                raise ErrorPaso("Abrí «%s» pero no le vi ningún elemento adentro,\n"
+                                "      ni esperando varios segundos." % nombre.strip())
     nodo.select()
     nodo.click_input()
     time.sleep(PAUSA)
@@ -586,11 +612,13 @@ def espiar():
         activa.print_control_identifiers(depth=3)
         for control in activa.descendants():
             if "tree" in control.friendly_class_name().lower():
-                print("\n  CONTENIDO DEL LISTADO:")
+                print("\n  CONTENIDO DEL LISTADO (hasta 3 niveles):")
                 for raiz in control.roots():
                     print("   · %s" % raiz.text())
-                    for hijo in hijos(raiz):
+                    for hijo in hijos_con_espera(raiz, intentos=2):
                         print("      - %s" % hijo.text())
+                        for nieto in hijos_con_espera(hijo, intentos=2):
+                            print("         · %s" % nieto.text())
                 break
     except Exception as e:
         print("  No pude leer la ventana activa: %s" % e)
@@ -727,10 +755,9 @@ def main():
         arbol = arbol_de(informes)
         try:
             bajar_por_el_arbol(arbol, CAMINO_INFORME)
-        except Exception as e:
-            if not es_problema_de_bits(e):
-                raise
-            aviso("5/6", "No puedo leer el listado (64 vs 32 bits): lo recorro con el teclado")
+        except ErrorPaso as e:
+            aviso("5/6", "El camino leyendo el listado no resultó (%s): "
+                         "lo recorro con el teclado" % e)
             bajar_por_el_arbol_con_teclado(arbol)
 
         # El sistema muestra el número del informe elegido: si es el nuestro,
