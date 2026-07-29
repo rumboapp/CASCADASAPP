@@ -71,9 +71,16 @@ CAMINO_INFORME = ["FrontOffice", "Administrales", "Resumen Diario de Situación 
 # "Parámetros", "Parâmetros") y se aceptan todas.
 TITULO_PARAMETROS = "Parametros de Registro"
 TITULO_LOGIN = "login"
-TITULO_PRINCIPAL = "Visual Hotel"        # el resto del titulo cambia con la version
+# OJO: el titulo real dice "Visual Hotal FrontOffice" (con A: es una falta de
+# ortografia del propio sistema), asi que se busca solo el pedazo seguro.
+TITULO_PRINCIPAL = "Visual Hot"
 TITULO_INFORMES = "Visualizar Informes"
 TITULO_RDS = "Resumen Diario de Situacion"   # la ventana que pide el periodo
+
+# Mejor que el titulo: el nombre interno de la ventana, que no cambia aunque
+# le arreglen la ortografia o le pongan otra version.
+CLASE_LOGIN = "TfrmLogin"
+CLASE_PRINCIPAL = "TfrmPrincipal"
 
 MENU_INFORMES = ["Consultas", "Informes"]
 
@@ -169,29 +176,40 @@ class ErrorPaso(Exception):
     """Falla controlada: se sabe en que paso fue y que se estaba buscando."""
 
 
-def ventanas(titulo=None):
-    """Todas las ventanas visibles de Windows, o solo las que digan `titulo`.
-    Se recorren a mano en vez de pedirle una a pywinauto: si hay varias que
-    calzan, esto elige la primera en vez de quejarse."""
+def ventanas(titulo=None, clase=None):
+    """Las ventanas visibles de Windows que calcen con lo pedido.
+
+    Se busca primero por el nombre interno de la ventana (su "clase") porque
+    es lo único que no cambia: el título de la principal, sin ir más lejos,
+    dice "Visual Hotal" con una falta de ortografía. El título queda como
+    respaldo, y descartando TApplication, que es una ventana fantasma que
+    Delphi crea con el mismo nombre y no sirve para manejar nada."""
     from pywinauto import findwindows
-    fuera = []
+    seguras, dudosas = [], []
     try:
         handles = findwindows.find_windows(visible_only=True, top_level_only=True)
     except Exception:
-        return fuera
+        return []
     patron = patron_flexible(titulo) if titulo else None
     for handle in handles:
         try:
             v = ESCRITORIO.window(handle=handle).wrapper_object()
             texto = v.window_text().strip()
+            nombre_clase = v.friendly_class_name()
         except Exception:
+            continue
+        if clase and plano(nombre_clase) == plano(clase):
+            seguras.append(v)
             continue
         if not texto:
             continue
-        if patron and not re.match(patron, texto):
+        if plano(nombre_clase) == "tapplication":
             continue
-        fuera.append(v)
-    return fuera
+        if patron and re.match(patron, texto):
+            dudosas.append(v)
+        elif patron is None and clase is None:
+            dudosas.append(v)
+    return seguras + dudosas
 
 
 def listado_de_ventanas():
@@ -204,7 +222,7 @@ def listado_de_ventanas():
     return lineas
 
 
-def esperar_ventana(titulo, segundos, obligatoria=True):
+def esperar_ventana(titulo, segundos, obligatoria=True, clase=None):
     """Busca la ventana en TODO Windows, no solo en el proceso que abrimos:
     estos sistemas antiguos se relanzan por el camino y cambian de proceso.
     Cada 10 segundos muestra qué hay en pantalla, para que si se queda
@@ -212,7 +230,7 @@ def esperar_ventana(titulo, segundos, obligatoria=True):
     limite = time.time() + segundos
     segundo = 0
     while time.time() < limite:
-        encontradas = ventanas(titulo)
+        encontradas = ventanas(titulo, clase)
         if encontradas:
             if segundo:
                 print()
@@ -271,15 +289,19 @@ def campos_de_texto(ventana):
     return [c for _, _, c in campos]
 
 
-def escribir(campo, texto):
+def escribir(campo, texto, verificar=True):
     """Deja el cuadro con exactamente lo que se le pide. Se escribe de una vez
-    (no letra por letra): es instantáneo y no se pierde nada por el camino."""
+    (no letra por letra): es instantáneo y no se pierde nada por el camino.
+
+    `verificar=False` es para los cuadros de contraseña: ahí no se puede leer
+    lo que quedó escrito (muestran ●●●●●), así que comprobar sería tirar el
+    texto a la basura y volver a teclearlo por gusto."""
     campo.set_focus()
     time.sleep(0.1)
     try:
         campo.set_edit_text(texto)
         time.sleep(0.15)
-        if plano(campo.window_text()) == plano(texto):
+        if not verificar or plano(campo.window_text()) == plano(texto):
             return
     except Exception:
         pass
@@ -537,7 +559,8 @@ def main():
 
     try:
         # ---- 1. abrir el sistema ----
-        ya_abierto = esperar_ventana(TITULO_PRINCIPAL, 2, obligatoria=False)
+        ya_abierto = esperar_ventana(TITULO_PRINCIPAL, 2, obligatoria=False,
+                                     clase=CLASE_PRINCIPAL)
         if ya_abierto is not None:
             aviso("1/6", "Visual Hotel ya estaba abierto: sigo con el que hay.")
             principal = ya_abierto
@@ -562,17 +585,30 @@ def main():
             return 0
 
         if principal is None:
-            # ---- 2. la pantalla de parámetros (no siempre aparece) ----
-            parametros = esperar_ventana(TITULO_PARAMETROS, 25, obligatoria=False)
+            # ---- 2. la pantalla de parámetros ----
+            # No siempre aparece (depende de una casilla del propio sistema),
+            # así que se espera a la primera de las dos que salga: si el acceso
+            # ya está en pantalla, no hay nada que apretar y se sigue.
+            parametros = None
+            limite = time.time() + 30
+            while time.time() < limite:
+                if ventanas(TITULO_LOGIN, CLASE_LOGIN):
+                    break
+                encontradas = ventanas(TITULO_PARAMETROS)
+                if encontradas:
+                    parametros = encontradas[0]
+                    break
+                time.sleep(0.5)
+
             if parametros is not None:
                 aviso("2/6", "Pantalla de parámetros: apretando Ok")
                 parametros.set_focus()
                 apretar_hasta_que_cierre(parametros, boton(parametros, "Ok", "Aceptar"))
             else:
-                aviso("2/6", "No apareció la pantalla de parámetros: sigo de largo.")
+                aviso("2/6", "No hay pantalla de parámetros que apretar: sigo de largo.")
 
             # ---- 3. entrar con el usuario ----
-            acceso = esperar_ventana(TITULO_LOGIN, 60)
+            acceso = esperar_ventana(TITULO_LOGIN, 60, clase=CLASE_LOGIN)
             acceso.set_focus()
             campos = campos_de_texto(acceso)
             if len(campos) < 2:
@@ -580,7 +616,7 @@ def main():
                                 "(usuario y clave) donde los esperaba.")
             aviso("3/6", "Entrando como %s" % USUARIO)
             escribir(campos[0], USUARIO)
-            escribir(campos[1], CLAVE)
+            escribir(campos[1], CLAVE, verificar=False)
             if not apretar_hasta_que_cierre(acceso, boton(acceso, "Ok", "Aceptar"), campos[1]):
                 raise ErrorPaso(
                     "Escribí el usuario y la clave, pero la ventana de acceso no se cerró\n"
@@ -590,7 +626,8 @@ def main():
                     % "\n        ".join(listado_de_ventanas()))
 
             aviso("3/6", "Adentro. Esperando a que cargue el sistema (puede tardar)")
-            principal = esperar_ventana(TITULO_PRINCIPAL, ESPERA_PRINCIPAL)
+            principal = esperar_ventana(TITULO_PRINCIPAL, ESPERA_PRINCIPAL,
+                                        clase=CLASE_PRINCIPAL)
 
         # ---- 4. menú Consultas -> Informes ----
         principal.set_focus()
