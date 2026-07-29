@@ -368,22 +368,38 @@ def es_problema_de_bits(e):
     return "299" in str(e) or "ReadProcessMemory" in str(e)
 
 
+def cerrar_menus_abiertos(ventana):
+    """Por si un intento anterior dejó el menú a medio abrir: Escape lo cierra
+    sin efecto si no había nada abierto."""
+    try:
+        ventana.set_focus()
+        ventana.type_keys("{ESC}{ESC}")
+        time.sleep(0.4)
+    except Exception:
+        pass
+
+
 def elegir_menu_con_teclado(ventana):
     """Sin leer nada: F10 enciende la barra de menús, las flechas caminan
     hasta Consultas y Enter abre Informes. Es lo mismo que haría una persona
-    que no usa el mouse, y no necesita espiar la memoria del programa."""
+    que no usa el mouse, y no necesita espiar la memoria del programa.
+
+    Las pausas son generosas a propósito: este menú tarda en desplegarse, y
+    si el Enter sale antes de que el primer ítem quede resaltado, no pasa
+    nada y da la impresión de que el programa se quedó pegado."""
     ventana.set_focus()
-    time.sleep(0.4)
-    ventana.type_keys("{F10}")
     time.sleep(0.5)
-    ventana.type_keys("{RIGHT}" * MENU_POSICION, pause=0.12)
-    time.sleep(0.4)
+    ventana.type_keys("{F10}")
+    time.sleep(0.7)
+    ventana.type_keys("{RIGHT}" * MENU_POSICION, pause=0.15)
+    time.sleep(0.6)
     ventana.type_keys("{DOWN}")            # abre el menú en su primer item
-    time.sleep(0.4)
+    time.sleep(0.7)
     if MENU_ITEM_POSICION:
-        ventana.type_keys("{DOWN}" * MENU_ITEM_POSICION, pause=0.12)
-        time.sleep(0.3)
+        ventana.type_keys("{DOWN}" * MENU_ITEM_POSICION, pause=0.15)
+        time.sleep(0.4)
     ventana.type_keys("{ENTER}")
+    time.sleep(0.3)
 
 
 def elegir_menu(ventana, camino):
@@ -742,14 +758,30 @@ def main():
                                         clase=CLASE_PRINCIPAL)
 
         # ---- 4. menú Consultas -> Informes ----
+        # Se verifica que la ventana realmente se haya abierto: si el clic en
+        # "Informes" no aterrizó (el menú de este sistema tarda en desplegar),
+        # se cierra lo que haya quedado abierto y se reintenta, en vez de
+        # quedarse esperando en silencio algo que nunca va a aparecer.
         principal.set_focus()
         time.sleep(PAUSA)
-        aviso("4/6", "Menú %s" % " → ".join(MENU_INFORMES))
-        elegir_menu(principal, MENU_INFORMES)
-        time.sleep(PAUSA * 2)
+        informes = None
+        for intento in range(1, 4):
+            if intento > 1:
+                aviso("4/6", "No se abrió: reintento %d/3" % intento)
+                cerrar_menus_abiertos(principal)
+            aviso("4/6", "Menú %s" % " → ".join(MENU_INFORMES))
+            elegir_menu(principal, MENU_INFORMES)
+            informes = esperar_ventana(TITULO_INFORMES, 15, obligatoria=False)
+            if informes is not None:
+                break
+        if informes is None:
+            cerrar_menus_abiertos(principal)
+            raise ErrorPaso(
+                "Probé 3 veces abrir Consultas → Informes y la ventana nunca "
+                "apareció.\n      Lo que hay en pantalla ahora:\n        %s"
+                % "\n        ".join(listado_de_ventanas()))
 
         # ---- 5. el informe dentro del árbol ----
-        informes = esperar_ventana(TITULO_INFORMES, 60)
         informes.set_focus()
         aviso("5/6", "Buscando el informe en el listado")
         arbol = arbol_de(informes)
