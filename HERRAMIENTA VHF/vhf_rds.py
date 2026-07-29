@@ -84,6 +84,22 @@ CLASE_PRINCIPAL = "TfrmPrincipal"
 
 MENU_INFORMES = ["Consultas", "Informes"]
 
+# Camino por teclado, para cuando no se puede leer el menu (pasa con el Python
+# de 64 bits). La barra de menus va en este orden:
+#   0 Sistema   1 Editar   2 Reserva   3 Recepcion   4 Caja   5 Ama de Llaves
+#   6 Ventas    7 Registros   8 CONSULTAS   9 CMNet   10 Ventana   11 Ayuda
+# y dentro de Consultas, "Informes" es el primero de la lista.
+MENU_POSICION = 8
+MENU_ITEM_POSICION = 0
+
+# Lo mismo para el listado de informes: bajo FrontOffice, "Administrales" es la
+# septima carpeta (Cadastrais, Caja, Clientes, Contables, Emisiones Diversas,
+# Estadisticos, Administrales).
+CARPETA_POSICION = 7
+# Numero del informe, que el sistema muestra al costado al elegirlo. Sirve para
+# confirmar que se selecciono el correcto y no el "Modelo II".
+NUMERO_INFORME = "2100.00-1"
+
 # Que periodo pedirle al informe:
 #   "dejar" -> los que el sistema propone solo (del 1 del mes hasta ayer)
 #   "ayer"  -> el dia de ayer, desde y hasta
@@ -346,15 +362,49 @@ def apretar_hasta_que_cierre(ventana, control, campo_para_enter=None, segundos=1
 # ---------------------------------------------------------------------------
 #  EL MENU DE ARRIBA
 # ---------------------------------------------------------------------------
+def es_problema_de_bits(e):
+    """WinError 299 sale cuando se intenta leer la memoria de un programa de
+    32 bits desde un Python de 64. No es un error nuestro: es la mezcla."""
+    return "299" in str(e) or "ReadProcessMemory" in str(e)
+
+
+def elegir_menu_con_teclado(ventana):
+    """Sin leer nada: F10 enciende la barra de menús, las flechas caminan
+    hasta Consultas y Enter abre Informes. Es lo mismo que haría una persona
+    que no usa el mouse, y no necesita espiar la memoria del programa."""
+    ventana.set_focus()
+    time.sleep(0.4)
+    ventana.type_keys("{F10}")
+    time.sleep(0.5)
+    ventana.type_keys("{RIGHT}" * MENU_POSICION, pause=0.12)
+    time.sleep(0.4)
+    ventana.type_keys("{DOWN}")            # abre el menú en su primer item
+    time.sleep(0.4)
+    if MENU_ITEM_POSICION:
+        ventana.type_keys("{DOWN}" * MENU_ITEM_POSICION, pause=0.12)
+        time.sleep(0.3)
+    ventana.type_keys("{ENTER}")
+
+
 def elegir_menu(ventana, camino):
     """Primero por el camino de siempre; si el menu tiene tildes o atajos que
     no calzan, se busca item por item comparando en limpio."""
     try:
         ventana.menu_select("->".join(camino))
         return
-    except Exception:
-        pass
-    menu = ventana.menu()
+    except Exception as e:
+        if es_problema_de_bits(e):
+            aviso("4/6", "No puedo leer el menú (64 vs 32 bits): lo abro con el teclado")
+            elegir_menu_con_teclado(ventana)
+            return
+    try:
+        menu = ventana.menu()
+    except Exception as e:
+        if es_problema_de_bits(e):
+            aviso("4/6", "No puedo leer el menú (64 vs 32 bits): lo abro con el teclado")
+            elegir_menu_con_teclado(ventana)
+            return
+        raise
     if menu is None:
         raise ErrorPaso("Esta ventana no tiene menú donde buscar «%s»." % camino[0])
     actual = menu.items()
@@ -410,6 +460,40 @@ def buscar_nodo(nodos, nombre):
         if texto.startswith(objetivo) or objetivo in texto:
             return nodo
     return None
+
+
+def numero_a_la_vista(ventana):
+    """El sistema muestra «Informe Nº 2100.00-1» al costado cuando el informe
+    elegido es el correcto. Leer una etiqueta suelta sí funciona aunque el
+    Python sea de 64 bits, así que sirve para confirmar la selección."""
+    for control in ventana.descendants():
+        try:
+            if NUMERO_INFORME in (control.window_text() or ""):
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def bajar_por_el_arbol_con_teclado(arbol):
+    """Sin leer el listado: Inicio se va al primer renglón (FrontOffice), la
+    flecha derecha abre la carpeta, las flechas abajo caminan hasta
+    Administrales, y después se escribe el nombre del informe, que es como el
+    listado busca solo mientras uno teclea."""
+    arbol.set_focus()
+    time.sleep(0.4)
+    arbol.type_keys("{HOME}")
+    time.sleep(0.3)
+    arbol.type_keys("{RIGHT}")                       # abre FrontOffice
+    time.sleep(0.6)
+    arbol.type_keys("{DOWN}" * CARPETA_POSICION, pause=0.12)
+    time.sleep(0.4)
+    arbol.type_keys("{RIGHT}")                       # abre Administrales
+    time.sleep(0.9)
+    # Escribiendo el principio del nombre, el listado salta solo. Se llega
+    # hasta la "S" de Situación, que es donde se separa del "de Operación".
+    arbol.type_keys("resumen diario de s", with_spaces=True, pause=0.09)
+    time.sleep(0.6)
 
 
 def bajar_por_el_arbol(arbol, camino):
@@ -640,7 +724,28 @@ def main():
         informes = esperar_ventana(TITULO_INFORMES, 60)
         informes.set_focus()
         aviso("5/6", "Buscando el informe en el listado")
-        bajar_por_el_arbol(arbol_de(informes), CAMINO_INFORME)
+        arbol = arbol_de(informes)
+        try:
+            bajar_por_el_arbol(arbol, CAMINO_INFORME)
+        except Exception as e:
+            if not es_problema_de_bits(e):
+                raise
+            aviso("5/6", "No puedo leer el listado (64 vs 32 bits): lo recorro con el teclado")
+            bajar_por_el_arbol_con_teclado(arbol)
+
+        # El sistema muestra el número del informe elegido: si es el nuestro,
+        # la selección quedó bien, se haya hecho leyendo o a ciegas.
+        if numero_a_la_vista(informes):
+            aviso("5/6", "Informe %s seleccionado" % NUMERO_INFORME)
+        else:
+            raise ErrorPaso(
+                "Llegué al listado pero no logré dejar elegido el informe %s.\n"
+                "      Esto se arregla del todo instalando el Python de 32 bits:\n"
+                "          py install 3.13-32\n"
+                "          py -V:3.13-32 -m pip install pywinauto\n"
+                "      (o bajando el «Windows installer (32-bit)» de python.org)"
+                % NUMERO_INFORME)
+
         boton(informes, "Visualizar").click_input()
         time.sleep(PAUSA * 2)
 
@@ -671,6 +776,11 @@ def main():
         print("  ALGO NO SALIÓ COMO SE ESPERABA")
         print("!" * 74)
         print("  %s: %s\n" % (type(e).__name__, e))
+        if es_problema_de_bits(e):
+            print("  Esto es el choque de 64 contra 32 bits. La solución de fondo:")
+            print("      py install 3.13-32")
+            print("      py -V:3.13-32 -m pip install pywinauto")
+            print("  (o el «Windows installer (32-bit)» de python.org)\n")
         try:
             espiar()
         except Exception:
