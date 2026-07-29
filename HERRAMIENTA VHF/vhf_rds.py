@@ -25,6 +25,10 @@
         py -m pip install pywinauto
 
   IMPORTANTE
+    - Visual Hotel exige permisos de administrador, asi que esto tambien los
+      pide: Windows va a mostrar el cartel azul y hay que darle "Si". No es
+      capricho del script: Windows no deja que un programa normal maneje las
+      ventanas de uno elevado.
     - El computador tiene que estar desbloqueado y con la pantalla encendida:
       esto mueve ventanas de verdad, no trabaja escondido.
     - Mientras corre, conviene no tocar el teclado ni el mouse.
@@ -32,6 +36,7 @@
       que paso se quedo y con --espia se ve como se llaman las cosas ahora.
 =============================================================================
 """
+import ctypes
 import os
 import sys
 import time
@@ -61,6 +66,43 @@ LENTO = "--lento" in sys.argv
 ESPIA = "--espia" in sys.argv
 PAUSA = 1.6 if LENTO else 0.7
 ESPERA_LARGA = 120 if LENTO else 60
+
+
+# ---------------------------------------------------------------------------
+#  PERMISOS DE ADMINISTRADOR
+#  Visual Hotel pide elevacion para abrirse. Y Windows no deja que un programa
+#  normal le mande clics ni teclas a una ventana de un programa elevado (se
+#  llama UIPI). O sea que esto tiene que correr como administrador si o si:
+#  no es una maña del script, es una regla del sistema.
+# ---------------------------------------------------------------------------
+def soy_administrador():
+    try:
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except Exception:
+        return False
+
+
+def reabrir_como_administrador():
+    """Se vuelve a lanzar el mismo script pidiendo permisos. Windows muestra
+    el cartel azul de siempre; hay que darle 'Si'."""
+    guion = os.path.abspath(sys.argv[0])
+    argumentos = " ".join('"%s"' % a for a in sys.argv[1:])
+    parametros = '"%s" %s' % (guion, argumentos)
+    print("  Visual Hotel necesita permisos de administrador.")
+    print("  Windows va a preguntar si permites la aplicación: dile que sí.\n")
+    time.sleep(1.2)
+    try:
+        resultado = ctypes.windll.shell32.ShellExecuteW(
+            None, "runas", sys.executable, parametros, os.path.dirname(guion), 1)
+    except Exception as e:
+        print("  No pude pedir los permisos: %s" % e)
+        return False
+    if int(resultado) <= 32:
+        print("  No se concedieron los permisos (código %s).\n" % resultado)
+        print("  Hazlo a mano: botón derecho sobre «Informe RDS.bat»")
+        print("  y elige «Ejecutar como administrador».\n")
+        return False
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -283,6 +325,13 @@ def main():
     print("=" * 74)
     print("  ABRIENDO EL RESUMEN DIARIO DE SITUACIÓN (RDS)")
     print("=" * 74)
+
+    if not soy_administrador():
+        if reabrir_como_administrador():
+            print("  Sigue en la ventana nueva que se acaba de abrir.")
+            return 0
+        return 1
+
     print("  No toques el teclado ni el mouse mientras trabaja.\n")
 
     if not os.path.exists(RUTA_VHF):
@@ -298,8 +347,16 @@ def main():
             aviso("1/5", "Visual Hotel ya estaba abierto: me engancho a él.")
         except Exception:
             aviso("1/5", "Abriendo %s" % RUTA_VHF)
-            app = Application(backend="win32").start(
-                '"%s"' % RUTA_VHF, work_dir=os.path.dirname(RUTA_VHF))
+            try:
+                app = Application(backend="win32").start(
+                    RUTA_VHF, work_dir=os.path.dirname(RUTA_VHF))
+            except Exception as e:
+                if "740" in str(e) or "elevaci" in str(e).lower():
+                    raise ErrorPaso(
+                        "Windows no dejó abrir Visual Hotel: pide administrador.\n"
+                        "      Cierra esto y abre «Informe RDS.bat» con el botón\n"
+                        "      derecho → «Ejecutar como administrador».")
+                raise
             time.sleep(PAUSA * 2)
 
         if ESPIA:
