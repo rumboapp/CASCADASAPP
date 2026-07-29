@@ -66,7 +66,7 @@ CAMINO_INFORME = ["FrontOffice", "Administrales", "Resumen Diario de Situación 
 # "Parámetros", "Parâmetros") y se aceptan todas.
 TITULO_PARAMETROS = "Parametros de Registro"
 TITULO_LOGIN = "login"
-TITULO_PRINCIPAL = "Visual Hotel FrontOffice"
+TITULO_PRINCIPAL = "Visual Hotel"        # el resto del titulo cambia con la version
 TITULO_INFORMES = "Visualizar Informes"
 
 MENU_INFORMES = ["Consultas", "Informes"]
@@ -152,49 +152,70 @@ class ErrorPaso(Exception):
     """Falla controlada: se sabe en que paso fue y que se estaba buscando."""
 
 
-def ventanas_visibles():
+def ventanas(titulo=None):
+    """Todas las ventanas visibles de Windows, o solo las que digan `titulo`.
+    Se recorren a mano en vez de pedirle una a pywinauto: si hay varias que
+    calzan, esto elige la primera en vez de quejarse."""
     from pywinauto import findwindows
     fuera = []
-    for handle in findwindows.find_windows(visible_only=True):
+    try:
+        handles = findwindows.find_windows(visible_only=True, top_level_only=True)
+    except Exception:
+        return fuera
+    patron = patron_flexible(titulo) if titulo else None
+    for handle in handles:
         try:
             v = ESCRITORIO.window(handle=handle).wrapper_object()
-            titulo = v.window_text().strip()
-            if titulo:
-                fuera.append("%s   [%s]" % (titulo, v.friendly_class_name()))
+            texto = v.window_text().strip()
         except Exception:
             continue
+        if not texto:
+            continue
+        if patron and not re.match(patron, texto):
+            continue
+        fuera.append(v)
     return fuera
+
+
+def listado_de_ventanas():
+    lineas = []
+    for v in ventanas():
+        try:
+            lineas.append("%s   [%s]" % (v.window_text().strip(), v.friendly_class_name()))
+        except Exception:
+            continue
+    return lineas
 
 
 def esperar_ventana(titulo, segundos, obligatoria=True):
     """Busca la ventana en TODO Windows, no solo en el proceso que abrimos:
-    estos sistemas antiguos a veces se relanzan y cambian de proceso por el
-    camino. Va marcando puntos para que se note que sigue trabajando."""
-    patron = patron_flexible(titulo)
+    estos sistemas antiguos se relanzan por el camino y cambian de proceso.
+    Cada 10 segundos muestra qué hay en pantalla, para que si se queda
+    esperando se vea al tiro por qué."""
     limite = time.time() + segundos
-    puntos = 0
+    segundo = 0
     while time.time() < limite:
-        try:
-            v = ESCRITORIO.window(title_re=patron)
-            if v.exists(timeout=0.4) and v.is_visible():
-                if puntos:
-                    print()
-                time.sleep(PAUSA)
-                return v.wrapper_object()
-        except Exception:
-            pass
+        encontradas = ventanas(titulo)
+        if encontradas:
+            if segundo:
+                print()
+            time.sleep(PAUSA)
+            return encontradas[0]
         time.sleep(1)
-        puntos += 1
-        if puntos % 3 == 0:
-            sys.stdout.write("   esperando «%s»… %ds\r" % (titulo, puntos))
-            sys.stdout.flush()
-    if puntos:
+        segundo += 1
+        sys.stdout.write("      esperando «%s»… %ds   \r" % (titulo, segundo))
+        sys.stdout.flush()
+        if segundo % 10 == 0:
+            print("\n      mientras tanto, en pantalla hay:")
+            for linea in listado_de_ventanas():
+                print("        · %s" % linea)
+    if segundo:
         print()
     if not obligatoria:
         return None
     raise ErrorPaso("Esperé %d segundos y no apareció ninguna ventana que diga "
                     "«%s».\n      Las ventanas abiertas ahora mismo son:\n        %s"
-                    % (segundos, titulo, "\n        ".join(ventanas_visibles()) or "(ninguna)"))
+                    % (segundos, titulo, "\n        ".join(listado_de_ventanas()) or "(ninguna)"))
 
 
 def boton(ventana, *textos):
@@ -250,6 +271,37 @@ def escribir(campo, texto):
     campo.type_keys("^a{DEL}", pause=0.02)
     campo.type_keys(texto, with_spaces=True, pause=0.02)
     time.sleep(0.15)
+
+
+def sigue_abierta(ventana):
+    try:
+        return bool(ctypes.windll.user32.IsWindow(ventana.handle)) and ventana.is_visible()
+    except Exception:
+        return False
+
+
+def apretar_hasta_que_cierre(ventana, control, campo_para_enter=None, segundos=10):
+    """Aprieta un botón y comprueba que la ventana efectivamente se cerró. Si
+    no pasa nada, insiste de otras maneras: en estos sistemas antiguos a veces
+    el clic no entra (la ventana estaba sin foco, el equipo se durmió) y hay
+    que mandarle el clic como mensaje o directamente un Enter."""
+    intentos = [("clic", lambda: control.click_input()),
+                ("clic por mensaje", lambda: control.click())]
+    if campo_para_enter is not None:
+        intentos.append(("Enter", lambda: campo_para_enter.type_keys("{ENTER}")))
+
+    for nombre, accion in intentos:
+        try:
+            accion()
+        except Exception as e:
+            aviso("...", "el %s no se pudo mandar (%s)" % (nombre, e))
+            continue
+        for _ in range(segundos):
+            time.sleep(1)
+            if not sigue_abierta(ventana):
+                return True
+        aviso("...", "la ventana no se cerró con el %s: pruebo otra forma" % nombre)
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -362,7 +414,7 @@ def espiar():
     for linea in ventanas_visibles():
         print("  · %s" % linea)
     try:
-        activa = ESCRITORIO.window(active_only=True).wrapper_object()
+        activa = ESCRITORIO.window(active_only=True, visible_only=True).wrapper_object()
         print("\n" + "=" * 74)
         print("  CONTROLES DE LA VENTANA ACTIVA: %s" % activa.window_text())
         print("=" * 74)
@@ -456,8 +508,7 @@ def main():
             if parametros is not None:
                 aviso("2/5", "Pantalla de parámetros: apretando Ok")
                 parametros.set_focus()
-                boton(parametros, "Ok", "Aceptar").click_input()
-                time.sleep(PAUSA)
+                apretar_hasta_que_cierre(parametros, boton(parametros, "Ok", "Aceptar"))
             else:
                 aviso("2/5", "No apareció la pantalla de parámetros: sigo de largo.")
 
@@ -471,9 +522,15 @@ def main():
             aviso("3/5", "Entrando como %s" % USUARIO)
             escribir(campos[0], USUARIO)
             escribir(campos[1], CLAVE)
-            boton(acceso, "Ok", "Aceptar").click_input()
+            if not apretar_hasta_que_cierre(acceso, boton(acceso, "Ok", "Aceptar"), campos[1]):
+                raise ErrorPaso(
+                    "Escribí el usuario y la clave, pero la ventana de acceso no se cerró\n"
+                    "      ni con el clic, ni mandando el clic por mensaje, ni con Enter.\n"
+                    "      Lo más probable es que el sistema esté reclamando algo (clave\n"
+                    "      equivocada, usuario ocupado). Mira la pantalla: ahí hay:\n        %s"
+                    % "\n        ".join(listado_de_ventanas()))
 
-            aviso("3/5", "Esperando a que cargue el sistema (puede tardar)")
+            aviso("3/5", "Adentro. Esperando a que cargue el sistema (puede tardar)")
             principal = esperar_ventana(TITULO_PRINCIPAL, ESPERA_PRINCIPAL)
 
         # ---- 4. menú Consultas -> Informes ----
