@@ -527,18 +527,45 @@ def hijos_con_espera(nodo, intentos=6):
     return []
 
 
+def abrir_nodo(nodo):
+    """Expande una rama del árbol. Con árboles pintados a medida, expand()
+    a veces no tira ningún error pero tampoco hace nada: por eso se
+    comprueba de verdad si quedó expandida, y si no, se insiste con un
+    doble clic, que es un gesto de mouse real y no depende de que el
+    control responda a un mensaje interno."""
+    try:
+        if nodo.is_expanded():
+            return
+    except Exception:
+        pass
+    try:
+        nodo.expand()
+        time.sleep(PAUSA)
+        if nodo.is_expanded():
+            return
+    except Exception:
+        pass
+    nodo.click_input(double=True)
+    time.sleep(PAUSA)
+
+
 def bajar_por_el_arbol(arbol, camino):
-    """Va abriendo carpeta por carpeta hasta llegar al informe. Primero se
-    intenta con get_item, que es una funcion de pywinauto hecha justo para
-    esto: recibe el camino completo y expande cada nivel ella sola, lo que
-    es mas confiable que ir expandiendo y releyendo a mano."""
+    """Va abriendo carpeta por carpeta hasta llegar al informe.
+
+    Se prueba primero con get_item, una función de pywinauto pensada para
+    esto: recibe el camino completo y va expandiendo cada nivel ella sola.
+    Pero en árboles pintados a medida a veces se rinde a mitad de camino sin
+    avisar (deja seleccionada la carpeta en vez del informe) — por eso el
+    resultado se verifica: si el texto no es el que se buscaba, no se confía
+    y se sigue con el método manual, más lento pero más terco."""
     try:
         item = arbol.get_item(camino, exact=False)
-        item.click_input()
-        time.sleep(PAUSA)
-        return item
+        if plano(item.text()) == plano(camino[-1]):
+            item.click_input()
+            time.sleep(PAUSA)
+            return item
     except Exception:
-        pass          # sigue con el metodo manual, mas lento pero mas claro
+        pass
 
     nodos = arbol.roots()
     if not nodos:
@@ -554,15 +581,12 @@ def bajar_por_el_arbol(arbol, camino):
                             "      A ese nivel hay: %s" % (nombre, disponibles))
         aviso("arbol", "abriendo «%s»" % nodo.text().strip())
         if i < len(camino) - 1:
-            try:
-                nodo.expand()
-            except Exception:
-                nodo.click_input(double=True)
-            time.sleep(PAUSA)
+            abrir_nodo(nodo)
             nodos = hijos_con_espera(nodo)
             if not nodos:
                 raise ErrorPaso("Abrí «%s» pero no le vi ningún elemento adentro,\n"
-                                "      ni esperando varios segundos." % nombre.strip())
+                                "      ni esperando varios segundos ni con doble clic."
+                                % nombre.strip())
     nodo.select()
     nodo.click_input()
     time.sleep(PAUSA)
