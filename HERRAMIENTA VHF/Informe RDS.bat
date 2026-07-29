@@ -49,12 +49,30 @@ if "%PROGRAMA%"=="" (
 
 echo   Programa: %PROGRAMA%
 
-rem --- Buscar Python. "py" es el lanzador que instala python.org; si no
-rem     esta, se prueba "python" a secas. ---
+rem --- Buscar Python. Visual Hotel es un programa de 32 bits, asi que se
+rem     prefiere el Python de 32 bits (py -3-32) cuando esta instalado y ya
+rem     tiene pywinauto: con el, el listado de informes se lee bien. ---
 set EJECUTAR=
-where py >nul 2>nul
-if %errorlevel%==0 set EJECUTAR=py
 
+py -3-32 -c "import pywinauto" >nul 2>nul
+if %errorlevel%==0 set EJECUTAR=py -3-32
+
+if "%EJECUTAR%"=="" (
+  py -c "import pywinauto" >nul 2>nul
+  if %errorlevel%==0 set EJECUTAR=py
+)
+
+if "%EJECUTAR%"=="" (
+  python -c "import pywinauto" >nul 2>nul
+  if %errorlevel%==0 set EJECUTAR=python
+)
+
+rem Si no aparecio ninguno con pywinauto, se usa el Python que haya: el
+rem programa explica que falta instalar.
+if "%EJECUTAR%"=="" (
+  where py >nul 2>nul
+  if %errorlevel%==0 set EJECUTAR=py
+)
 if "%EJECUTAR%"=="" (
   where python >nul 2>nul
   if %errorlevel%==0 set EJECUTAR=python
