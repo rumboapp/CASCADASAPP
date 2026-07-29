@@ -14,12 +14,16 @@
     4. Menu Consultas -> Informes
     5. En el arbol: FrontOffice -> Administrales -> Resumen Diario de
        Situacion - RDS, y aprieta Visualizar
+    6. En la ventana del periodo aprieta Ok. Por defecto deja las fechas que
+       propone el sistema (del 1 del mes hasta ayer); con --ayer pide solo el
+       dia de ayer y con --hoy el de hoy.
 
   COMO SE USA
     Doble clic en "Informe RDS.bat", o desde la consola:
         py vhf_rds.py
         py vhf_rds.py --espia    (ver que ventanas y controles hay)
         py vhf_rds.py --lento    (esperar mas entre paso y paso)
+        py vhf_rds.py --ayer     (el informe del dia de ayer)
 
   ANTES DE LA PRIMERA VEZ
     Visual Hotel es un programa de 32 bits, asi que conviene manejarlo con un
@@ -43,6 +47,7 @@
 =============================================================================
 """
 import ctypes
+import datetime
 import os
 import re
 import sys
@@ -68,11 +73,23 @@ TITULO_PARAMETROS = "Parametros de Registro"
 TITULO_LOGIN = "login"
 TITULO_PRINCIPAL = "Visual Hotel"        # el resto del titulo cambia con la version
 TITULO_INFORMES = "Visualizar Informes"
+TITULO_RDS = "Resumen Diario de Situacion"   # la ventana que pide el periodo
 
 MENU_INFORMES = ["Consultas", "Informes"]
 
+# Que periodo pedirle al informe:
+#   "dejar" -> los que el sistema propone solo (del 1 del mes hasta ayer)
+#   "ayer"  -> el dia de ayer, desde y hasta
+#   "hoy"   -> el dia de hoy
+# Tambien se puede elegir al vuelo:  py vhf_rds.py --ayer
+FECHAS_RDS = "dejar"
+
 LENTO = "--lento" in sys.argv
 ESPIA = "--espia" in sys.argv
+if "--ayer" in sys.argv:
+    FECHAS_RDS = "ayer"
+if "--hoy" in sys.argv:
+    FECHAS_RDS = "hoy"
 PAUSA = 1.6 if LENTO else 0.7
 ESPERA_PRINCIPAL = 180 if LENTO else 90     # el sistema tarda en cargar
 
@@ -405,6 +422,48 @@ def bajar_por_el_arbol(arbol, camino):
 
 
 # ---------------------------------------------------------------------------
+#  LA VENTANA QUE PIDE EL PERIODO
+#  Al apretar Visualizar no sale el informe todavia: sale esta ventana con la
+#  fecha inicial, la fecha final y unas casillas. El sistema propone del 1 del
+#  mes hasta ayer, que suele ser lo que se quiere, asi que por defecto no se
+#  toca nada y solo se aprieta Ok.
+# ---------------------------------------------------------------------------
+def escribir_fecha(campo, fecha):
+    """Los cuadros de fecha llevan mascara dd/mm/aaaa. Se prueba con las
+    barras y, si no las acepta, con los numeros pelados."""
+    for texto in (fecha.strftime("%d/%m/%Y"), fecha.strftime("%d%m%Y")):
+        escribir(campo, texto)
+        quedo = re.sub(r"\D", "", campo.window_text())
+        if quedo == fecha.strftime("%d%m%Y"):
+            return True
+    return False
+
+
+def pedir_periodo(ventana):
+    campos = campos_de_texto(ventana)
+    fechas = [c for c in campos if re.match(r"^\s*\d{2}\D\d{2}\D\d{4}\s*$", c.window_text() or "")]
+    if len(fechas) < 2:
+        fechas = campos[:2]
+
+    if FECHAS_RDS in ("ayer", "hoy") and len(fechas) >= 2:
+        dia = datetime.date.today()
+        if FECHAS_RDS == "ayer":
+            dia -= datetime.timedelta(days=1)
+        aviso("6/6", "Pidiendo el informe del %s" % dia.strftime("%d/%m/%Y"))
+        if not (escribir_fecha(fechas[0], dia) and escribir_fecha(fechas[1], dia)):
+            aviso("6/6", "No pude cambiar las fechas: sigo con las que trae.")
+    else:
+        desde = (fechas[0].window_text() or "?").strip() if fechas else "?"
+        hasta = (fechas[1].window_text() or "?").strip() if len(fechas) > 1 else "?"
+        aviso("6/6", "Período que propone el sistema: del %s al %s" % (desde, hasta))
+
+    if not apretar_hasta_que_cierre(ventana, boton(ventana, "Ok", "Aceptar"), segundos=25):
+        aviso("6/6", "La ventana del período sigue abierta; revisa la pantalla.")
+        return False
+    return True
+
+
+# ---------------------------------------------------------------------------
 #  MODO ESPIA: para cuando algo no calza y hay que ver como se llama ahora
 # ---------------------------------------------------------------------------
 def espiar():
@@ -480,10 +539,10 @@ def main():
         # ---- 1. abrir el sistema ----
         ya_abierto = esperar_ventana(TITULO_PRINCIPAL, 2, obligatoria=False)
         if ya_abierto is not None:
-            aviso("1/5", "Visual Hotel ya estaba abierto: sigo con el que hay.")
+            aviso("1/6", "Visual Hotel ya estaba abierto: sigo con el que hay.")
             principal = ya_abierto
         else:
-            aviso("1/5", "Abriendo %s" % RUTA_VHF)
+            aviso("1/6", "Abriendo %s" % RUTA_VHF)
             try:
                 Application(backend="win32").start(
                     RUTA_VHF, work_dir=os.path.dirname(RUTA_VHF))
@@ -506,11 +565,11 @@ def main():
             # ---- 2. la pantalla de parámetros (no siempre aparece) ----
             parametros = esperar_ventana(TITULO_PARAMETROS, 25, obligatoria=False)
             if parametros is not None:
-                aviso("2/5", "Pantalla de parámetros: apretando Ok")
+                aviso("2/6", "Pantalla de parámetros: apretando Ok")
                 parametros.set_focus()
                 apretar_hasta_que_cierre(parametros, boton(parametros, "Ok", "Aceptar"))
             else:
-                aviso("2/5", "No apareció la pantalla de parámetros: sigo de largo.")
+                aviso("2/6", "No apareció la pantalla de parámetros: sigo de largo.")
 
             # ---- 3. entrar con el usuario ----
             acceso = esperar_ventana(TITULO_LOGIN, 60)
@@ -519,7 +578,7 @@ def main():
             if len(campos) < 2:
                 raise ErrorPaso("La ventana de acceso no tiene los dos cuadros "
                                 "(usuario y clave) donde los esperaba.")
-            aviso("3/5", "Entrando como %s" % USUARIO)
+            aviso("3/6", "Entrando como %s" % USUARIO)
             escribir(campos[0], USUARIO)
             escribir(campos[1], CLAVE)
             if not apretar_hasta_que_cierre(acceso, boton(acceso, "Ok", "Aceptar"), campos[1]):
@@ -530,23 +589,32 @@ def main():
                     "      equivocada, usuario ocupado). Mira la pantalla: ahí hay:\n        %s"
                     % "\n        ".join(listado_de_ventanas()))
 
-            aviso("3/5", "Adentro. Esperando a que cargue el sistema (puede tardar)")
+            aviso("3/6", "Adentro. Esperando a que cargue el sistema (puede tardar)")
             principal = esperar_ventana(TITULO_PRINCIPAL, ESPERA_PRINCIPAL)
 
         # ---- 4. menú Consultas -> Informes ----
         principal.set_focus()
         time.sleep(PAUSA)
-        aviso("4/5", "Menú %s" % " → ".join(MENU_INFORMES))
+        aviso("4/6", "Menú %s" % " → ".join(MENU_INFORMES))
         elegir_menu(principal, MENU_INFORMES)
         time.sleep(PAUSA * 2)
 
         # ---- 5. el informe dentro del árbol ----
         informes = esperar_ventana(TITULO_INFORMES, 60)
         informes.set_focus()
-        aviso("5/5", "Buscando el informe en el listado")
+        aviso("5/6", "Buscando el informe en el listado")
         bajar_por_el_arbol(arbol_de(informes), CAMINO_INFORME)
         boton(informes, "Visualizar").click_input()
         time.sleep(PAUSA * 2)
+
+        # ---- 6. el período que pide el informe ----
+        periodo = esperar_ventana(TITULO_RDS, 40, obligatoria=False)
+        if periodo is None:
+            aviso("6/6", "No apareció la ventana del período: el informe debería "
+                         "estar en pantalla.")
+        else:
+            periodo.set_focus()
+            pedir_periodo(periodo)
 
         print("\n" + "=" * 74)
         print("  LISTO: el informe quedó abierto en pantalla.")
