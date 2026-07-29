@@ -94,8 +94,10 @@
   <label class="et">Tipo de documento</label>
   <div class="tipos" id="tipos"></div>
 
-  <label class="et">Número</label>
-  <input type="text" id="numero" placeholder="137854" inputmode="numeric" autocomplete="off">
+  <div id="cajaNumero">
+    <label class="et">Número</label>
+    <input type="text" id="numero" placeholder="137854" inputmode="numeric" autocomplete="off">
+  </div>
 
   <button class="btn foto" onclick="pedirFoto()">Tomar la foto</button>
   <input type="file" id="camara" accept="image/*" capture="environment" onchange="subirFoto(this)">
@@ -161,10 +163,12 @@ async function cargar(){
 function pintar(){
   document.getElementById('dia').textContent = DATOS.fechaTexto;
   document.getElementById('tipos').innerHTML = DATOS.tipos.map(function(t){
-    var corto = t.exento ? 'Exportación' : t.etiqueta;
+    var corto = t.sinValores ? 'Cierres' : (t.exento ? 'Exportación' : t.etiqueta);
     return '<button type="button" class="tipo' + (t.clave === tipoElegido ? ' act' : '') +
            '" onclick="elegirTipo(\'' + t.clave + '\')">' + esc(corto) + '</button>';
   }).join('');
+  // Los cierres de Transbank no llevan número: el campo se esconde.
+  document.getElementById('cajaNumero').style.display = sinNumero() ? 'none' : '';
 
   var mapa = {};
   DATOS.tipos.forEach(function(t){ mapa[t.clave] = t; });
@@ -184,9 +188,14 @@ function pintar(){
 
 function elegirTipo(c){ tipoElegido = c; pintar(); }
 
+function sinNumero(){
+  var t = (DATOS.tipos || []).find(function(x){ return x.clave === tipoElegido; });
+  return !!(t && t.sinValores);
+}
+
 function pedirFoto(){
   var numero = document.getElementById('numero').value.trim();
-  if (!numero) { avisar('Escribe el número del documento.', true); return; }
+  if (!numero && !sinNumero()) { avisar('Escribe el número del documento.', true); return; }
   docParaPagina = null;
   document.getElementById('camara').click();
 }
@@ -215,10 +224,10 @@ async function enviar(imagen){
       await pedir('/api/movil/pagina', { id: docParaPagina.id, etiqueta: etiqueta, imagen: imagen });
       avisar('Foto agregada a ' + docParaPagina.numero + '.');
     } else {
-      var numero = document.getElementById('numero').value.trim();
+      var numero = sinNumero() ? '' : document.getElementById('numero').value.trim();
       await pedir('/api/movil/documento', { tipo: tipoElegido, numero: numero, imagen: imagen });
       document.getElementById('numero').value = '';
-      avisar('Documento ' + numero + ' enviado.');
+      avisar((numero ? 'Documento ' + numero : 'Cierres') + ' enviado.');
     }
     await cargar();
   } catch (e) {

@@ -113,6 +113,19 @@
   .mini-btn:active{ transform:scale(.95); }
   .mini-btn.borrar:hover{ background:#FBEDE9; border-color:#E4BFB6; color:var(--alerta); }
 
+  /* El panel de escaneo se queda pegado bajo la barra: la lista de documentos
+     crece hacia abajo y sin esto habría que subir a buscarlo cada vez. */
+  .tarjeta.escaneo{ position:sticky; top:66px; z-index:30; padding:16px 24px;
+                    margin-bottom:22px; }
+  .tarjeta.escaneo.pegada{ box-shadow:var(--sombra-alta); border-color:#DED6C8; }
+  .tarjeta.escaneo .cabecera{ margin-bottom:0; flex-wrap:wrap; row-gap:12px; }
+  .tarjeta.escaneo .fila{ margin-left:auto; }
+  .tarjeta.escaneo .campo label{ display:none; }
+  @media (max-width:1080px){
+    .tarjeta.escaneo{ position:static; }
+    .tarjeta.escaneo .campo label{ display:block; }
+  }
+
   /* ═══════════ TARJETAS DE DOCUMENTO (compactas) ═══════════ */
   .vacio{ text-align:center; color:var(--suave); font-size:13.5px; padding:30px 10px; }
   .galeria{ display:grid; grid-template-columns:repeat(auto-fill, minmax(158px, 1fr)); gap:13px; }
@@ -133,8 +146,19 @@
   .doc .cls{ display:inline-block; margin-top:5px; font-size:11px; font-weight:600; border-radius:999px;
              padding:3px 10px; background:#F0EBE2; color:#63606A; white-space:nowrap; }
   .doc .cls.exento{ background:rgba(193,148,92,.2); color:#8A6329; }
+  .doc .cls.cierres{ background:#E7EEF9; color:#3B5A87; }
   .doc .acc{ display:flex; gap:6px; margin-top:10px; }
   .doc .acc .mini-btn{ flex:1; padding:6px 4px; text-align:center; }
+
+  /* Una tarjeta con todos sus datos escritos se marca en verde: de un vistazo
+     se ve cuáles quedan pendientes sin tener que mirar la grilla. */
+  .doc.listo{ border-color:#BFDCCB; box-shadow:0 0 0 1px #DDEDE3, var(--sombra); }
+  .doc.listo .pie{ background:#F5FAF7; }
+  .doc .marca{ position:absolute; top:8px; left:8px; width:23px; height:23px; border-radius:50%;
+               background:var(--ok); color:#fff; font-size:13px; font-weight:700; display:flex;
+               align-items:center; justify-content:center;
+               box-shadow:0 3px 8px -2px rgba(62,125,93,.8); animation:subir .3s var(--curva); }
+  .doc .marca.pendiente{ background:#fff; color:#C08A7B; border:1.5px solid #E7C4BA; box-shadow:none; }
 
   /* ═══════════ GRILLA ═══════════ */
   .contenedor-grilla{ overflow-x:auto; margin:0 -6px; padding:0 6px; }
@@ -167,6 +191,54 @@
   .grilla tr.exenta td.fijo{ color:#8A6329; }
   .grilla .mini{ font-size:11.5px; color:var(--suave); }
   .grilla .acciones{ display:flex; gap:6px; }
+
+  /* ═══════════ FORMA DE PAGO EN BURBUJAS ═══════════
+     Antes era texto libre y la lista terminó llena de cosas que decían lo
+     mismo ("MC - DB" y "MC y DB"). Ahora se eligen de a uno y el pago dividido
+     se arma solo, uniéndolos con un "+". */
+  .pagos{ display:flex; flex-wrap:wrap; gap:5px; align-items:center; padding:6px 6px; min-height:44px; }
+  .burbuja-pago{ display:inline-flex; align-items:center; gap:5px; background:#F0EBE2; color:#4A4752;
+                 border-radius:999px; padding:5px 6px 5px 12px; font-size:12.5px; font-weight:700;
+                 white-space:nowrap; animation:subir .22s var(--curva); }
+  .burbuja-pago .x{ border:none; background:rgba(0,0,0,.06); color:#7A7681; border-radius:50%;
+                    width:17px; height:17px; font-size:12px; line-height:1; cursor:pointer;
+                    font-family:inherit; padding:0; transition:all .15s; }
+  .burbuja-pago .x:hover{ background:#E4BFB6; color:var(--alerta); }
+  .mas-pago{ border:1.5px dashed #CFC8BC; background:#fff; color:#7A7681; border-radius:999px;
+             padding:5px 12px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit;
+             white-space:nowrap; transition:all .16s var(--curva); }
+  .mas-pago:hover{ border-color:var(--dorado); color:#8A6329; background:#FFFBF2; transform:translateY(-1px); }
+  .mas-pago.falta{ border-style:solid; border-color:#E7C4BA; background:#FDF3F0; color:#C08A7B; }
+  .signo-mas{ font-size:12.5px; font-weight:700; color:#B6B2BC; }
+
+  /* menú flotante para elegir la forma de pago */
+  .menu-pago{ position:absolute; z-index:80; background:var(--crema); border:1px solid var(--linea);
+              border-radius:18px; padding:12px; box-shadow:var(--sombra-alta); width:250px;
+              animation:subir .2s var(--curva); }
+  .menu-pago .tit{ font-size:11.5px; color:var(--suave); font-weight:700; margin:0 4px 8px; }
+  .menu-pago .opciones{ display:flex; flex-wrap:wrap; gap:6px; }
+  .menu-pago button.op{ border:1.5px solid var(--linea); background:#fff; border-radius:999px;
+                        padding:7px 13px; font-size:12.5px; font-weight:600; color:#57545E;
+                        cursor:pointer; font-family:inherit; transition:all .15s var(--curva); }
+  .menu-pago button.op:hover{ background:var(--grafito); border-color:var(--grafito); color:#fff;
+                              transform:translateY(-1px); }
+  .menu-pago button.op.puesta{ background:#EFEAE1; color:#B6B2BC; }
+  .menu-pago .otra{ display:flex; gap:6px; margin-top:10px; }
+  .menu-pago .otra input{ flex:1; border:1.5px solid var(--linea); border-radius:11px; padding:8px 11px;
+                          font-size:13px; font-family:inherit; min-width:0; }
+
+  /* ═══════════ ESTADO DE LA PLANILLA ═══════════ */
+  .estado-planilla{ display:flex; align-items:flex-start; gap:11px; border-radius:15px;
+                    padding:12px 15px; font-size:13px; line-height:1.5; border:1px solid;
+                    margin-bottom:13px; animation:entrar .28s var(--curva); }
+  .estado-planilla .ico{ font-size:15px; line-height:1.35; }
+  .estado-planilla b{ display:block; font-size:13.5px; }
+  .estado-planilla.si{ background:#EFF6F1; border-color:#CBE0D3; color:var(--ok); }
+  .estado-planilla.no{ background:#FCF0EC; border-color:#F0D2C7; color:#8C4132; }
+  .estado-planilla.vieja{ background:#FDF6E9; border-color:#EDDCBB; color:#7E5F24; }
+  .escape{ background:none; border:none; color:var(--suave); font-size:12px; text-decoration:underline;
+           cursor:pointer; font-family:inherit; padding:8px 2px 0; display:block; }
+  .escape:hover{ color:var(--alerta); }
 
   .totales{ display:flex; gap:28px; flex-wrap:wrap; margin-top:20px; padding-top:18px;
             border-top:1px solid var(--linea); }
@@ -322,29 +394,29 @@
     <p class="config-linea" style="margin-top:16px;">Carpeta de hoy: <b id="lblCarpeta">—</b></p>
   </div>
 
-  <!-- ═══ PASO 1 · ESCANEAR ═══ -->
-  <div class="tarjeta">
+  <!-- ═══ PASO 1 · ESCANEAR (queda pegado bajo la barra) ═══ -->
+  <div class="tarjeta escaneo" id="panelEscaneo">
     <div class="cabecera">
       <div class="paso">1</div>
       <div>
         <h2>Escanear</h2>
-        <p class="sub">Pon el documento en el vidrio, elige el tipo, escribe el número y escanea.</p>
+        <p class="sub" id="subEscaneo">Pon el documento en el vidrio, elige el tipo y escanea.</p>
       </div>
-    </div>
-    <div class="fila">
-      <div class="campo">
-        <label>Tipo de documento</label>
-        <div class="tipos" id="tipos"></div>
+      <div class="fila">
+        <div class="campo">
+          <label>Tipo de documento</label>
+          <div class="tipos" id="tipos"></div>
+        </div>
+        <div class="campo" id="campoNumero">
+          <label>Número</label>
+          <input type="text" id="inpNumero" placeholder="137854" autocomplete="off" style="min-width:150px;"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();nuevoDocumento();}">
+        </div>
+        <button class="btn dorado" id="btnEscanear" onclick="nuevoDocumento()">Escanear</button>
+        <button class="btn linea" onclick="abrirQR()" title="Solo si el escáner no está funcionando">
+          Con el teléfono
+        </button>
       </div>
-      <div class="campo">
-        <label>Número</label>
-        <input type="text" id="inpNumero" placeholder="137854" autocomplete="off" style="min-width:170px;"
-               onkeydown="if(event.key==='Enter'){event.preventDefault();nuevoDocumento();}">
-      </div>
-      <button class="btn dorado" id="btnEscanear" onclick="nuevoDocumento()">Escanear</button>
-      <button class="btn linea" onclick="abrirQR()" title="Solo si el escáner no está funcionando">
-        Fotografiar con el teléfono
-      </button>
     </div>
   </div>
 
@@ -382,7 +454,8 @@
 
     <div class="dos">
       <div>
-        <h3 style="margin:0 0 10px; font-size:14px; font-weight:700;">Planilla</h3>
+        <h3 style="margin:0 0 10px; font-size:14px; font-weight:700;">1º · Planilla</h3>
+        <div id="estadoPlanilla"></div>
         <p class="config-linea" style="margin:0 0 13px;">
           Hoja <b id="lblHoja">—</b><br>en <b id="lblExcel">—</b>
         </p>
@@ -390,7 +463,7 @@
       </div>
 
       <div>
-        <h3 style="margin:0 0 10px; font-size:14px; font-weight:700;">Correo a contabilidad</h3>
+        <h3 style="margin:0 0 10px; font-size:14px; font-weight:700;">2º · Correo a contabilidad</h3>
         <div class="fila" style="margin-bottom:13px;">
           <div class="campo">
             <label>¿Quién envía?</label>
@@ -407,6 +480,8 @@
           <button class="btn peligro" onclick="quitarRemitente()">Quitar</button>
         </div>
         <button class="btn principal" id="btnCorreo" onclick="abrirCorreo()">Abrir el correo en Outlook</button>
+        <button class="escape" id="btnCorreoIgual" style="display:none;"
+                onclick="abrirCorreo(true)">Mandar el correo sin la planilla</button>
         <p class="config-linea" style="margin-top:13px;">
           Para <b id="lblPara">—</b><br>
           Copia a <b id="lblCc">—</b>
@@ -542,8 +617,10 @@ function pintar(){
 
   document.getElementById('tipos').innerHTML = DATOS.tipos.map(function(t){
     return '<button type="button" class="tipo' + (t.clave === tipoElegido ? ' act' : '') +
-           '" onclick="elegirTipo(\'' + t.clave + '\')">' + esc(t.etiqueta) + '</button>';
+           '" onclick="elegirTipo(\'' + t.clave + '\')">' +
+           esc(t.sinValores ? 'Cierres' : t.etiqueta) + '</button>';
   }).join('');
+  ajustarPanelEscaneo();
 
   var avisos = '';
   if (!DATOS.baseExiste) {
@@ -567,29 +644,45 @@ function pintar(){
   if (docAbierto) pintarPaginas(docAbierto);
 }
 
+function tipoDe(clave){
+  return (DATOS.tipos || []).find(function(t){ return t.clave === clave; }) ||
+         { clave: clave, etiqueta: clave, exento:false, sinValores:false };
+}
+
+/* Un documento está listo cuando tiene su escaneo y todo lo que va a la
+   planilla escrito. Los cierres no llevan montos: basta con la imagen. */
+function documentoCompleto(d){
+  if (!(d.paginas || []).length) return false;
+  var t = tipoDe(d.tipo);
+  if (t.sinValores) return true;
+  return aNumero(d.neto) !== null && !!String(d.formaPago || '').trim();
+}
+
 function pintarGaleria(docs){
   var caja = document.getElementById('galeria');
   if (!docs.length) {
     caja.innerHTML = '<div class="vacio" style="grid-column:1/-1;">Todavía no has escaneado nada hoy.</div>';
     return;
   }
-  var mapa = {};
-  DATOS.tipos.forEach(function(t){ mapa[t.clave] = t; });
   caja.innerHTML = docs.map(function(d){
-    var t = mapa[d.tipo] || { etiqueta: d.tipo, exento:false };
+    var t = tipoDe(d.tipo);
     var n = (d.paginas || []).length;
-    return '<div class="doc">' +
+    var listo = documentoCompleto(d);
+    var etiqueta = t.sinValores ? 'Cierres' : (t.exento ? 'Exportación' : t.etiqueta);
+    return '<div class="doc' + (listo ? ' listo' : '') + '">' +
       '<div class="lienzo" onclick="verPaginas(' + d.id + ')">' +
         (n ? '<img src="/api/vista?doc=' + d.id + '&pag=0&v=' + Date.now() + '" alt="">' : '') +
         (n > 1 ? '<span class="cuenta-pag">' + n + ' pág.</span>' : '') +
+        '<div class="marca' + (listo ? '' : ' pendiente') + '" title="' +
+          (listo ? 'Listo' : 'Le faltan datos') + '">' + (listo ? '✓' : '!') + '</div>' +
         '<div class="lupa">Ver páginas</div>' +
       '</div>' +
       '<div class="pie">' +
         '<span class="num">' + esc(d.numero) + '</span>' +
         // Etiqueta corta: "Factura de exportación" en dos líneas descuadraba
         // la altura de esa tarjeta respecto de las demás.
-        '<span class="cls' + (t.exento ? ' exento' : '') + '">' +
-          esc(t.exento ? 'Exportación' : t.etiqueta) + '</span>' +
+        '<span class="cls' + (t.exento ? ' exento' : '') + (t.sinValores ? ' cierres' : '') + '">' +
+          esc(etiqueta) + '</span>' +
         '<div class="acc">' +
           '<button class="mini-btn" onclick="agregarPagina(' + d.id + ')">+ Página</button>' +
         '</div>' +
@@ -637,7 +730,18 @@ function elegirTipo(clave){
   Array.prototype.forEach.call(document.querySelectorAll('#tipos .tipo'), function(b, i){
     b.classList.toggle('act', DATOS.tipos[i].clave === clave);
   });
-  document.getElementById('inpNumero').focus();
+  ajustarPanelEscaneo();
+  if (!tipoDe(clave).sinValores) document.getElementById('inpNumero').focus();
+}
+
+/* Los cierres de Transbank van en un solo escaneo y no llevan folio: cuando
+   están elegidos, el campo del número sobra. */
+function ajustarPanelEscaneo(){
+  var t = tipoDe(tipoElegido);
+  document.getElementById('campoNumero').style.display = t.sinValores ? 'none' : '';
+  document.getElementById('subEscaneo').textContent = t.sinValores
+    ? 'Pon los cierres en el vidrio y escanea. Van en un solo documento, sin número ni montos.'
+    : 'Pon el documento en el vidrio, elige el tipo y escanea.';
 }
 async function cambiarFecha(){
   var valor = document.getElementById('inpFecha').value;
@@ -687,12 +791,22 @@ function pintarGrilla(){
     return;
   }
   document.getElementById('zonaGrilla').style.display = '';
-  var mapa = {};
-  DATOS.tipos.forEach(function(t){ mapa[t.clave] = t; });
-  var lista = (DATOS.formasPago || []).map(function(f){ return '<option value="' + esc(f) + '">'; }).join('');
 
   var filas = docs.map(function(d){
-    var t = mapa[d.tipo] || { etiqueta:d.tipo, exento:false };
+    var t = tipoDe(d.tipo);
+    var borrar = '<td class="fijo"><div class="acciones">' +
+      (t.sinValores ? '' : '<button class="mini-btn" onclick="editarDocumento(' + d.id + ')">Corregir</button>') +
+      '<button class="mini-btn borrar" onclick="borrarDocumento(' + d.id + ')">Borrar</button>' +
+      '</div></td>';
+
+    // Los cierres no llevan montos ni pago: ocupan una línea de recordatorio,
+    // no una línea de datos.
+    if (t.sinValores) {
+      return '<tr data-id="' + d.id + '" class="sin-valores">' +
+        '<td class="fijo"><b>' + esc(d.numero) + '</b><div class="mini">' + esc(t.etiqueta) + '</div></td>' +
+        '<td class="fijo mini" colspan="7">Se archiva y se adjunta al correo. No va a la planilla.</td>' +
+        borrar + '</tr>';
+    }
     return '<tr class="' + (t.exento ? 'exenta' : '') + '" data-id="' + d.id + '">' +
       '<td class="fijo"><b>' + esc(d.numero) + '</b><div class="mini">' + esc(t.etiqueta) + '</div></td>' +
       '<td class="fijo mini">' + (t.exento ? 'USD' : 'CLP') + '</td>' +
@@ -700,23 +814,123 @@ function pintarGrilla(){
       '<td class="editable"><input class="monto campo-iva" value="' + esc(fmtMonto(aNumero(d.iva))) + '"' + (t.exento ? ' disabled placeholder="—"' : ' placeholder="IVA"') + '></td>' +
       // El total no se escribe: es la suma de los dos anteriores.
       '<td class="fijo total-calc"></td>' +
-      '<td class="editable"><input class="campo-pago" list="formasPago" placeholder="DB" value="' + esc(d.formaPago || '') + '"></td>' +
+      '<td class="editable">' + htmlPagos(d) + '</td>' +
       '<td class="editable"><input class="campo-autorizacion" placeholder="del voucher" value="' + esc(d.autorizacion || '') + '"></td>' +
       '<td class="editable"><input class="campo-observacion" placeholder="opcional" value="' + esc(d.observacion || '') + '"></td>' +
-      '<td class="fijo"><div class="acciones">' +
-        '<button class="mini-btn" onclick="editarDocumento(' + d.id + ')">Corregir</button>' +
-        '<button class="mini-btn borrar" onclick="borrarDocumento(' + d.id + ')">Borrar</button>' +
-      '</div></td></tr>';
+      borrar + '</tr>';
   }).join('');
 
   tabla.innerHTML =
     '<thead><tr><th>Documento</th><th></th><th>Neto</th><th>IVA</th><th>Total</th>' +
     '<th>Forma de pago</th><th>N.º autorización</th><th>Observación</th><th></th></tr></thead>' +
-    '<tbody>' + filas + '</tbody><datalist id="formasPago">' + lista + '</datalist>';
+    '<tbody>' + filas + '</tbody>';
 
-  Array.prototype.forEach.call(tabla.querySelectorAll('tbody tr'), engancharFila);
+  Array.prototype.forEach.call(tabla.querySelectorAll('tbody tr:not(.sin-valores)'), engancharFila);
   refrescarTotales();
 }
+
+// =====================================================================
+//  FORMA DE PAGO EN BURBUJAS
+//  Se elige una y se pueden ir sumando: quedan unidas con " + ". Así no hay
+//  dos maneras de escribir el mismo pago dividido.
+// =====================================================================
+function partesPago(valor){
+  return String(valor || '').toUpperCase()
+    .split(/\s*(?:\+|\/|,|-|\sY\s)\s*/)
+    .map(function(s){ return s.trim(); })
+    .filter(function(s){ return !!s; });
+}
+
+function htmlPagos(d){
+  var partes = partesPago(d.formaPago);
+  var burbujas = partes.map(function(p, i){
+    return (i ? '<span class="signo-mas">+</span>' : '') +
+      '<span class="burbuja-pago">' + esc(p) +
+      '<button class="x" title="Quitar" onclick="quitarPago(' + d.id + ',' + i + ')">×</button></span>';
+  }).join('');
+  return '<div class="pagos" data-pago="' + esc(partes.join(' + ')) + '">' + burbujas +
+    '<button class="mas-pago' + (partes.length ? '' : ' falta') + '" onclick="abrirMenuPago(event,' + d.id + ')">' +
+    (partes.length ? '+' : 'Elegir pago') + '</button></div>';
+}
+
+function cerrarMenuPago(){
+  var m = document.getElementById('menuPago');
+  if (m) m.remove();
+}
+
+function abrirMenuPago(ev, id){
+  ev.stopPropagation();
+  cerrarMenuPago();
+  var doc = (DATOS.documentos || []).find(function(x){ return x.id === id; });
+  if (!doc) return;
+  var puestas = partesPago(doc.formaPago);
+  var menu = document.createElement('div');
+  menu.className = 'menu-pago';
+  menu.id = 'menuPago';
+  menu.onclick = function(e){ e.stopPropagation(); };
+  menu.innerHTML =
+    '<p class="tit">' + (puestas.length ? 'SUMAR OTRO MEDIO DE PAGO' : 'FORMA DE PAGO') + '</p>' +
+    '<div class="opciones">' +
+    (DATOS.formasPago || []).map(function(f){
+      var yaEsta = puestas.indexOf(f.toUpperCase()) !== -1;
+      return '<button class="op' + (yaEsta ? ' puesta' : '') + '" data-f="' + esc(f) + '">' + esc(f) + '</button>';
+    }).join('') +
+    '</div>' +
+    '<div class="otra"><input type="text" placeholder="otra forma…" autocomplete="off">' +
+    '<button class="mini-btn">Agregar</button></div>';
+
+  document.body.appendChild(menu);
+  var caja = ev.currentTarget.getBoundingClientRect();
+  var izq = Math.min(caja.left + window.scrollX, window.scrollX + document.documentElement.clientWidth - 266);
+  menu.style.left = Math.max(window.scrollX + 8, izq) + 'px';
+  menu.style.top = (caja.bottom + window.scrollY + 6) + 'px';
+
+  Array.prototype.forEach.call(menu.querySelectorAll('button.op'), function(b){
+    b.onclick = function(){ sumarPago(id, b.dataset.f); };
+  });
+  var libre = menu.querySelector('.otra input');
+  menu.querySelector('.otra .mini-btn').onclick = function(){ sumarPago(id, libre.value); };
+  libre.onkeydown = function(e){
+    if (e.key === 'Enter') { e.preventDefault(); sumarPago(id, libre.value); }
+  };
+}
+
+function sumarPago(id, forma){
+  forma = String(forma || '').trim().toUpperCase();
+  if (!forma) return;
+  var doc = (DATOS.documentos || []).find(function(x){ return x.id === id; });
+  if (!doc) return;
+  var partes = partesPago(doc.formaPago);
+  if (partes.indexOf(forma) === -1) partes.push(forma);
+  cerrarMenuPago();
+  fijarPago(id, partes.join(' + '));
+}
+
+function quitarPago(id, indice){
+  var doc = (DATOS.documentos || []).find(function(x){ return x.id === id; });
+  if (!doc) return;
+  var partes = partesPago(doc.formaPago);
+  partes.splice(indice, 1);
+  fijarPago(id, partes.join(' + '));
+}
+
+/* Se guarda de inmediato: la burbuja no tiene un "salir del campo" en que
+   apoyarse como los demás campos de la fila. */
+async function fijarPago(id, valor){
+  var doc = (DATOS.documentos || []).find(function(x){ return x.id === id; });
+  if (!doc) return;
+  doc.formaPago = valor;
+  var celda = document.querySelector('#grilla tr[data-id="' + id + '"] .pagos');
+  if (celda) celda.outerHTML = htmlPagos(doc);
+  try {
+    await pedir('/api/documento/valores', { id: id, campos: { formaPago: valor } });
+    pintarGaleria(DATOS.documentos || []);
+    revisar();
+  } catch (e) { avisar(e.message, true); }
+}
+
+document.addEventListener('click', cerrarMenuPago);
+window.addEventListener('resize', cerrarMenuPago);
 
 function engancharFila(tr){
   var neto = tr.querySelector('.campo-neto');
@@ -734,9 +948,7 @@ function engancharFila(tr){
   /* Marca en rojo suave lo obligatorio que sigue vacío, para verlo de un
      vistazo sin tener que leer la revisión. */
   function marcarPendientes(){
-    var pago = tr.querySelector('.campo-pago');
     neto.classList.toggle('falta', !aNumero(neto.value));
-    pago.classList.toggle('falta', !pago.value.trim());
   }
   tr._marcar = marcarPendientes;
 
@@ -758,11 +970,9 @@ async function guardarFila(tr){
   var campos = {
     neto: neto, iva: iva,
     total: (neto === null && iva === null) ? null : (neto || 0) + (iva || 0),
-    formaPago: tr.querySelector('.campo-pago').value.trim().toUpperCase(),
     autorizacion: tr.querySelector('.campo-autorizacion').value.trim(),
     observacion: tr.querySelector('.campo-observacion').value.trim()
   };
-  tr.querySelector('.campo-pago').value = campos.formaPago;
   tr.querySelector('.campo-neto').value = fmtMonto(campos.neto);
   tr.querySelector('.campo-iva').value = fmtMonto(campos.iva);
   try {
@@ -774,6 +984,7 @@ async function guardarFila(tr){
     setTimeout(function(){ tr.classList.remove('guardada'); }, 700);
     if (tr._marcar) tr._marcar();
     refrescarTotales();
+    pintarGaleria(DATOS.documentos || []);   // la burbuja se marca al completarse
     revisar();
   } catch (e) { avisar(e.message, true); }
 }
@@ -797,8 +1008,9 @@ function refrescarTotales(){
 //  ACCIONES DE DOCUMENTO
 // =====================================================================
 async function nuevoDocumento(){
-  var numero = document.getElementById('inpNumero').value.trim();
-  if (!numero) { avisar('Escribe el número del documento.', true); return; }
+  var esCierre = tipoDe(tipoElegido).sinValores;
+  var numero = esCierre ? '' : document.getElementById('inpNumero').value.trim();
+  if (!numero && !esCierre) { avisar('Escribe el número del documento.', true); return; }
   var boton = document.getElementById('btnEscanear');
   boton.disabled = true;
   try {
@@ -807,13 +1019,13 @@ async function nuevoDocumento(){
     await pedir('/api/escanear', { id: j.documento.id, etiqueta: 'Documento' });
     document.getElementById('inpNumero').value = '';
     await cargar();
-    avisar('Documento ' + numero + ' guardado.');
+    avisar((esCierre ? 'Cierres' : 'Documento ' + numero) + ' guardado.');
   } catch (e) {
     avisar(e.message, true);
     await cargar();
   } finally {
     capa(false); boton.disabled = false;
-    document.getElementById('inpNumero').focus();
+    if (!esCierre) document.getElementById('inpNumero').focus();
   }
 }
 
@@ -938,6 +1150,10 @@ async function revisar(){
     var j = await pedir('/api/estado');
     DATOS.errores = j.datos.errores;
     DATOS.avisos = j.datos.avisos;
+    DATOS.formasPago = j.datos.formasPago;
+    DATOS.planillaEscrita = j.datos.planillaEscrita;
+    DATOS.planillaAlDia = j.datos.planillaAlDia;
+    DATOS.enPlanilla = j.datos.enPlanilla;
     // Los propios cambios también suben la revisión: si no se anota aquí, el
     // vigilante los confundiría con algo llegado desde el teléfono.
     DATOS.revision = j.datos.revision;
@@ -967,7 +1183,29 @@ function pintarRevision(){
   // documento que por alguna razón no se escaneó. Lo único que impide escribir
   // es no tener documentos o no tener planilla indicada.
   document.getElementById('btnExcel').disabled =
-    !(DATOS.documentos || []).length || !DATOS.excelExiste;
+    !DATOS.enPlanilla || !DATOS.excelExiste;
+  pintarEstadoPlanilla();
+}
+
+/* El correo va SIEMPRE después de la planilla. Aquí se ve en qué estado está
+   y, si no calza, el botón del correo queda cerrado. */
+function pintarEstadoPlanilla(){
+  var caja = document.getElementById('estadoPlanilla');
+  var hay = (DATOS.documentos || []).length;
+  if (!hay) { caja.innerHTML = ''; return; }
+  if (DATOS.planillaAlDia) {
+    caja.innerHTML = '<div class="estado-planilla si"><span class="ico">✓</span><div>' +
+      '<b>La planilla está al día.</b>La hoja ' + esc(DATOS.hojaDelDia) +
+      ' tiene exactamente estos ' + DATOS.enPlanilla + ' documento(s).</div></div>';
+  } else if (DATOS.planillaEscrita) {
+    caja.innerHTML = '<div class="estado-planilla vieja"><span class="ico">!</span><div>' +
+      '<b>La planilla quedó atrasada.</b>Hay cambios posteriores a la última vez que la ' +
+      'guardaste. Vuelve a escribirla antes de mandar el correo.</div></div>';
+  } else {
+    caja.innerHTML = '<div class="estado-planilla no"><span class="ico">!</span><div>' +
+      '<b>Estas boletas aún no están en la planilla.</b>Escribe primero la hoja del día; ' +
+      'el correo se habilita después.</div></div>';
+  }
 }
 
 /* Si quedaron reparos, se enumeran y se pide confirmación explícita antes de
@@ -981,8 +1219,10 @@ function confirmarConReparos(accion){
 
 async function escribirExcel(){
   if (!confirmarConReparos('Escribir la planilla')) return;
-  if (!confirm('Se va a escribir la hoja ' + DATOS.hojaDelDia + ' en la planilla.\n\n' +
-               'Antes se guarda una copia de respaldo. ¿Continuar?')) return;
+  if (!confirm('Se va a escribir la hoja ' + DATOS.hojaDelDia + ' con los ' +
+               DATOS.enPlanilla + ' documento(s) del listado.\n\n' +
+               'Si la hoja ya existía se reescribe completa, no se crea otra ni se ' +
+               'duplican líneas. Antes se guarda una copia de respaldo.\n\n¿Continuar?')) return;
   var boton = document.getElementById('btnExcel');
   boton.disabled = true;
   capa(true, 'Escribiendo la planilla', 'Excel se está abriendo en segundo plano.');
@@ -1008,7 +1248,16 @@ function pintarCorreo(){
   sel.onchange = function(){ localStorage.setItem('auditoria_remitente', sel.value); };
   document.getElementById('lblPara').textContent = DATOS.correoPara || '—';
   document.getElementById('lblCc').textContent = DATOS.correoCc || '—';
-  document.getElementById('btnCorreo').disabled = !(DATOS.documentos || []).length;
+
+  var hay = (DATOS.documentos || []).length;
+  var boton = document.getElementById('btnCorreo');
+  // Mientras la planilla no esté al día el correo no se abre: es el error que
+  // más caro sale, porque contabilidad recibe documentos que no están en la hoja.
+  boton.disabled = !hay || !DATOS.planillaAlDia;
+  boton.title = (hay && !DATOS.planillaAlDia)
+    ? 'Primero hay que escribir la planilla' : '';
+  document.getElementById('btnCorreoIgual').style.display =
+    (hay && !DATOS.planillaAlDia) ? '' : 'none';
 }
 
 async function agregarRemitente(){
@@ -1035,16 +1284,21 @@ async function quitarRemitente(){
   } catch (e) { avisar(e.message, true); }
 }
 
-async function abrirCorreo(){
+async function abrirCorreo(sinPlanilla){
   var remitente = document.getElementById('selRemitente').value;
   if (!remitente) { avisar('Elige o agrega quién envía el correo.', true); return; }
+  if (sinPlanilla && !confirm(
+        'ESTAS BOLETAS AÚN NO ESTÁN EN LA PLANILLA.\n\n' +
+        'Contabilidad va a recibir documentos que no están escritos en la hoja ' +
+        DATOS.hojaDelDia + '.\n\n¿Mandar el correo igual?')) return;
   if (!confirmarConReparos('Preparar el correo')) return;
   localStorage.setItem('auditoria_remitente', remitente);
   var boton = document.getElementById('btnCorreo');
   boton.disabled = true;
   capa(true, 'Preparando el correo', 'Se está abriendo Outlook con los adjuntos.');
   try {
-    var j = await pedir('/api/correo', { remitente: remitente, forzar: true });
+    var j = await pedir('/api/correo', { remitente: remitente, forzar: true,
+                                         sinPlanilla: !!sinPlanilla });
     avisar('Correo abierto en Outlook con ' + j.resultado.adjuntos + ' adjunto(s).');
   } catch (e) { alert(e.message); }
   finally { capa(false); boton.disabled = false; pintarCorreo(); }
@@ -1094,6 +1348,22 @@ document.addEventListener('focusout', function(){
     if (recargaPendiente && !escribiendo()) { recargaPendiente = false; comprobarCambios(); }
   }, 400);
 });
+
+// El panel de escaneo se queda pegado justo debajo de la barra. La altura de
+// la barra cambia según lo que quepa en una línea, así que se mide.
+function acomodarPanel(){
+  var alto = document.querySelector('.barra').offsetHeight;
+  var panel = document.getElementById('panelEscaneo');
+  panel.style.top = (alto + 8) + 'px';
+  // Sombra más marcada cuando queda flotando sobre el listado.
+  panel.classList.toggle('pegada', panel.getBoundingClientRect().top <= alto + 10);
+}
+window.addEventListener('scroll', function(){
+  acomodarPanel();
+  cerrarMenuPago();     // si no, el menú se va quedando pegado sobre la barra
+}, { passive: true });
+window.addEventListener('resize', acomodarPanel);
+acomodarPanel();
 
 cargar();
 buscarEscaner();

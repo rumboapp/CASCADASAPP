@@ -27,6 +27,7 @@ Para probar la pantalla sin escaner:  python auditoria.py --demo
 
 import base64
 import datetime
+import hashlib
 import http.server
 import io
 import json
@@ -73,16 +74,17 @@ TIPOS = {
     "boleta": {"etiqueta": "Boleta", "exento": False},
     "factura": {"etiqueta": "Factura", "exento": False},
     "exportacion": {"etiqueta": "Factura de exportación", "exento": True},
+    # Los cierres de Transbank van todos en un solo escaneo. No llevan numero
+    # ni montos y no entran a la planilla: solo se archivan y se adjuntan.
+    "cierres": {"etiqueta": "Cierres Transbank", "exento": False, "sinValores": True},
 }
 
+NOMBRE_CIERRES = "Cierres"
+
+# Medios de pago sueltos. Los pagos divididos se arman eligiendo varios en la
+# pantalla, que los une con " + ": asi no hay dos formas de escribir lo mismo.
 FORMAS_PAGO_BASE = [
     "EFECTIVO", "DB", "CREDITO", "MC", "VISA", "VISA USD", "TRANSFERENCIA",
-    # Pagos divididos entre dos medios.
-    "DB - MC", "DB - VISA", "DB - CREDITO", "DB - EFECTIVO", "DB - TRANSFERENCIA",
-    "MC - VISA", "MC - EFECTIVO", "MC - TRANSFERENCIA",
-    "VISA - EFECTIVO", "VISA - TRANSFERENCIA",
-    "CREDITO - EFECTIVO", "CREDITO - TRANSFERENCIA",
-    "EFECTIVO - TRANSFERENCIA",
 ]
 
 CONFIG_POR_DEFECTO = {
@@ -107,7 +109,7 @@ CONFIG_POR_DEFECTO = {
 
 # Prefijo con que se nombran los adjuntos del correo, como los recibe
 # contabilidad hoy: "B 137.854.jpeg".
-PREFIJO_ADJUNTO = {"boleta": "B", "factura": "F", "exportacion": "FE"}
+PREFIJO_ADJUNTO = {"boleta": "B", "factura": "F", "exportacion": "FE", "cierres": ""}
 
 # ---------------------------------------------------------------------------
 # Planilla de auditoria: encabezados en la fila 3, datos desde la 4,
@@ -155,11 +157,15 @@ def leer_config():
     if "cascadasantofagasta.cl" in (cfg.get("correo_cc") or ""):
         cfg["correo_cc"] = cfg["correo_cc"].replace("cascadasantofagasta.cl", "hotelantofagasta.cl")
         cambio = True
-    # Formas de pago nuevas: se suman sin tocar las que el hotel haya agregado.
+    # La lista guardada traia combinaciones escritas de varias formas
+    # ("MC - DB", "MC Y DB"). Ahora los pagos divididos se arman eligiendo
+    # varios medios, asi que solo quedan los sueltos.
     guardadas = cfg.get("formas_pago") or []
-    faltan = [f for f in FORMAS_PAGO_BASE if f not in guardadas]
-    if faltan:
-        cfg["formas_pago"] = guardadas + faltan
+    sueltas = [f for f in guardadas
+               if not any(sep in f.upper() for sep in (" - ", " + ", " Y "))]
+    limpia = sueltas + [f for f in FORMAS_PAGO_BASE if f not in sueltas]
+    if limpia != guardadas:
+        cfg["formas_pago"] = limpia
         cambio = True
     if cambio:
         try:
@@ -346,6 +352,9 @@ class EstadoDia(object):
         # Sube con cada cambio. La pantalla la consulta para enterarse de lo que
         # llega desde el telefono sin tener que recargarla a mano.
         self.revision = 0
+        # Huella de los datos con que se escribio la planilla por ultima vez.
+        # Si no calza con lo que hay ahora, es que la planilla quedo atrasada.
+        self.firma_planilla = ""
         self._cargar()
 
     def _cargar(self):
@@ -356,6 +365,7 @@ class EstadoDia(object):
                 datos = json.load(f)
             self.documentos = datos.get("documentos", [])
             self.siguiente_id = datos.get("siguienteId", len(self.documentos) + 1)
+            self.firma_planilla = datos.get("firmaPlanilla", "")
         except Exception:
             traceback.print_exc()
 
@@ -363,7 +373,8 @@ class EstadoDia(object):
         self.revision += 1
         tmp = self.archivo + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
-            json.dump({"documentos": self.documentos, "siguienteId": self.siguiente_id},
+            json.dump({"documentos": self.documentos, "siguienteId": self.siguiente_id,
+                       "firmaPlanilla": self.firma_planilla},
                       f, ensure_ascii=False, indent=2)
         os.replace(tmp, self.archivo)   # reemplazo atomico: nunca queda a medias
 
@@ -726,6 +737,27 @@ def _numero(valor):
         return None
 
 
+def va_a_la_planilla(doc):
+    """Los cierres de Transbank se archivan y se adjuntan, pero no son una
+    venta: no ocupan ninguna linea de la planilla."""
+    return not TIPOS.get(doc.get("tipo"), {}).get("sinValores")
+
+
+def documentos_de_planilla(documentos):
+    return [d for d in documentos if va_a_la_planilla(d)]
+
+
+def firma_datos(documentos):
+    """Huella de todo lo que se escribe en la planilla. Sirve para saber si lo
+    que hay en pantalla es exactamente lo ultimo que se guardo en el Excel."""
+    partes = []
+    for d in documentos_de_planilla(documentos):
+        partes.append("|".join(str(d.get(campo) or "") for campo in
+                               ("tipo", "numero", "neto", "iva", "formaPago",
+                                "autorizacion", "observacion")))
+    return hashlib.sha1("\n".join(partes).encode("utf-8")).hexdigest()
+
+
 def validar(documentos, carpeta_destino):
     """Revisa el listado antes de escribir la planilla o mandar el correo.
     Devuelve dos listas: lo que impide continuar y lo que solo advierte."""
@@ -738,6 +770,8 @@ def validar(documentos, carpeta_destino):
 
         if not d.get("paginas"):
             errores.append("%s no tiene ninguna página escaneada." % etiqueta)
+        if TIPOS.get(d["tipo"], {}).get("sinValores"):
+            continue                # los cierres no llevan montos ni pago
         if neto is None:
             errores.append("%s no tiene neto." % etiqueta)
         if not (d.get("formaPago") or "").strip():
@@ -749,7 +783,8 @@ def validar(documentos, carpeta_destino):
 
     # Folios saltados dentro de cada serie: la señal mas clara de un documento
     # que se emitio y quedo sin escanear.
-    for clave, nombre in (("boleta", "boletas"), ("factura", "facturas"), ("exportacion", "facturas de exportación")):
+    for clave, nombre in (("boleta", "boletas"), ("factura", "facturas"),
+                          ("exportacion", "facturas de exportación")):
         folios = sorted(int(d["numero"]) for d in documentos
                         if d["tipo"] == clave and str(d.get("numero", "")).strip().isdigit())
         for anterior, siguiente in zip(folios, folios[1:]):
@@ -758,6 +793,10 @@ def validar(documentos, carpeta_destino):
                 avisos.append("Entre las %s %d y %d faltan: %s."
                               % (nombre, anterior, siguiente,
                                  ", ".join(str(x) for x in faltantes)))
+
+    # Los cierres de Transbank cierran el dia: si no estan, algo falta.
+    if documentos and not any(TIPOS.get(d["tipo"], {}).get("sinValores") for d in documentos):
+        avisos.append("Todavía no escaneaste los cierres de Transbank.")
 
     # Archivos sueltos en la carpeta del dia que no estan en el listado.
     if carpeta_destino and os.path.isdir(carpeta_destino):
@@ -849,9 +888,15 @@ def _extender_filas(hoja, ultima, necesarias):
 
 
 def escribir_en_planilla(ruta_excel, fecha, documentos):
-    """Crea (o rehace) la hoja del día y devuelve un resumen de lo hecho."""
+    """Crea (o rehace) la hoja del día y devuelve un resumen de lo hecho.
+
+    Siempre se reescribe la hoja completa con todo lo que hay en el listado, se
+    haya guardado antes o no: guardar dos veces el mismo día no crea una hoja
+    nueva ni duplica líneas, solo deja la hoja al día."""
     if not ruta_excel or not os.path.exists(ruta_excel):
         raise ErrorExcel("No encuentro la planilla de auditoría. Indícala en Configuración.")
+
+    documentos = documentos_de_planilla(documentos)   # los cierres no van aquí
 
     import pythoncom
     import win32com.client
@@ -1179,9 +1224,15 @@ class Aplicacion(object):
             for campo in ("afecto", "neto", "iva", "total", "formaPago", "autorizacion", "observacion"):
                 if campo in campos:
                     doc[campo] = campos[campo]
+            # El pago dividido se guarda como "MC + EFECTIVO": a la lista de
+            # sugerencias solo se suman los medios sueltos, para que no vuelva a
+            # llenarse de combinaciones que dicen lo mismo.
             forma = (doc.get("formaPago") or "").strip().upper()
-            if forma and forma not in self.cfg.get("formas_pago", []):
-                self.cfg.setdefault("formas_pago", []).append(forma)
+            doc["formaPago"] = forma
+            nuevas = [p.strip() for p in forma.split("+") if p.strip()]
+            guardadas = self.cfg.setdefault("formas_pago", [])
+            if any(p not in guardadas for p in nuevas):
+                guardadas.extend(p for p in nuevas if p not in guardadas)
                 guardar_config(self.cfg)
             self.estado.guardar()
         return doc
@@ -1194,19 +1245,42 @@ class Aplicacion(object):
         """`forzar` deja escribir aunque queden reparos. Las advertencias avisan,
         no mandan: puede haber un folio anulado o un documento que por alguna
         razon no se escaneo, y eso lo decide quien audita, no el programa."""
-        if not self.estado.documentos:
+        if not documentos_de_planilla(self.estado.documentos):
             raise ErrorExcel("No hay documentos que escribir.")
         errores, _avisos = validar(self.estado.documentos, self.carpeta_destino(crear=False))
         if errores and not forzar:
             raise ErrorExcel("REPAROS\n" + "\n".join(errores))
-        return escribir_en_planilla(self.cfg.get("archivo_excel"), self.fecha, self.estado.documentos)
+        resultado = escribir_en_planilla(self.cfg.get("archivo_excel"), self.fecha,
+                                         self.estado.documentos)
+        with self.estado.lock:
+            self.estado.firma_planilla = firma_datos(self.estado.documentos)
+            self.estado.guardar()
+        return resultado
 
-    def abrir_correo(self, remitente, forzar=False):
+    def planilla_al_dia(self):
+        """True si la planilla se escribió con exactamente estos datos."""
+        return bool(self.estado.firma_planilla) and \
+            self.estado.firma_planilla == firma_datos(self.estado.documentos)
+
+    def abrir_correo(self, remitente, forzar=False, sinPlanilla=False):
         if not self.estado.documentos:
             raise ErrorCorreo("No hay documentos que enviar.")
         errores, _avisos = validar(self.estado.documentos, self.carpeta_destino(crear=False))
         if errores and not forzar:
             raise ErrorCorreo("REPAROS\n" + "\n".join(errores))
+        # El correo va después de la planilla, siempre. Si no calza, se avisa
+        # con todas sus letras antes de dejar continuar.
+        if not self.planilla_al_dia():
+            if not self.estado.firma_planilla:
+                falta = ("Estas boletas todavía NO están en la planilla.\n\n"
+                         "Guarda primero la hoja del día en el Excel y después "
+                         "manda el correo.")
+            else:
+                falta = ("La planilla está atrasada: hay cambios en el listado "
+                         "posteriores a la última vez que la guardaste.\n\n"
+                         "Vuelve a guardar la planilla y después manda el correo.")
+            if not sinPlanilla:
+                raise ErrorCorreo("SIN PLANILLA\n" + falta)
         nombre = (remitente or "").strip()
         if nombre and nombre not in self.cfg.get("remitentes", []):
             self.cfg.setdefault("remitentes", []).append(nombre)
@@ -1245,7 +1319,11 @@ class Aplicacion(object):
             "esDeAyer": self.fecha != datetime.date.today(),
             "hoyIso": datetime.date.today().isoformat(),
             "documentos": self.estado.documentos,
-            "tipos": [{"clave": k, "etiqueta": v["etiqueta"], "exento": v["exento"]} for k, v in TIPOS.items()],
+            "planillaEscrita": bool(self.estado.firma_planilla),
+            "planillaAlDia": self.planilla_al_dia(),
+            "enPlanilla": len(documentos_de_planilla(self.estado.documentos)),
+            "tipos": [{"clave": k, "etiqueta": v["etiqueta"], "exento": v["exento"],
+                       "sinValores": bool(v.get("sinValores"))} for k, v in TIPOS.items()],
             "formasPago": self.cfg.get("formas_pago", []),
             "remitentes": self.cfg.get("remitentes", []),
             "correoPara": self.cfg.get("correo_para", ""),
@@ -1260,6 +1338,8 @@ class Aplicacion(object):
         if tipo not in TIPOS:
             raise ValueError("Tipo de documento no válido.")
         numero = (numero or "").strip()
+        if TIPOS[tipo].get("sinValores"):
+            numero = numero or NOMBRE_CIERRES      # los cierres no llevan folio
         if not numero:
             raise ValueError("Falta el número del documento.")
         repetido = [d for d in self.estado.documentos
@@ -1351,11 +1431,13 @@ class Aplicacion(object):
         doc = self.estado.buscar(doc_id)
         if not doc:
             raise ValueError("El documento ya no está en el listado.")
-        numero = (numero or "").strip()
-        if not numero:
-            raise ValueError("Falta el número del documento.")
         if tipo not in TIPOS:
             raise ValueError("Tipo de documento no válido.")
+        numero = (numero or "").strip()
+        if TIPOS[tipo].get("sinValores"):
+            numero = numero or NOMBRE_CIERRES
+        if not numero:
+            raise ValueError("Falta el número del documento.")
         choque = [d for d in self.estado.documentos
                   if d["id"] != doc_id and d["numero"].lower() == numero.lower() and d["tipo"] == tipo]
         if choque:
@@ -1596,7 +1678,8 @@ class Manejador(http.server.BaseHTTPRequestHandler):
             if ruta == "/api/correo":
                 return self._json({"ok": True,
                                    "resultado": APP.abrir_correo(cuerpo.get("remitente"),
-                                                                 bool(cuerpo.get("forzar")))})
+                                                                 bool(cuerpo.get("forzar")),
+                                                                 bool(cuerpo.get("sinPlanilla")))})
             if ruta == "/api/remitente/agregar":
                 return self._json({"ok": True, "remitentes": APP.agregar_remitente(cuerpo.get("nombre"))})
             if ruta == "/api/remitente/eliminar":
