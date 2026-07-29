@@ -321,6 +321,10 @@
          align-items:center; justify-content:center; z-index:60; backdrop-filter:blur(3px);
          padding:20px; }
   .capa.ver{ display:flex; animation:desvanecer .2s ease; }
+  /* El aviso de "Escaneando" puede abrirse con el modal de páginas ya abierto
+     detrás (se agrega una página desde ahí): sin esto quedaba tapado por
+     tener el mismo z-index que los demás y aparecer antes en el HTML. */
+  .capa#capa{ z-index:75; }
   @keyframes desvanecer{ from{ opacity:0; } to{ opacity:1; } }
   .capa .caja{ background:var(--crema); border-radius:26px; padding:34px 44px; text-align:center;
                max-width:440px; box-shadow:var(--sombra-alta); animation:subir .3s var(--curva); }
@@ -1115,6 +1119,7 @@ async function nuevoDocumento(){
   if (!numero && !esCierre) { avisar('Escribe el número del documento.', true); return; }
   var boton = document.getElementById('btnEscanear');
   boton.disabled = true;
+  operandoLocal++;
   try {
     var j = await pedir('/api/documento', { tipo: tipoElegido, numero: numero });
     capa(true, 'Escaneando', 'No muevas el documento del vidrio.');
@@ -1126,6 +1131,7 @@ async function nuevoDocumento(){
     avisar(e.message, true);
     await cargar();
   } finally {
+    operandoLocal--;
     capa(false); boton.disabled = false;
     if (!esCierre) document.getElementById('inpNumero').focus();
   }
@@ -1134,22 +1140,25 @@ async function nuevoDocumento(){
 async function agregarPagina(id){
   var etiqueta = prompt('¿Qué estás escaneando?\n\nPor ejemplo: voucher, transferencia, pasaporte, documento PDI.', 'Voucher');
   if (etiqueta === null) return;
+  operandoLocal++;
   try {
     capa(true, 'Escaneando', 'No muevas el documento del vidrio.');
     await pedir('/api/escanear', { id: id, etiqueta: etiqueta });
     await cargar();
     avisar('Página agregada.');
   } catch (e) { avisar(e.message, true); }
-  finally { capa(false); }
+  finally { operandoLocal--; capa(false); }
 }
 
 async function quitarPagina(id, indice){
   if (!confirm('¿Quitar esta página del documento?')) return;
+  operandoLocal++;
   try {
     await pedir('/api/pagina/eliminar', { id: id, indice: indice });
     await cargar();
     avisar('Página quitada.');
   } catch (e) { avisar(e.message, true); }
+  finally { operandoLocal--; }
 }
 
 async function editarDocumento(id){
@@ -1165,21 +1174,25 @@ async function editarDocumento(id){
   if (eleccion === null) return;
   var indice = parseInt(eleccion, 10) - 1;
   if (isNaN(indice) || indice < 0 || indice >= DATOS.tipos.length) { avisar('Tipo no válido.', true); return; }
+  operandoLocal++;
   try {
     await pedir('/api/documento/editar', { id: id, tipo: DATOS.tipos[indice].clave, numero: numero });
     await cargar();
     avisar('Documento corregido.');
   } catch (e) { avisar(e.message, true); }
+  finally { operandoLocal--; }
 }
 
 async function borrarDocumento(id){
   if (!confirm('¿Eliminar el documento completo?\n\nSe borra también su escaneo de la carpeta del día.')) return;
+  operandoLocal++;
   try {
     await pedir('/api/documento/eliminar', { id: id });
     if (docAbierto === id) cerrarPaginas();
     await cargar();
     avisar('Documento eliminado.');
   } catch (e) { avisar(e.message, true); }
+  finally { operandoLocal--; }
 }
 
 async function abrirCarpeta(){
@@ -1663,8 +1676,15 @@ function escribiendo(){
   return !!(el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA'));
 }
 
+// Crear un documento o escanear una página sube la revisión ANTES de que
+// termine el escaneo (que es lento). Si el vigilante consulta justo en ese
+// hueco, ve el cambio y cree que llegó del teléfono, cuando es este mismo
+// escritorio el que lo hizo. Mientras alguna de estas acciones está en
+// vuelo, el vigilante se queda callado.
+var operandoLocal = 0;
+
 async function comprobarCambios(){
-  if (!DATOS) return;
+  if (!DATOS || operandoLocal > 0) return;
   try {
     var j = await pedir('/api/revision');
     if (j.fecha !== DATOS.fecha || j.revision === DATOS.revision) return;
