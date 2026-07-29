@@ -263,6 +263,56 @@
   .resultado b{ font-size:14.5px; }
   .resultado .mini{ font-size:12px; color:var(--suave); margin-top:2px; }
 
+  /* ═══════════ FICHAS DEL BUSCADOR ═══════════ */
+  .ficha{ background:#fff; border:1px solid var(--linea); border-radius:18px; padding:14px 18px;
+          margin-bottom:9px; box-shadow:var(--sombra); animation:entrar .28s var(--curva);
+          transition:transform .18s var(--curva), box-shadow .18s; }
+  .ficha:hover{ transform:translateY(-2px); box-shadow:var(--sombra-media); }
+  .ficha .arriba{ display:flex; align-items:center; gap:11px; flex-wrap:wrap; }
+  .ficha .folio{ font-size:17px; font-weight:700; }
+  .ficha .dia{ font-size:12.5px; color:var(--suave); }
+  .ficha .montos{ margin-left:auto; display:flex; gap:20px; text-align:right; }
+  .ficha .montos div{ font-size:11px; color:var(--suave); }
+  .ficha .montos b{ display:block; font-size:15px; color:var(--tinta);
+                    font-variant-numeric:tabular-nums; }
+  .ficha .abajo{ display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+                 margin-top:11px; padding-top:10px; border-top:1px solid #F2EDE4; }
+  .etq{ font-size:11.5px; font-weight:600; border-radius:999px; padding:4px 11px;
+        background:#F0EBE2; color:#63606A; white-space:nowrap; }
+  .etq.pago{ background:rgba(193,148,92,.18); color:#8A6329; }
+  .etq.exp{ background:#E7EEF9; color:#3B5A87; }
+  .etq.suelto{ background:#FDF6E9; color:#7E5F24; }
+  .ficha .archivos{ margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; }
+
+  /* ═══════════ TABLA DE INFORME ═══════════ */
+  .tabla-informe{ width:100%; border-collapse:separate; border-spacing:0 6px; font-size:13.5px; }
+  .tabla-informe th{ text-align:left; font-size:11.5px; color:var(--suave); font-weight:700;
+                     padding:2px 14px; white-space:nowrap; }
+  .tabla-informe th.num, .tabla-informe td.num{ text-align:right; font-variant-numeric:tabular-nums; }
+  .tabla-informe td{ background:#fff; border-top:1px solid var(--linea); border-bottom:1px solid var(--linea);
+                     padding:11px 14px; white-space:nowrap; }
+  .tabla-informe td:first-child{ border-left:1px solid var(--linea); border-radius:14px 0 0 14px;
+                                 font-weight:600; }
+  .tabla-informe td:last-child{ border-right:1px solid var(--linea); border-radius:0 14px 14px 0; }
+  .tabla-informe tr.suma td{ background:#F4F1EB; font-weight:700; }
+  /* Las listas de la revisión son largas: se muestran recortadas y se abren
+     enteras solo si alguien las quiere ver. */
+  .recortada{ position:relative; max-height:430px; overflow:hidden; }
+  .recortada::after{ content:''; position:absolute; left:0; right:0; bottom:0; height:70px;
+                     background:linear-gradient(transparent, var(--crema)); pointer-events:none; }
+  .recortada.abierta{ max-height:none; overflow:visible; }
+  .recortada.abierta::after{ display:none; }
+  .ver-todo{ display:block; margin:10px auto 0; }
+
+  .tarjetas-cifra{ display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:12px;
+                   margin-bottom:18px; }
+  .cifra{ background:#fff; border:1px solid var(--linea); border-radius:18px; padding:15px 18px;
+          box-shadow:var(--sombra); }
+  .cifra span{ font-size:11.5px; color:var(--suave); font-weight:600; }
+  .cifra b{ display:block; font-size:23px; margin-top:3px; font-variant-numeric:tabular-nums; }
+  .cifra.ojo b{ color:#8A6329; }
+  .cifra.mal b{ color:var(--alerta); }
+
   .config-linea{ font-size:12.5px; color:var(--suave); word-break:break-word; line-height:1.75; }
   .config-linea b{ color:var(--tinta); font-weight:600; }
 
@@ -318,6 +368,7 @@
     <span class="pill demo" id="pillDemo" style="display:none;">Escáner simulado</span>
     <span class="pill" id="pillEscaner"><span class="punto" id="puntoEscaner"></span><span id="txtEscaner">Buscando escáner…</span></span>
     <button class="btn claro" onclick="alternarBuscador()">Buscar</button>
+    <button class="btn claro" onclick="alternarInformes()">Informes</button>
     <button class="btn claro" onclick="abrirCarpeta()">Carpeta del día</button>
     <button class="btn claro" onclick="alternarConfig()">Configuración</button>
   </div>
@@ -332,18 +383,64 @@
     <div class="cabecera">
       <div>
         <h2>Buscar un documento</h2>
-        <p class="sub">Busca en toda la carpeta de escaneados, de cualquier día o año.</p>
+        <p class="sub">Busca dentro de la planilla completa —todos los años— y trae también
+          el escaneado.</p>
       </div>
+      <div class="cuenta" id="estadoHistorial" style="font-size:12px; text-align:right;"></div>
     </div>
     <div class="fila">
-      <div class="campo" style="flex:1; min-width:250px;">
-        <label>Número de boleta o factura</label>
+      <div class="campo" style="flex:1; min-width:220px;">
+        <label>Número, autorización u observación</label>
         <input type="text" id="inpBuscar" placeholder="137854" autocomplete="off"
                onkeydown="if(event.key==='Enter'){event.preventDefault();buscarDocumentos();}">
       </div>
+      <div class="campo">
+        <label>Desde</label>
+        <input type="date" id="inpDesde">
+      </div>
+      <div class="campo">
+        <label>Hasta</label>
+        <input type="date" id="inpHasta">
+      </div>
+      <div class="campo">
+        <label>Tipo</label>
+        <select id="selTipoBusca"><option value="">Todos</option></select>
+      </div>
+      <div class="campo">
+        <label>Forma de pago</label>
+        <select id="selPagoBusca"><option value="">Todas</option></select>
+      </div>
       <button class="btn principal" onclick="buscarDocumentos()">Buscar</button>
+      <button class="btn suave" onclick="limpiarBusqueda()">Limpiar</button>
     </div>
     <div id="resultados" style="margin-top:18px;"></div>
+  </div>
+
+  <!-- ═══ INFORMES ═══ -->
+  <div class="tarjeta" id="tarjetaInformes" style="display:none;">
+    <div class="cabecera">
+      <div>
+        <h2>Informes</h2>
+        <p class="sub">Salen de la planilla tal como está escrita. No se modifica nada.</p>
+      </div>
+    </div>
+    <div class="fila">
+      <div class="tipos">
+        <button type="button" class="tipo act" data-informe="meses" onclick="verInforme('meses')">Por mes</button>
+        <button type="button" class="tipo" data-informe="pagos" onclick="verInforme('pagos')">Por forma de pago</button>
+        <button type="button" class="tipo" data-informe="tipos" onclick="verInforme('tipos')">Por tipo de documento</button>
+        <button type="button" class="tipo" data-informe="revision" onclick="verInforme('revision')">Revisión del histórico</button>
+      </div>
+      <div class="campo">
+        <label>Desde</label>
+        <input type="date" id="infDesde" onchange="verInforme()">
+      </div>
+      <div class="campo">
+        <label>Hasta</label>
+        <input type="date" id="infHasta" onchange="verInforme()">
+      </div>
+    </div>
+    <div id="salidaInforme" style="margin-top:18px;"></div>
   </div>
 
   <!-- ═══ CONFIGURACIÓN ═══ -->
@@ -759,12 +856,17 @@ async function cambiarFecha(){
 function alternarConfig(){
   var el = document.getElementById('tarjetaConfig');
   el.style.display = el.style.display === 'none' ? '' : 'none';
+  acomodarPanel();
 }
 function alternarBuscador(){
   var el = document.getElementById('tarjetaBuscador');
   var abriendo = el.style.display === 'none';
   el.style.display = abriendo ? '' : 'none';
-  if (abriendo) document.getElementById('inpBuscar').focus();
+  acomodarPanel();
+  if (abriendo) {
+    document.getElementById('inpBuscar').focus();
+    if (!HISTORIAL) cargarHistorial();     // la planilla se lee la primera vez
+  }
 }
 
 // =====================================================================
@@ -1117,25 +1219,266 @@ async function guardarConfig(){
   } catch (e) { avisar(e.message, true); }
 }
 
+// =====================================================================
+//  BUSCADOR SOBRE LA PLANILLA COMPLETA
+//  Ya no busca solo el archivo escaneado: busca dentro de la planilla, con
+//  todos sus años, y a cada línea le engancha su escaneo si está.
+// =====================================================================
+var HISTORIAL = null;
+
+async function cargarHistorial(forzar){
+  var et = document.getElementById('estadoHistorial');
+  et.textContent = 'Leyendo la planilla…';
+  try {
+    var j = await pedir('/api/historial/estado', { forzar: !!forzar });
+    HISTORIAL = j.historial;
+    et.innerHTML = '<b>' + HISTORIAL.documentos.toLocaleString('es-CL') + '</b> documentos · ' +
+      HISTORIAL.hojas + ' hojas<br>' +
+      (HISTORIAL.desde ? 'del ' + fechaCorta(HISTORIAL.desde) + ' al ' + fechaCorta(HISTORIAL.hasta) : '') +
+      (HISTORIAL.ilegibles.length
+        ? '<br><span style="color:#8A6329;">' + HISTORIAL.ilegibles.length +
+          ' hoja(s) sin encabezados: ' + esc(HISTORIAL.ilegibles.join(', ')) + '</span>' : '');
+    llenarSelect('selTipoBusca', HISTORIAL.tipos, 'Todos');
+    llenarSelect('selPagoBusca', HISTORIAL.pagos, 'Todas');
+  } catch (e) {
+    et.innerHTML = '<span style="color:#8C4132;">' + esc(e.message) + '</span>';
+  }
+}
+
+function llenarSelect(id, valores, todos){
+  var sel = document.getElementById(id);
+  var antes = sel.value;
+  sel.innerHTML = '<option value="">' + todos + '</option>' +
+    valores.map(function(v){ return '<option value="' + esc(v) + '">' + esc(v) + '</option>'; }).join('');
+  sel.value = antes;
+}
+
+function fechaCorta(iso){
+  if (!iso) return '—';
+  var p = iso.split('-');
+  return p[2] + '-' + p[1] + '-' + p[0];
+}
+function fmtPesos(n){ return '$' + fmtMonto(n || 0); }
+
+function limpiarBusqueda(){
+  ['inpBuscar','inpDesde','inpHasta'].forEach(function(id){ document.getElementById(id).value = ''; });
+  document.getElementById('selTipoBusca').value = '';
+  document.getElementById('selPagoBusca').value = '';
+  document.getElementById('resultados').innerHTML = '';
+}
+
 async function buscarDocumentos(){
-  var consulta = document.getElementById('inpBuscar').value.trim();
+  var filtros = {
+    consulta: document.getElementById('inpBuscar').value.trim(),
+    desde: document.getElementById('inpDesde').value,
+    hasta: document.getElementById('inpHasta').value,
+    tipo: document.getElementById('selTipoBusca').value,
+    pago: document.getElementById('selPagoBusca').value
+  };
   var caja = document.getElementById('resultados');
+  if (!filtros.consulta && !filtros.desde && !filtros.hasta && !filtros.tipo && !filtros.pago) {
+    caja.innerHTML = '<div class="vacio" style="padding:16px 0;">Escribe un número o elige un filtro.</div>';
+    return;
+  }
   caja.innerHTML = '<div class="vacio" style="padding:16px 0;">Buscando…</div>';
   try {
-    var j = await pedir('/api/buscar-documentos', { consulta: consulta });
-    if (!j.resultados.length) {
-      caja.innerHTML = '<div class="vacio" style="padding:16px 0;">No hay ningún archivo con ese número.</div>';
-      return;
-    }
-    caja.innerHTML = j.resultados.map(function(r){
-      return '<div class="resultado">' +
-        '<div><b>' + esc(r.nombre) + '</b><div class="mini">' + esc(r.ubicacion) + ' · ' + r.kb + ' KB</div></div>' +
-        '<button class="mini-btn" onclick="abrirArchivo(' + JSON.stringify(r.ruta).replace(/"/g,'&quot;') + ')">Abrir</button>' +
-        '</div>';
-    }).join('');
+    var j = await pedir('/api/historial/buscar', filtros);
+    if (!j.resultados.length) return buscarSoloArchivos(filtros.consulta, caja);
+    var cabeza = '<p class="config-linea" style="margin:0 0 12px;">' +
+      j.total.toLocaleString('es-CL') + ' resultado(s)' +
+      (j.total > j.resultados.length ? ', mostrando los ' + j.resultados.length + ' más recientes' : '') +
+      '.</p>';
+    caja.innerHTML = cabeza + j.resultados.map(ficha).join('');
   } catch (e) {
     caja.innerHTML = '<div class="revi mal">' + esc(e.message) + '</div>';
   }
+}
+
+function ficha(r){
+  var exp = r.tipo.indexOf('EXPORT') !== -1;
+  var moneda = (exp || r.usd) ? 'US$ ' : '$';
+  var archivos = (r.archivos || []).map(function(a){
+    return '<button class="mini-btn" title="' + esc(a.ubicacion) + '" onclick="abrirArchivo(' +
+      JSON.stringify(a.ruta).replace(/"/g,'&quot;') + ')">' + esc(a.nombre) + '</button>';
+  }).join('');
+  return '<div class="ficha">' +
+    '<div class="arriba">' +
+      '<span class="folio">' + esc(r.folio) + '</span>' +
+      '<span class="etq' + (exp ? ' exp' : '') + '">' + esc(r.tipo) + '</span>' +
+      '<span class="dia">' + (r.fecha ? fechaCorta(r.fecha) : 'sin fecha') +
+        ' · hoja ' + esc(r.hoja) + '</span>' +
+      '<div class="montos">' +
+        '<div>Neto<b>' + moneda + fmtMonto(r.neto) + '</b></div>' +
+        '<div>IVA<b>' + (r.iva ? moneda + fmtMonto(r.iva) : '—') + '</b></div>' +
+        '<div>Total<b>' + moneda + fmtMonto(r.afecto) + '</b></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="abajo">' +
+      (r.pago ? '<span class="etq pago">' + esc(r.pago) + '</span>' : '') +
+      (r.autorizacion ? '<span class="etq">Aut. ' + esc(r.autorizacion) + '</span>' : '') +
+      (r.observacion ? '<span class="etq">' + esc(r.observacion) + '</span>' : '') +
+      (archivos ? '<div class="archivos">' + archivos + '</div>'
+                : '<div class="archivos"><span class="etq suelto">sin escaneo en la carpeta</span></div>') +
+    '</div></div>';
+}
+
+/* Si no está en la planilla, puede ser un escaneo de antes o uno que quedó sin
+   escribir: se busca igual entre los archivos. */
+async function buscarSoloArchivos(consulta, caja){
+  if (!consulta) {
+    caja.innerHTML = '<div class="vacio" style="padding:16px 0;">Sin resultados con esos filtros.</div>';
+    return;
+  }
+  try {
+    var j = await pedir('/api/buscar-documentos', { consulta: consulta });
+    if (!j.resultados.length) {
+      caja.innerHTML = '<div class="vacio" style="padding:16px 0;">' +
+        'No está en la planilla ni hay ningún archivo con ese número.</div>';
+      return;
+    }
+    caja.innerHTML = '<div class="revi ojo">No está escrito en la planilla, pero sí hay ' +
+      j.resultados.length + ' archivo(s) escaneado(s) con ese número.</div>' +
+      j.resultados.map(function(r){
+        return '<div class="resultado">' +
+          '<div><b>' + esc(r.nombre) + '</b><div class="mini">' + esc(r.ubicacion) + ' · ' + r.kb + ' KB</div></div>' +
+          '<button class="mini-btn" onclick="abrirArchivo(' + JSON.stringify(r.ruta).replace(/"/g,'&quot;') + ')">Abrir</button>' +
+          '</div>';
+      }).join('');
+  } catch (e) {
+    caja.innerHTML = '<div class="revi mal">' + esc(e.message) + '</div>';
+  }
+}
+
+// =====================================================================
+//  INFORMES
+// =====================================================================
+var informeActual = 'meses';
+
+function alternarInformes(){
+  var el = document.getElementById('tarjetaInformes');
+  var abriendo = el.style.display === 'none';
+  el.style.display = abriendo ? '' : 'none';
+  acomodarPanel();
+  if (abriendo) { if (!HISTORIAL) cargarHistorial(); verInforme(informeActual); }
+}
+
+async function verInforme(cual){
+  informeActual = cual || informeActual;
+  Array.prototype.forEach.call(document.querySelectorAll('#tarjetaInformes .tipo'), function(b){
+    b.classList.toggle('act', b.dataset.informe === informeActual);
+  });
+  var caja = document.getElementById('salidaInforme');
+  caja.innerHTML = '<div class="vacio" style="padding:16px 0;">Calculando…</div>';
+  try {
+    var j = await pedir('/api/historial/informe', {
+      cual: informeActual,
+      desde: document.getElementById('infDesde').value,
+      hasta: document.getElementById('infHasta').value
+    });
+    caja.innerHTML = informeActual === 'revision' ? pintarRevisionHistorial(j.informe)
+                                                 : pintarAgrupado(j.informe);
+  } catch (e) {
+    caja.innerHTML = '<div class="revi mal">' + esc(e.message) + '</div>';
+  }
+}
+
+function pintarAgrupado(filas){
+  if (!filas.length) return '<div class="vacio" style="padding:16px 0;">No hay datos en ese rango.</div>';
+  var titulo = { meses:'Mes', pagos:'Forma de pago', tipos:'Tipo de documento' }[informeActual];
+  var suma = { documentos:0, neto:0, iva:0, afecto:0 };
+  filas.forEach(function(f){
+    suma.documentos += f.documentos; suma.neto += f.neto; suma.iva += f.iva; suma.afecto += f.afecto;
+  });
+  var nombre = function(g){
+    if (informeActual !== 'meses' || g.length !== 7) return g;
+    var meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto',
+                 'septiembre','octubre','noviembre','diciembre'];
+    return meses[parseInt(g.slice(5), 10) - 1] + ' ' + g.slice(0, 4);
+  };
+  return '<div class="tarjetas-cifra">' +
+      '<div class="cifra"><span>DOCUMENTOS</span><b>' + suma.documentos.toLocaleString('es-CL') + '</b></div>' +
+      '<div class="cifra"><span>NETO</span><b>' + fmtPesos(suma.neto) + '</b></div>' +
+      '<div class="cifra"><span>IVA</span><b>' + fmtPesos(suma.iva) + '</b></div>' +
+      '<div class="cifra"><span>TOTAL (NETO + IVA)</span><b>' + fmtPesos(suma.afecto) + '</b></div>' +
+    '</div>' +
+    '<div class="contenedor-grilla"><table class="tabla-informe">' +
+    '<thead><tr><th>' + titulo + '</th><th class="num">Documentos</th><th class="num">Neto</th>' +
+    '<th class="num">IVA</th><th class="num">Total</th></tr></thead><tbody>' +
+    filas.map(function(f){
+      return '<tr><td>' + esc(nombre(f.grupo)) + '</td>' +
+        '<td class="num">' + f.documentos.toLocaleString('es-CL') + '</td>' +
+        '<td class="num">' + fmtPesos(f.neto) + '</td>' +
+        '<td class="num">' + fmtPesos(f.iva) + '</td>' +
+        '<td class="num">' + fmtPesos(f.afecto) + '</td></tr>';
+    }).join('') +
+    '<tr class="suma"><td>Total</td><td class="num">' + suma.documentos.toLocaleString('es-CL') + '</td>' +
+    '<td class="num">' + fmtPesos(suma.neto) + '</td><td class="num">' + fmtPesos(suma.iva) +
+    '</td><td class="num">' + fmtPesos(suma.afecto) + '</td></tr>' +
+    '</tbody></table></div>';
+}
+
+/* La revisión no corrige nada: solo muestra lo que quedó raro escrito en estos
+   años, para que alguien decida qué hacer. */
+/* Envuelve una tabla larga para que no ocupe media pantalla de entrada. */
+function recortable(html, filas){
+  if (filas <= 12) return html;
+  return '<div class="recortada">' + html + '</div>' +
+    '<button class="btn suave ver-todo" onclick="abrirLista(this)">Ver las ' + filas + ' líneas</button>';
+}
+function abrirLista(boton){
+  var caja = boton.previousElementSibling;
+  var abierta = caja.classList.toggle('abierta');
+  boton.textContent = abierta ? 'Mostrar menos' : 'Ver todo';
+}
+
+function pintarRevisionHistorial(r){
+  var html = '<div class="tarjetas-cifra">' +
+    '<div class="cifra"><span>DOCUMENTOS REVISADOS</span><b>' + r.documentos.toLocaleString('es-CL') + '</b></div>' +
+    '<div class="cifra ' + (r.totalRepetidos ? 'mal' : '') + '"><span>FOLIOS REPETIDOS</span><b>' + r.totalRepetidos + '</b></div>' +
+    '<div class="cifra ' + (r.totalSaltos ? 'ojo' : '') + '"><span>SALTOS DE CORRELATIVA</span><b>' + r.totalSaltos + '</b></div>' +
+    '<div class="cifra ' + (r.totalDescuadres ? 'mal' : '') + '"><span>LÍNEAS QUE NO CUADRAN</span><b>' + r.totalDescuadres + '</b></div>' +
+    '<div class="cifra"><span>CON PROPINA EN EL TOTAL</span><b>' + r.conPropina + '</b></div>' +
+    '</div>';
+
+  html += '<h3 style="margin:22px 0 8px; font-size:14px;">Líneas donde el neto y el IVA no dan el total</h3>' +
+    '<p class="config-linea" style="margin:0 0 10px;">No se cuentan las que traen la propina sumada, ' +
+    'que en las hojas antiguas era lo normal.</p>';
+  html += r.descuadres.length
+    ? recortable('<div class="contenedor-grilla"><table class="tabla-informe"><thead><tr><th>Fecha</th><th>Hoja</th>' +
+      '<th>Documento</th><th class="num">Neto</th><th class="num">IVA</th><th class="num">Total escrito</th>' +
+      '<th class="num">Diferencia</th></tr></thead><tbody>' +
+      r.descuadres.map(function(d){
+        return '<tr><td>' + fechaCorta(d.fecha) + '</td><td>' + esc(d.hoja) + '</td>' +
+          '<td>' + esc(d.tipo) + ' ' + esc(d.folio) + '</td>' +
+          '<td class="num">' + fmtPesos(d.neto) + '</td><td class="num">' + fmtPesos(d.iva) + '</td>' +
+          '<td class="num">' + fmtPesos(d.total) + '</td>' +
+          '<td class="num" style="color:#8C4132;">' + (d.diferencia > 0 ? '+' : '') + fmtPesos(d.diferencia) + '</td></tr>';
+      }).join('') + '</tbody></table></div>', r.descuadres.length)
+    : '<div class="revi bien">Todas las líneas cuadran.</div>';
+
+  html += '<h3 style="margin:26px 0 8px; font-size:14px;">Folios repetidos</h3>';
+  html += r.repetidos.length
+    ? recortable('<div class="contenedor-grilla"><table class="tabla-informe"><thead><tr><th>Documento</th>' +
+      '<th class="num">Veces</th><th>Aparece en</th></tr></thead><tbody>' +
+      r.repetidos.map(function(x){
+        return '<tr><td>' + esc(x.tipo) + ' ' + esc(x.folio) + '</td>' +
+          '<td class="num">' + x.veces + '</td><td>' +
+          x.fechas.map(function(f){ return f ? fechaCorta(f) : 'sin fecha'; }).join(' · ') + '</td></tr>';
+      }).join('') + '</tbody></table></div>', r.repetidos.length)
+    : '<div class="revi bien">Ningún folio repetido.</div>';
+
+  html += '<h3 style="margin:26px 0 8px; font-size:14px;">Saltos de correlativa</h3>' +
+    '<p class="config-linea" style="margin:0 0 10px;">Folios que no aparecen en ninguna hoja. ' +
+    'Pueden ser anulados, pero también documentos que quedaron sin registrar.</p>';
+  html += r.saltos.length
+    ? recortable('<div class="contenedor-grilla"><table class="tabla-informe"><thead><tr><th>Tipo</th>' +
+      '<th>Entre</th><th class="num">Faltan</th></tr></thead><tbody>' +
+      r.saltos.map(function(s){
+        return '<tr><td>' + esc(s.tipo) + '</td><td>' + s.desde + ' y ' + s.hasta + '</td>' +
+          '<td class="num">' + s.faltan + '</td></tr>';
+      }).join('') + '</tbody></table></div>', r.saltos.length)
+    : '<div class="revi bien">La correlativa está completa.</div>';
+  return html;
 }
 async function abrirArchivo(ruta){
   try { await pedir('/api/abrir-archivo', { ruta: ruta }); }
@@ -1354,6 +1697,13 @@ document.addEventListener('focusout', function(){
 function acomodarPanel(){
   var alto = document.querySelector('.barra').offsetHeight;
   var panel = document.getElementById('panelEscaneo');
+  // Con el buscador o los informes abiertos no se pega: ahí no se está
+  // escaneando y solo taparía las tablas largas.
+  var otro = ['tarjetaBuscador', 'tarjetaInformes', 'tarjetaConfig'].some(function(id){
+    return document.getElementById(id).style.display !== 'none';
+  });
+  panel.style.position = otro ? 'static' : '';
+  if (otro) { panel.classList.remove('pegada'); return; }
   panel.style.top = (alto + 8) + 'px';
   // Sombra más marcada cuando queda flotando sobre el listado.
   panel.classList.toggle('pegada', panel.getBoundingClientRect().top <= alto + 10);

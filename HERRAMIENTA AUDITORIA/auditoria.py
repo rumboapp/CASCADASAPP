@@ -39,9 +39,12 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 import traceback
 import unicodedata
 import webbrowser
+import xml.etree.ElementTree as ElementTree
+import zipfile
 
 # ---------------------------------------------------------------------------
 # Pillow es obligatorio (arma los PDF). pywin32 solo en Windows.
@@ -1122,6 +1125,32 @@ def buscar_documentos(carpeta_base, consulta, tope=60):
     return resultados
 
 
+_cache_archivos = {"base": "", "hecho": 0.0, "indice": {}}
+
+
+def indice_archivos(carpeta_base, segundos=90):
+    """Todos los escaneados de la carpeta, ordenados por los numeros de su
+    nombre, para poder pegarle a cada linea de la planilla su archivo. Se
+    guarda un rato en memoria: recorrer años de carpetas en cada busqueda
+    seria un despilfarro."""
+    ahora = time.time()
+    if (_cache_archivos["base"] == carpeta_base
+            and ahora - _cache_archivos["hecho"] < segundos):
+        return _cache_archivos["indice"]
+    indice = {}
+    if carpeta_base and os.path.isdir(carpeta_base):
+        for base, carpetas, archivos in os.walk(carpeta_base):
+            carpetas.sort(reverse=True)
+            for archivo in archivos:
+                if archivo.startswith("~$"):
+                    continue
+                numeros = re.sub(r"\D", "", os.path.splitext(archivo)[0])
+                if numeros:
+                    indice.setdefault(numeros, []).append(os.path.join(base, archivo))
+    _cache_archivos.update({"base": carpeta_base, "hecho": ahora, "indice": indice})
+    return indice
+
+
 def abrir_archivo(ruta, carpeta_base):
     """Abre un archivo del buscador. Solo se permite dentro de la carpeta de
     escaneados: la pantalla corre en un navegador y no conviene que pueda
@@ -1139,6 +1168,458 @@ def abrir_archivo(ruta, carpeta_base):
     else:
         subprocess.Popen(["xdg-open", ruta])
     return ruta
+
+
+# ===========================================================================
+#  HISTORIAL DE LA PLANILLA
+#  Lee TODA la planilla, con sus años de hojas, para poder buscar cualquier
+#  documento y sacar informes. Es de solo lectura: se abre el archivo como lo
+#  que es por dentro (un zip con XML) sin pasar por Excel, asi que no puede
+#  modificar nada y da lo mismo si la planilla esta abierta en ese momento.
+# ===========================================================================
+_XNS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+_XNSR = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+
+
+def _xlsx_columna(referencia):
+    """'C4' -> 3"""
+    n = 0
+    for ch in referencia:
+        if not ch.isalpha():
+            break
+        n = n * 26 + (ord(ch.upper()) - 64)
+    return n
+
+
+def _xlsx_textos(z):
+    """El xlsx guarda cada texto una sola vez y lo referencia por numero."""
+    if "xl/sharedStrings.xml" not in z.namelist():
+        return []
+    fuera = []
+    for _, el in ElementTree.iterparse(z.open("xl/sharedStrings.xml"), ("end",)):
+        if el.tag == _XNS + "si":
+            fuera.append("".join(t.text or "" for t in el.iter(_XNS + "t")))
+            el.clear()
+    return fuera
+
+
+def _xlsx_filas(z, destino, textos):
+    filas = []
+    with z.open(destino) as f:
+        for _, el in ElementTree.iterparse(f, ("end",)):
+            if el.tag != _XNS + "row":
+                continue
+            fila = []
+            for celda in el.iter(_XNS + "c"):
+                col = _xlsx_columna(celda.get("r") or "")
+                if not col:
+                    continue
+                tipo = celda.get("t")
+                if tipo == "inlineStr":
+                    valor = "".join(t.text or "" for t in celda.iter(_XNS + "t"))
+                else:
+                    v = celda.find(_XNS + "v")
+                    valor = None if v is None else v.text
+                    if valor is not None and tipo == "s":
+                        try:
+                            valor = textos[int(valor)]
+                        except (ValueError, IndexError):
+                            valor = ""
+                    elif valor is not None and tipo not in ("str", "e"):
+                        try:
+                            valor = float(valor)
+                        except ValueError:
+                            pass
+                while len(fila) < col:
+                    fila.append(None)
+                fila[col - 1] = valor
+            filas.append(fila)
+            el.clear()
+    return filas
+
+
+def xlsx_hojas(ruta):
+    """[(nombre de la hoja, [fila, ...]), ...] en el orden de las pestañas."""
+    with zipfile.ZipFile(ruta) as z:
+        textos = _xlsx_textos(z)
+        destinos = {}
+        with z.open("xl/_rels/workbook.xml.rels") as f:
+            for rel in ElementTree.parse(f).getroot():
+                destinos[rel.get("Id")] = (rel.get("Target") or "").lstrip("/")
+        salida = []
+        with z.open("xl/workbook.xml") as f:
+            hojas = list(ElementTree.parse(f).getroot().iter(_XNS + "sheet"))
+        for h in hojas:
+            destino = destinos.get(h.get(_XNSR + "id"), "")
+            if not destino.startswith("xl/"):
+                destino = "xl/" + destino
+            if destino in z.namelist():
+                salida.append((h.get("name"), _xlsx_filas(z, destino, textos)))
+        return salida
+
+
+# Arreglos a mano de la planilla historica, confirmados por recepcion.
+HOJAS_IGNORADAS = {"02-01"}              # hoja suelta que descoloca el conteo de años
+HOJAS_RENOMBRADAS = {"07,01": "07-02"}   # se le fue el nombre al crearla
+
+# Encabezados que ha tenido la planilla a lo largo de los años. Se busca por
+# nombre y no por posicion, porque las hojas viejas parten en la columna B y
+# las nuevas en la C, y el titulo no siempre esta en la misma fila.
+ENCABEZADOS_PLANILLA = {
+    "TIPO DE DOCUMENTO": "tipo", "TIPO DOCUMENTO": "tipo", "TIPO": "tipo",
+    "FOLIO": "folio", "N FOLIO": "folio",
+    "NETO": "neto", "IVA": "iva", "TOTAL": "total",
+    "FORMA DE PAGO": "pago", "FORMA PAGO": "pago",
+    "OP": "autorizacion", "N AUTORIZACION": "autorizacion",
+    "NO AUTORIZACION": "autorizacion", "AUTORIZACION": "autorizacion",
+    "OBSERVACION": "observacion", "OBSERVACIONES": "observacion",
+}
+
+
+def _titulo(valor):
+    return re.sub(r"\s+", " ", _sin_tildes(str(valor or ""))).replace("º", "") \
+             .replace(".", "").replace(":", "").strip().upper()
+
+
+def _dia_mes_de_hoja(nombre):
+    """Aguanta '22-11', '23,11', '3103', '11-12 ' y '28.07.2026'."""
+    n = str(nombre or "").strip().replace(" ", "")
+    m = re.fullmatch(r"(\d{1,2})[-.,/_]?(\d{1,2})(?:[-.,/_](\d{2,4}))?", n)
+    if not m:
+        return None
+    dia, mes = int(m.group(1)), int(m.group(2))
+    if not (1 <= dia <= 31 and 1 <= mes <= 12):
+        return None
+    anio = m.group(3)
+    if anio:
+        anio = int(anio)
+        anio += 2000 if anio < 100 else 0
+    return dia, mes, anio
+
+
+def fechar_hojas(nombres):
+    """El año casi nunca esta en el nombre de la pestaña. Como las pestañas si
+    estan en orden cronologico, se deduce hacia atras desde la ultima (que si
+    lo trae), contando los saltos de diciembre a enero. Una hoja descolocada
+    no arrastra a las anteriores: se fecha, pero no mueve la cuenta."""
+    fechas, posterior = {}, None
+    for nombre in reversed(list(nombres)):
+        if nombre in HOJAS_IGNORADAS:
+            continue
+        dm = _dia_mes_de_hoja(HOJAS_RENOMBRADAS.get(nombre, nombre))
+        if not dm:
+            continue
+        dia, mes, anio = dm
+        if anio:
+            try:
+                fecha = datetime.date(anio, mes, dia)
+            except ValueError:
+                continue
+        elif posterior is None:
+            continue
+        else:
+            mejor = None
+            for candidato in (posterior.year, posterior.year - 1):
+                try:
+                    fecha = datetime.date(candidato, mes, dia)
+                except ValueError:
+                    continue
+                dias = (posterior - fecha).days
+                puntaje = (0 if 0 <= dias <= 40 else 1, abs(dias))
+                if mejor is None or puntaje < mejor[0]:
+                    mejor = (puntaje, fecha)
+            if not mejor:
+                continue
+            fecha = mejor[1]
+        fechas[nombre] = fecha
+        if posterior is None or 0 <= (posterior - fecha).days <= 40:
+            posterior = fecha
+    return fechas
+
+
+def normalizar_tipo(texto):
+    t = _titulo(texto)
+    if not t:
+        return ""
+    if "EXPORT" in t or "EXPOT" in t:
+        return "FACTURA EXPORTACION"
+    if t.startswith("FACTURA") or t.startswith("FCTURA"):
+        return "FACTURA"
+    if t.startswith("BOLET"):          # tambien 'BOLETS' y 'BOLETA (PENDIENTE)'
+        return "BOLETA"
+    # Alguna linea quedo corrida de columna y en TIPO hay cualquier cosa.
+    return "OTRO"
+
+
+# Un mismo pago se ha escrito de 200 maneras distintas ("TBK", "TRANSF.",
+# "TRASNFERENCIA", "TBK C-DB"). Para los informes hay que hablar un solo
+# idioma; el texto original se guarda igual, por si hay que mirarlo.
+_MEDIOS = [
+    (lambda t: t.startswith("TBK") or t == "TKK" or t.startswith("WEBPAY")
+     or t.startswith("WEB PAY") or "TARJETA" in t or "TDC" in t, "TARJETA"),
+    (lambda t: t.startswith("TRA") or t.startswith("TTRA") or t == "TF", "TRANSFERENCIA"),
+    (lambda t: t.startswith("EF") or t == "CASH", "EFECTIVO"),
+    (lambda t: t in ("DB", "D", "DN", "VD", "DEBITO", "REDCOMPRA"), "DB"),
+    (lambda t: t in ("VI", "V", "VISA"), "VISA"),
+    (lambda t: t in ("MC", "MASTERCARD"), "MC"),
+    (lambda t: t.startswith("CRED") or t == "CR", "CREDITO"),
+    (lambda t: t.startswith("CHEQUE") or t.startswith("DEPOSITO"), "CHEQUE / DEPÓSITO"),
+    (lambda t: t in ("OC",) or "ORDEN DE COMPRA" in t, "ORDEN DE COMPRA"),
+    (lambda t: t == "AX" or "AMEX" in t, "AMEX"),
+    (lambda t: t == "AIRBNB", "AIRBNB"),
+]
+_MARCAS = {"DB", "VISA", "MC", "CREDITO", "AMEX"}
+
+
+def _medio(trozo):
+    # La "C" suelta de "TBK C-DB" o "VI C" no dice nada por si sola.
+    t = re.sub(r"\bC\b", " ", _titulo(trozo)).strip()
+    if not t or t in ("C", "E", "X2", "PESOS", "PESO", "CLP"):
+        return None
+    for prueba, nombre in _MEDIOS:
+        if prueba(t):
+            return nombre
+    return t or None
+
+
+def normalizar_pago(texto):
+    """'TBK C-DB - TRANSFERENCIA' -> 'DB + TRANSFERENCIA'. Devuelve tambien si
+    el pago venia en dolares."""
+    crudo = _titulo(texto)
+    if not crudo:
+        return "", False
+    usd = bool(re.search(r"\b(USD|DOLAR|DOLARES)\b", crudo))
+    limpio = re.sub(r"\([^)]*\)", " ", crudo)                 # "(17-01-2026)"
+    limpio = re.sub(r"\b\d{1,2}[-/]\d{1,2}([-/]\d{2,4})?\b", " ", limpio)  # fechas sueltas
+    limpio = re.sub(r"\b(USD|DOLAR|DOLARES)\b", " ", limpio)
+    limpio = re.sub(r"\b\d{4,}\b", " ", limpio)               # numeros de documento
+    medios = []
+    for trozo in re.split(r"[+,/&]| Y | - |-", limpio):
+        m = _medio(trozo)
+        if m is None and trozo.strip():
+            # "TBK DB" no se separa por guiones: se prueba palabra por palabra.
+            for palabra in trozo.split():
+                p = _medio(palabra)
+                if p and p not in medios:
+                    medios.append(p)
+            continue
+        if m and m not in medios:
+            medios.append(m)
+    # Si ya se sabe la marca de la tarjeta, decir ademas "TARJETA" sobra.
+    if "TARJETA" in medios and any(m in _MARCAS for m in medios):
+        medios.remove("TARJETA")
+    # Se ordenan para que "TBK y transferencia" y "transferencia - TBK" queden
+    # como un solo grupo en los informes, que es lo que son.
+    return " + ".join(sorted(medios)), usd
+
+
+class Historial(object):
+    """Indice en memoria de toda la planilla. Se rehace solo cuando el archivo
+    cambia de fecha o de tamaño (por ejemplo, al escribir la hoja del día)."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.filas = []
+        self.hojas_ilegibles = []
+        self.total_hojas = 0
+        self.firma = None
+        self.leido_en = None
+        self.error = ""
+
+    @staticmethod
+    def _firma(ruta):
+        try:
+            e = os.stat(ruta)
+            return (int(e.st_mtime), e.st_size)
+        except OSError:
+            return None
+
+    def asegurar(self, ruta_excel, forzar=False):
+        if not ruta_excel or not os.path.exists(ruta_excel):
+            raise ValueError("No encuentro la planilla de auditoría. Indícala en Configuración.")
+        firma = self._firma(ruta_excel)
+        with self.lock:
+            if not forzar and self.firma == firma and self.filas:
+                return
+            self._leer(ruta_excel)
+            self.firma = firma
+
+    def _leer(self, ruta_excel):
+        inicio = time.time()
+        filas, ilegibles = [], []
+        hojas = xlsx_hojas(ruta_excel)
+        self.total_hojas = len(hojas)
+        fechas = fechar_hojas(n for n, _ in hojas)
+
+        for nombre, contenido in hojas:
+            if nombre in HOJAS_IGNORADAS:
+                continue
+            columnas, primera = {}, None
+            for i, fila in enumerate(contenido[:8]):
+                mapa = {}
+                for c, valor in enumerate(fila, 1):
+                    clave = ENCABEZADOS_PLANILLA.get(_titulo(valor))
+                    if clave and clave not in mapa:
+                        mapa[clave] = c
+                if "folio" in mapa and "total" in mapa:
+                    columnas, primera = mapa, i + 1
+                    break
+            if not columnas:
+                if any(any(v not in (None, "") for v in f) for f in contenido):
+                    ilegibles.append(nombre)
+                continue
+
+            fecha = fechas.get(nombre)
+            for fila in contenido[primera:]:
+                def valor(clave):
+                    c = columnas.get(clave)
+                    return fila[c - 1] if c and c - 1 < len(fila) else None
+
+                folio = valor("folio")
+                folio = "" if folio is None else str(folio).strip()
+                if folio.endswith(".0"):
+                    folio = folio[:-2]
+                if not folio:
+                    continue
+                # Alguna hoja repite los encabezados a media tabla.
+                if _titulo(valor("tipo")) in ENCABEZADOS_PLANILLA or _titulo(folio) == "FOLIO":
+                    continue
+                neto, iva = _numero(valor("neto")), _numero(valor("iva"))
+                total = _numero(valor("total"))
+                pago, usd = normalizar_pago(valor("pago"))
+                autorizacion = valor("autorizacion")
+                if isinstance(autorizacion, float) and autorizacion.is_integer():
+                    autorizacion = int(autorizacion)
+                filas.append({
+                    "hoja": nombre,
+                    "fecha": fecha.isoformat() if fecha else "",
+                    "tipo": normalizar_tipo(valor("tipo")) or "BOLETA",
+                    "tipoOriginal": _titulo(valor("tipo")),
+                    "folio": folio,
+                    "neto": neto, "iva": iva, "total": total,
+                    # El TOTAL de la planilla no siempre significo lo mismo: en
+                    # las hojas viejas trae la propina sumada. Lo que sirve para
+                    # comparar entre años es el afecto, neto + IVA.
+                    "afecto": (neto or 0) + (iva or 0) if (neto or iva) else None,
+                    "pago": pago, "pagoOriginal": _titulo(valor("pago")),
+                    "usd": usd,
+                    "autorizacion": str(autorizacion or "").strip(),
+                    "observacion": str(valor("observacion") or "").strip(),
+                })
+
+        self.filas = filas
+        self.hojas_ilegibles = ilegibles
+        self.leido_en = datetime.datetime.now()
+        self.error = ""
+        print("  Historial: %d documentos de %d hojas en %.1fs"
+              % (len(filas), self.total_hojas, time.time() - inicio))
+
+    # ---- consultas ----
+    def resumen(self):
+        fechas = [f["fecha"] for f in self.filas if f["fecha"]]
+        return {
+            "documentos": len(self.filas),
+            "hojas": self.total_hojas,
+            "ilegibles": self.hojas_ilegibles,
+            "desde": min(fechas) if fechas else "",
+            "hasta": max(fechas) if fechas else "",
+            "leidoEn": self.leido_en.strftime("%H:%M") if self.leido_en else "",
+        }
+
+    def buscar(self, consulta="", desde="", hasta="", tipo="", pago="", tope=300):
+        consulta = str(consulta or "").strip().upper()
+        solo_numeros = re.sub(r"\D", "", consulta)
+        salida = []
+        for f in self.filas:
+            if desde and (not f["fecha"] or f["fecha"] < desde):
+                continue
+            if hasta and (not f["fecha"] or f["fecha"] > hasta):
+                continue
+            if tipo and f["tipo"] != tipo:
+                continue
+            if pago and pago not in (f["pago"] or "").split(" + "):
+                continue
+            if consulta:
+                folio = re.sub(r"\D", "", f["folio"])
+                calza = (solo_numeros and solo_numeros in folio) \
+                    or consulta in (f["autorizacion"] or "").upper() \
+                    or consulta in (f["observacion"] or "").upper()
+                if not calza:
+                    continue
+            salida.append(f)
+        salida.sort(key=lambda f: (f["fecha"], f["folio"]), reverse=True)
+        return salida[:tope], len(salida)
+
+    def informe(self, cual, desde="", hasta=""):
+        filas = [f for f in self.filas
+                 if (not desde or (f["fecha"] and f["fecha"] >= desde))
+                 and (not hasta or (f["fecha"] and f["fecha"] <= hasta))]
+        if cual == "meses":
+            return self._agrupado(filas, lambda f: f["fecha"][:7] if f["fecha"] else "sin fecha")
+        if cual == "pagos":
+            return self._agrupado(filas, lambda f: f["pago"] or "SIN INDICAR")
+        if cual == "tipos":
+            return self._agrupado(filas, lambda f: f["tipo"])
+        if cual == "revision":
+            return self._revision(filas)
+        raise ValueError("Informe desconocido.")
+
+    @staticmethod
+    def _agrupado(filas, clave):
+        grupos = {}
+        for f in filas:
+            g = grupos.setdefault(clave(f), {"grupo": clave(f), "documentos": 0,
+                                             "neto": 0.0, "iva": 0.0, "afecto": 0.0})
+            g["documentos"] += 1
+            g["neto"] += f["neto"] or 0
+            g["iva"] += f["iva"] or 0
+            g["afecto"] += f["afecto"] or 0
+        return sorted(grupos.values(), key=lambda g: g["grupo"])
+
+    @staticmethod
+    def _revision(filas):
+        """Lo que no cuadra en el historico. Es un informe, no una alarma: la
+        planilla no se toca, solo se mira."""
+        saltos, descuadres, propinas = [], [], 0
+        vistos = {}
+        for f in filas:
+            if not f["folio"].isdigit():
+                continue
+            vistos.setdefault((f["tipo"], f["folio"]), []).append(f["fecha"])
+        repetidos = [{"tipo": tipo, "folio": folio, "veces": len(fechas),
+                      "fechas": sorted(set(fechas))}
+                     for (tipo, folio), fechas in vistos.items() if len(fechas) > 1]
+        repetidos.sort(key=lambda r: (r["fechas"][0], r["folio"]))
+
+        for f in filas:
+            if f["neto"] is None or f["iva"] is None or f["total"] is None:
+                continue
+            diferencia = f["total"] - (f["neto"] + f["iva"])
+            if abs(diferencia) <= 2:
+                continue
+            # Diferencia de exactamente un 10%: es la propina, no un error.
+            if abs(diferencia - 0.10 * (f["neto"] + f["iva"])) <= 3:
+                propinas += 1
+                continue
+            descuadres.append({"fecha": f["fecha"], "hoja": f["hoja"], "tipo": f["tipo"],
+                               "folio": f["folio"], "neto": f["neto"], "iva": f["iva"],
+                               "total": f["total"], "diferencia": round(diferencia)})
+
+        for tipo in ("BOLETA", "FACTURA", "FACTURA EXPORTACION"):
+            folios = sorted({int(f["folio"]) for f in filas
+                             if f["tipo"] == tipo and f["folio"].isdigit()})
+            for a, b in zip(folios, folios[1:]):
+                if 1 < b - a <= 30:      # saltos enormes son cambios de serie
+                    saltos.append({"tipo": tipo, "desde": a, "hasta": b,
+                                   "faltan": b - a - 1})
+        return {
+            "repetidos": repetidos[:200], "totalRepetidos": len(repetidos),
+            "saltos": saltos[:200], "totalSaltos": len(saltos),
+            "descuadres": sorted(descuadres, key=lambda d: -abs(d["diferencia"]))[:200],
+            "totalDescuadres": len(descuadres),
+            "conPropina": propinas,
+            "documentos": len(filas),
+        }
 
 
 # ===========================================================================
@@ -1182,6 +1663,7 @@ class Aplicacion(object):
         self.fecha = fecha_por_defecto()
         self.estado = EstadoDia(self.fecha)
         self.escaner = Escaner()
+        self.historial = Historial()
         # Primera vez: se intenta reconocer sola la carpeta de escaneados.
         if not (self.cfg.get("carpeta_base") or "").strip():
             encontrada = buscar_carpeta_escaneados()
@@ -1287,6 +1769,41 @@ class Aplicacion(object):
             guardar_config(self.cfg)
         return abrir_correo(self.cfg, self.fecha, self.estado.documentos,
                             nombre, self.estado.carpeta_trabajo)
+
+    # ---- historial de la planilla ----
+    def historial_estado(self, forzar=False):
+        self.historial.asegurar(self.cfg.get("archivo_excel"), forzar=forzar)
+        resumen = self.historial.resumen()
+        resumen["tipos"] = sorted({f["tipo"] for f in self.historial.filas})
+        medios = set()
+        for f in self.historial.filas:
+            medios.update(p for p in (f["pago"] or "").split(" + ") if p)
+        resumen["pagos"] = sorted(medios)
+        return resumen
+
+    def historial_buscar(self, filtros):
+        self.historial.asegurar(self.cfg.get("archivo_excel"))
+        resultados, total = self.historial.buscar(
+            filtros.get("consulta", ""), filtros.get("desde", ""),
+            filtros.get("hasta", ""), filtros.get("tipo", ""), filtros.get("pago", ""))
+        # A cada linea se le engancha su escaneo, si esta en la carpeta.
+        indice = indice_archivos(self.cfg.get("carpeta_base") or "")
+        base = self.cfg.get("carpeta_base") or ""
+        salida = []
+        for f in resultados:
+            copia = dict(f)
+            numeros = re.sub(r"\D", "", f["folio"])
+            copia["archivos"] = [
+                {"nombre": os.path.basename(r),
+                 "ruta": r,
+                 "ubicacion": os.path.relpath(os.path.dirname(r), base).replace("\\", " · ")}
+                for r in indice.get(numeros, [])[:6]] if numeros else []
+            salida.append(copia)
+        return {"resultados": salida, "total": total}
+
+    def historial_informe(self, cual, desde="", hasta=""):
+        self.historial.asegurar(self.cfg.get("archivo_excel"))
+        return self.historial.informe(cual, desde, hasta)
 
     def agregar_remitente(self, nombre):
         nombre = (nombre or "").strip()
@@ -1680,6 +2197,16 @@ class Manejador(http.server.BaseHTTPRequestHandler):
                                    "resultado": APP.abrir_correo(cuerpo.get("remitente"),
                                                                  bool(cuerpo.get("forzar")),
                                                                  bool(cuerpo.get("sinPlanilla")))})
+            if ruta == "/api/historial/estado":
+                return self._json({"ok": True,
+                                   "historial": APP.historial_estado(bool(cuerpo.get("forzar")))})
+            if ruta == "/api/historial/buscar":
+                return self._json({"ok": True, **APP.historial_buscar(cuerpo)})
+            if ruta == "/api/historial/informe":
+                return self._json({"ok": True,
+                                   "informe": APP.historial_informe(cuerpo.get("cual"),
+                                                                    cuerpo.get("desde", ""),
+                                                                    cuerpo.get("hasta", ""))})
             if ruta == "/api/remitente/agregar":
                 return self._json({"ok": True, "remitentes": APP.agregar_remitente(cuerpo.get("nombre"))})
             if ruta == "/api/remitente/eliminar":
