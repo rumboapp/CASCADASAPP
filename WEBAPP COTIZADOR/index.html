@@ -366,11 +366,39 @@
                  y obligan a cobrar las noches siguientes a otro valor. Mientras no
                  se agregue ninguno, esta zona es solo el enlace de abajo. -->
             <div id="tramos-extra" class="space-y-3"></div>
-            <div class="px-2">
+            <div class="px-2 flex flex-wrap items-center gap-2">
               <button type="button" onclick="agregarTramoExtra()"
                       class="w-full sm:w-auto border-2 border-dashed border-slate-300 hover:border-slate-900 bg-white hover:bg-slate-900 text-slate-700 hover:text-white px-5 py-3 rounded-xl text-sm font-bold tracking-wide transition-all cursor-pointer">
                 <i class="fa-solid fa-calendar-plus mr-2"></i> Noches con otra tarifa
               </button>
+              <!-- Descuento: se usa muy de vez en cuando, así que queda como un
+                   enlace discreto y el cuadro solo aparece si se pide. -->
+              <button type="button" id="btn-descuento" onclick="alternarDescuento()"
+                      class="text-xs font-bold text-slate-400 hover:text-slate-900 uppercase tracking-wide px-3 py-3 cursor-pointer transition-colors">
+                <i class="fa-solid fa-tag mr-1.5"></i> Aplicar descuento
+              </button>
+            </div>
+
+            <!-- Cuadro del descuento, oculto por defecto -->
+            <div id="caja-descuento" class="hidden px-2">
+              <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-wrap items-end gap-3">
+                <div>
+                  <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Descuento %</label>
+                  <input type="number" id="descuento_pct" min="0" max="100" step="0.5" placeholder="0"
+                         oninput="refrescarDescuento()"
+                         class="w-24 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-right focus:border-slate-900 focus:outline-none">
+                </div>
+                <div class="flex-1 min-w-[200px]">
+                  <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Motivo del descuento</label>
+                  <input type="text" id="descuento_razon" maxlength="80" placeholder="Ej: cliente frecuente, convenio, cortesía"
+                         class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-slate-900 focus:outline-none">
+                </div>
+                <div id="lbl-descuento" class="text-xs text-slate-500 font-bold pb-2.5"></div>
+                <button type="button" onclick="quitarDescuento()"
+                        class="text-xs font-bold text-slate-400 hover:text-red-600 pb-2.5 cursor-pointer transition-colors">
+                  <i class="fa-solid fa-xmark mr-1"></i>Quitar
+                </button>
+              </div>
             </div>
           </div>
 
@@ -905,22 +933,25 @@
       fpEstadia = flatpickr("#calendario_estadia", {
         locale: "es", mode: "range", minDate: "today", dateFormat: "Y-m-d",
         onChange: function(selectedDates) {
+          /* Las fechas se pasan a texto con _fechaAIso, que las lee como se
+             ven en el calendario. Con toISOString se convertían a UTC y eso
+             puede correr el día completo. Y las noches las cuenta
+             _nochesEntre, que no se deja engañar por el cambio de hora. */
           if (selectedDates.length === 1) {
             let nd = new Date(selectedDates[0]); nd.setDate(nd.getDate() + 1);
-            let inStr = selectedDates[0].toISOString().split('T')[0];
-            let outStr = nd.toISOString().split('T')[0];
+            let inStr = _fechaAIso(selectedDates[0]);
+            let outStr = _fechaAIso(nd);
             document.getElementById('lbl-checkin').innerText = fl(inStr);
             document.getElementById('lbl-checkout').innerText = fl(outStr);
             document.getElementById('night-count').innerText = "1";
             datesSelected.checkin = inStr; datesSelected.checkout = outStr;
           }
           if (selectedDates.length === 2) {
-            let inStr = selectedDates[0].toISOString().split('T')[0];
-            let outStr = selectedDates[1].toISOString().split('T')[0];
-            let diff = Math.floor((selectedDates[1] - selectedDates[0]) / 86400000);
+            let inStr = _fechaAIso(selectedDates[0]);
+            let outStr = _fechaAIso(selectedDates[1]);
             document.getElementById('lbl-checkin').innerText = fl(inStr);
             document.getElementById('lbl-checkout').innerText = fl(outStr);
-            document.getElementById('night-count').innerText = diff;
+            document.getElementById('night-count').innerText = _nochesEntre(inStr, outStr);
             datesSelected.checkin = inStr; datesSelected.checkout = outStr;
           }
         }
@@ -1573,6 +1604,7 @@ function refrescarDatosServidor() {
       document.getElementById('lista-requerimientos-extras').innerHTML = "";
       requerimientosExtrasDinamicos = [];
       resetAmenidades();
+      quitarDescuento();       // que no se arrastre a la cotización siguiente
       document.getElementById('download-box').classList.add('hidden');
       document.getElementById('download-box').innerHTML = "";
     }
@@ -1635,9 +1667,17 @@ function refrescarDatosServidor() {
     function _fechaAIso(d) {
       return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     }
+    /* Las noches se cuentan sobre fechas ancladas en UTC, no restando
+       milisegundos entre fechas locales. En Chile el reloj se adelanta la
+       primera madrugada de septiembre: ese día dura 23 horas y del 4 al 7
+       hay 71 horas en vez de 72, así que la resta daba 2,96 noches. En UTC
+       no existe el cambio de hora y un día siempre son 24 horas justas. */
     function _nochesEntre(isoA, isoB) {
       if (!isoA || !isoB) return 0;
-      return Math.round((_isoAFecha(isoB) - _isoAFecha(isoA)) / 86400000);
+      let a = String(isoA).split('-'), b = String(isoB).split('-');
+      if (a.length < 3 || b.length < 3) return 0;
+      let ms = Date.UTC(+b[0], +b[1] - 1, +b[2]) - Date.UTC(+a[0], +a[1] - 1, +a[2]);
+      return Math.round(ms / 86400000);
     }
     /* Última fecha ya comprometida: el tramo nuevo arranca ahí, de modo que las
        noches se encadenan sin dejar huecos ni superponerse. */
@@ -1727,6 +1767,66 @@ function refrescarDatosServidor() {
           total: p * c * noches, checkin: checkin, checkout: checkout, noches: noches
         };
       });
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  DESCUENTO
+    //  Ocasional: un porcentaje sobre el subtotal, con el motivo escrito para
+    //  que quede constancia de por qué se dio. Se aplica ANTES del IVA, que
+    //  es como corresponde: el impuesto se calcula sobre lo que se cobra.
+    // ─────────────────────────────────────────────────────────
+    function alternarDescuento() {
+      let caja = document.getElementById('caja-descuento');
+      caja.classList.toggle('hidden');
+      if (!caja.classList.contains('hidden')) document.getElementById('descuento_pct').focus();
+    }
+
+    function quitarDescuento() {
+      document.getElementById('descuento_pct').value = '';
+      document.getElementById('descuento_razon').value = '';
+      document.getElementById('caja-descuento').classList.add('hidden');
+      refrescarDescuento();
+    }
+
+    /* Lee el porcentaje escrito, acotado entre 0 y 100. */
+    function _pctDescuento() {
+      let el = document.getElementById('descuento_pct');
+      if (!el) return 0;
+      let p = parseFloat(String(el.value).replace(',', '.'));
+      if (isNaN(p) || p <= 0) return 0;
+      return Math.min(p, 100);
+    }
+
+    /* Guarda el descuento en el payload y recalcula IVA y total. La base
+       imponible es el subtotal menos el descuento: el IVA se cobra sobre lo
+       que efectivamente se paga, no sobre el precio de lista. */
+    function _aplicarDescuento(payload, sub) {
+      let pct = _pctDescuento();
+      let razon = (document.getElementById('descuento_razon').value || '').trim();
+      payload.descuento_pct = pct;
+      payload.descuento_razon = pct > 0 ? razon : '';
+      payload.descuento_monto = pct > 0 ? Math.round(sub * pct / 100) : 0;
+      let base = sub - payload.descuento_monto;
+      payload.iva = payload.exento ? 0 : Math.round(base * 0.19);
+      payload.total = base + payload.iva;
+      return payload;
+    }
+
+    function refrescarDescuento() {
+      let lbl = document.getElementById('lbl-descuento');
+      if (!lbl) return;
+      let p = _pctDescuento();
+      // El botón queda marcado mientras haya un descuento puesto, para que no
+      // se escape uno olvidado con el cuadro cerrado.
+      let btn = document.getElementById('btn-descuento');
+      if (btn) {
+        btn.classList.toggle('text-slate-900', p > 0);
+        btn.classList.toggle('text-slate-400', p === 0);
+        btn.innerHTML = p > 0
+          ? '<i class="fa-solid fa-tag mr-1.5"></i> Descuento ' + p + '%'
+          : '<i class="fa-solid fa-tag mr-1.5"></i> Aplicar descuento';
+      }
+      lbl.textContent = p > 0 ? 'Se descuenta ' + p + '% del subtotal' : '';
     }
 
     // ─────────────────────────────────────────────────────────
@@ -2530,7 +2630,9 @@ function refrescarDatosServidor() {
           });
           sub = payload.subtotal || 0;
           iva = payload.exento ? 0 : (payload.iva != null ? payload.iva : Math.round(sub * 0.19));
-          total = payload.exento ? sub : (payload.total != null ? payload.total : sub + iva);
+          // En USD no hay IVA, pero el descuento igual tiene que bajar el total:
+          // por eso se usa el total ya calculado antes de mirar si es exento.
+          total = payload.total != null ? payload.total : (payload.exento ? sub : sub + iva);
         } else {
           var cant = payload.cantidad_programa || 1;
           var neto = payload.total_programa || 0;
@@ -2540,10 +2642,23 @@ function refrescarDatosServidor() {
             { texto: payload.checkin }, { texto: payload.checkout }, { texto: String(payload.noches) },
             { texto: fm(unit) }, { texto: fm(neto) }
           ]});
-          sub = neto; iva = payload.exento ? 0 : Math.round(sub * 0.19); total = sub + iva;
+          // Si hay descuento, el IVA y el total ya vienen calculados sobre la
+          // base rebajada: se respetan en vez de recalcularlos sobre el neto.
+          sub = neto;
+          iva = payload.exento ? 0 : (payload.iva != null ? payload.iva : Math.round(sub * 0.19));
+          total = payload.total != null ? payload.total : sub + iva;
         }
         var vac = [{ vacia: true }, { vacia: true }, { vacia: true }, { vacia: true }, { vacia: true }];
         filas.push({ celdas: vac.concat([{ texto: T.subtotal }, { texto: fm(sub) }]) });
+        // El descuento aparece con su porcentaje y su motivo, para que el
+        // huesped vea de donde sale la rebaja. Solo si hay uno puesto.
+        if (payload.descuento_monto > 0) {
+          filas.push({ celdas: vac.concat([
+            { texto: T.descuento + ' ' + payload.descuento_pct + '%' +
+                     (payload.descuento_razon ? ' (' + payload.descuento_razon + ')' : '') },
+            { texto: '-' + fm(payload.descuento_monto) }
+          ]) });
+        }
         if (payload.exento) {
           filas.push({ celdas: vac.concat([{ texto: T.ivaExento }, { texto: T.exento }]) });
         } else {
@@ -3448,7 +3563,9 @@ function refrescarDatosServidor() {
           });
           sub = payload.subtotal || 0;
           iva = payload.exento ? 0 : (payload.iva != null ? payload.iva : Math.round(sub * 0.19));
-          total = payload.exento ? sub : (payload.total != null ? payload.total : sub + iva);
+          // En USD no hay IVA, pero el descuento igual tiene que bajar el total:
+          // por eso se usa el total ya calculado antes de mirar si es exento.
+          total = payload.total != null ? payload.total : (payload.exento ? sub : sub + iva);
         } else {
           let cant = payload.cantidad_programa || 1;
           let neto = payload.total_programa || 0;
@@ -3458,10 +3575,23 @@ function refrescarDatosServidor() {
             { texto: payload.checkin }, { texto: payload.checkout }, { texto: String(payload.noches) },
             { texto: fm(unit) }, { texto: fm(neto) }
           ]});
-          sub = neto; iva = payload.exento ? 0 : Math.round(sub * 0.19); total = sub + iva;
+          // Si hay descuento, el IVA y el total ya vienen calculados sobre la
+          // base rebajada: se respetan en vez de recalcularlos sobre el neto.
+          sub = neto;
+          iva = payload.exento ? 0 : (payload.iva != null ? payload.iva : Math.round(sub * 0.19));
+          total = payload.total != null ? payload.total : sub + iva;
         }
         let vac = [{ vacia: true }, { vacia: true }, { vacia: true }, { vacia: true }, { vacia: true }];
         filas.push({ celdas: vac.concat([{ texto: T.subtotal }, { texto: fm(sub) }]) });
+        // El descuento aparece con su porcentaje y su motivo, para que el
+        // huesped vea de donde sale la rebaja. Solo si hay uno puesto.
+        if (payload.descuento_monto > 0) {
+          filas.push({ celdas: vac.concat([
+            { texto: T.descuento + ' ' + payload.descuento_pct + '%' +
+                     (payload.descuento_razon ? ' (' + payload.descuento_razon + ')' : '') },
+            { texto: '-' + fm(payload.descuento_monto) }
+          ]) });
+        }
         if (payload.exento) {
           filas.push({ celdas: vac.concat([{ texto: T.ivaExento }, { texto: T.exento }]) });
         } else {
@@ -3728,8 +3858,7 @@ function refrescarDatosServidor() {
         payload.adicionales_costo = adicionalesCostoEstandar.length > 0 ? adicionalesCostoEstandar : [];
         adicionalesCostoEstandar.forEach(a => { sub += a.total; });
         payload.subtotal = sub;
-        payload.iva = payload.exento ? 0 : Math.round(sub * 0.19);
-        payload.total = sub + payload.iva;
+        _aplicarDescuento(payload, sub);
         payload.nombre_programa = "";
       } else {
         payload.nombre_programa = document.getElementById('nombre_programa').value || "Programa Personalizado";
@@ -3758,6 +3887,8 @@ function refrescarDatosServidor() {
         requerimientosExtrasDinamicos.forEach(req => ticks.push(req.texto));
         payload.ticks = ticks;
         payload.habitaciones_programa = habitacionesProgramaSel();
+        // El programa cobra un valor único; el descuento va igual sobre él.
+        _aplicarDescuento(payload, payload.total_programa || 0);
       }
       return payload;
     }
@@ -3806,6 +3937,7 @@ function refrescarDatosServidor() {
         thServicio: 'Servicio habitación', thCant: 'Cantidad', thIn: 'check-in', thOut: 'check-out',
         thNoches: 'noches', thValor: 'valor por noche', thTotal: 'total por habitaciones',
         subtotal: 'Subtotal Neto', iva: 'IVA 19%', ivaExento: 'IVA', exento: 'Exento', total: 'Total',
+        descuento: 'Descuento',
         programa: 'Programa ', coberturas: 'Servicios Coberturas Especiales Incluidas',
         alojamiento: 'Alojamiento incluido: ', prefijoPrograma: 'Programa: '
       },
@@ -3813,6 +3945,7 @@ function refrescarDatosServidor() {
         thServicio: 'Room / Service', thCant: 'Qty', thIn: 'check-in', thOut: 'check-out',
         thNoches: 'nights', thValor: 'rate per night', thTotal: 'total',
         subtotal: 'Subtotal (Net)', iva: 'VAT 19%', ivaExento: 'VAT', exento: 'Exempt', total: 'Total',
+        descuento: 'Discount',
         programa: 'Program ', coberturas: 'Special Services & Coverages Included',
         alojamiento: 'Accommodation included: ', prefijoPrograma: 'Program: '
       },
@@ -3820,6 +3953,7 @@ function refrescarDatosServidor() {
         thServicio: 'Quarto / Serviço', thCant: 'Qtd.', thIn: 'check-in', thOut: 'check-out',
         thNoches: 'noites', thValor: 'valor por noite', thTotal: 'total',
         subtotal: 'Subtotal (Líquido)', iva: 'IVA 19%', ivaExento: 'IVA', exento: 'Isento', total: 'Total',
+        descuento: 'Desconto',
         programa: 'Programa ', coberturas: 'Serviços e Coberturas Especiais Incluídos',
         alojamiento: 'Hospedagem incluída: ', prefijoPrograma: 'Programa: '
       }

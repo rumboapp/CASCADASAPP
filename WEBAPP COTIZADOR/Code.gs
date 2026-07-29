@@ -570,6 +570,23 @@ function registrarEnHistorial(ss, datos, linkPdf) {
     var monedaTxt = (String(datos.moneda).toUpperCase() === "USD") ? "USD" : "CLP";
     var factorIva = (monedaTxt === "USD") ? 1 : 1.19;
 
+    /* El descuento se anota como una línea propia en negativo, igual que los
+       adicionales. Así la suma de las filas del historial sigue dando el total
+       que se cotizó, en vez de repartir la rebaja entre las habitaciones. */
+    function anotarDescuento(tipoTxt) {
+      var monto = Number(datos.descuento_monto || 0);
+      if (!(monto > 0)) return;
+      var etiqueta = "Descuento " + (datos.descuento_pct || 0) + "%" +
+                     (datos.descuento_razon ? " (" + datos.descuento_razon + ")" : "");
+      var fila = [ahora, datos.nombre_cliente || "", tipoTxt, etiqueta,
+                  checkin, checkout, 0, -monto, -Math.round(monto * factorIva),
+                  link, monedaTxt];
+      sheet.appendRow(fila);
+      var uf = sheet.getLastRow();
+      sheet.getRange(uf, 8).setNumberFormat("0");
+      sheet.getRange(uf, 9).setNumberFormat("0");
+    }
+
     if (datos.tipo_cotizacion === "programa") {
       var neto  = Number(datos.total_programa || 0);
       var total = Math.round(neto * factorIva);
@@ -584,6 +601,7 @@ function registrarEnHistorial(ss, datos, linkPdf) {
       var uf = sheet.getLastRow();
       sheet.getRange(uf, 8).setNumberFormat("0");
       sheet.getRange(uf, 9).setNumberFormat("0");
+      anotarDescuento("Programa");
 
     } else {
       if (datos.habitaciones && datos.habitaciones.length > 0) {
@@ -642,6 +660,8 @@ function registrarEnHistorial(ss, datos, linkPdf) {
             sheet.getRange(uf, 9).setNumberFormat("0");
           });
         }
+
+        anotarDescuento("Estándar");
 
       } else {
         var neto  = Number(datos.subtotal || 0);
