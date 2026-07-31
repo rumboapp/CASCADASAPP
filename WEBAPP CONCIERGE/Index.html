@@ -1027,6 +1027,7 @@ var I18N = {
     programar_hora: 'Programar hora', elige_hora_pedido: 'Elige una hora',
     entrega_a_hab: 'Entrega a la habitacion',
     confirmar_pedido: 'Confirmar pedido',
+    pedido_despues_confirmar: 'Podras elegir tu pedido despues de confirmar tu reserva.',
     pedido_recibido: 'Pedido recibido',
     pedido_recibido_ahora: 'La cocina lo esta preparando. Llegara a tu habitacion lo antes posible.',
     pedido_recibido_hora: 'Tu pedido quedo agendado para las {hora}.',
@@ -1106,6 +1107,7 @@ var I18N = {
     programar_hora: 'Schedule a time', elige_hora_pedido: 'Choose a time',
     entrega_a_hab: 'Delivery to your room',
     confirmar_pedido: 'Confirm order',
+    pedido_despues_confirmar: 'You can choose your order after confirming your booking.',
     pedido_recibido: 'Order received',
     pedido_recibido_ahora: 'The kitchen is preparing it. It will arrive at your room as soon as possible.',
     pedido_recibido_hora: 'Your order is scheduled for {hora}.',
@@ -1801,6 +1803,11 @@ function seleccionarServicioHuesped(servicioID) {
     '<div id="resHorarios" class="grid grid-cols-3 gap-2 mb-3"></div>' +
     '<label class="lbl">' + t('notas_opcional') + '</label>' +
     '<textarea id="resNotas" class="input mb-4" rows="2" placeholder="' + t('notas_ph') + '"></textarea>' +
+    // Aviso: en el restaurant el pedido se elige DESPUES de confirmar la
+    // reserva, para que nadie crea que al confirmar ya no puede pedir.
+    (s.PermitePrepedido && prepedidoDisponible()
+      ? '<p class="text-xs opacity-70 mb-2 text-center"><i class="fa-solid fa-circle-info"></i> ' + t('pedido_despues_confirmar') + '</p>'
+      : '') +
     '<button class="btn btn-primary w-full" id="btnConfirmarReserva" onclick="confirmarReserva()" disabled>' +
       '<i class="fa-solid fa-check"></i> ' + t('confirmar_reserva') + '</button>';
 
@@ -1833,12 +1840,15 @@ function seleccionarVarianteHuesped(el, nombre) {
 
 /* Elige donde se entregara el pedido, ANTES de confirmar la reserva. */
 function elegirEntregaHuesped(donde) {
-  if (donde === 'Habitacion' && String(APP.config.PEDIDO_HABITACION_ACTIVO || 'TRUE').toUpperCase() === 'FALSE') return;
+  if (donde === 'Habitacion' && !habilitadoPedidoHabitacion()) return;
+  // "A la habitacion" desde el panel de restaurant NO reserva mesa: lleva
+  // directo al pedido a la pieza (carta -> carrito -> ahora/programar). Asi
+  // nadie queda pegado en "Confirmar reserva" pensando que ya no puede pedir.
+  if (donde === 'Habitacion') { pedirAMiHabitacion(); return; }
   APP.entregaHuesped = donde;
   var rest = document.getElementById('servEntRest'), hab = document.getElementById('servEntHab');
-  var esHab = donde === 'Habitacion';
-  if (rest) { rest.classList.toggle('btn-dorado', !esHab); rest.classList.toggle('btn-outline', esHab); }
-  if (hab) { hab.classList.toggle('btn-dorado', esHab); hab.classList.toggle('btn-outline', !esHab); }
+  if (rest) { rest.classList.add('btn-dorado'); rest.classList.remove('btn-outline'); }
+  if (hab) { hab.classList.add('btn-outline'); hab.classList.remove('btn-dorado'); }
 }
 
 function buscarHorarios() {
@@ -2451,15 +2461,23 @@ function guardarPrepedido() {
    ========================================================================== */
 function pedirAMiHabitacion() {
   if (!habilitadoPedidoHabitacion()) { mostrarToast(t('hab_no_disponible'), 'error'); return; }
-  if (!restaurantAbiertoAhora()) { mostrarToast(t('restaurant_cerrado_pedido'), 'error'); return; }
+  if (!prepedidoDisponible()) { mostrarToast(t('prepedido_no_disponible'), 'error'); return; }
   if (!APP.habitacion) { mostrarToast(t('ingresa_hab'), 'error'); return; }
+
+  // Si el restaurant ya cerro por hoy y no quedan horas para agendar, no hay
+  // nada que pedir. Si esta abierto ahora -> "Ahora"; si aun no abre pero
+  // quedan horas hoy -> se agenda.
+  var abiertoAhora = restaurantAbiertoAhora();
+  if (!abiertoAhora && !horasParaProgramar().length) {
+    mostrarToast(t('restaurant_cerrado_pedido'), 'error'); return;
+  }
 
   APP.reservaPrepedido = null;          // todavia no hay reserva: se crea al confirmar
   APP.prepedidoOrigen = 'huesped_hab';
   APP.carrito = [];
   APP.pedidoEntrega = 'Habitacion';
   APP.pedidoNotasPrevias = '';
-  APP.cuandoPedido = 'ahora';
+  APP.cuandoPedido = abiertoAhora ? 'ahora' : 'programar';
   APP.horaPedidoProgramada = null;
 
   asegurarCarta().then(function () {
@@ -2470,6 +2488,7 @@ function pedirAMiHabitacion() {
 }
 
 function renderModalPedidoHabitacion() {
+  var abiertoAhora = restaurantAbiertoAhora();
   var categoriasConProductos = APP.carta.categorias.filter(function (c) {
     var arr = APP.carta.productosPorCategoria[c.ID];
     return arr && arr.length;
@@ -2486,13 +2505,17 @@ function renderModalPedidoHabitacion() {
       (recargoHabitacion() > 0 ? ' <span class="opacity-70">(+' + fmtMoneda(recargoHabitacion()) + ')</span>' : '') + '</span>' +
     '</div>' +
 
-    // ¿Cuando? Ahora (por defecto) o programar una hora.
+    // ¿Cuando? Ahora (si el restaurant esta abierto) o programar una hora. Si
+    // esta cerrado ahora, "Ahora" queda deshabilitado y se agenda para hoy.
     '<label class="lbl">' + t('cuando') + '</label>' +
     '<div class="grid grid-cols-2 gap-2 mb-2">' +
-      '<button type="button" id="cuandoAhora" class="btn btn-dorado flex-col !py-2" onclick="elegirCuandoPedido(\'ahora\')">' +
+      '<button type="button" id="cuandoAhora" class="btn ' +
+        (abiertoAhora && APP.cuandoPedido !== 'programar' ? 'btn-dorado' : 'btn-outline') + ' flex-col !py-2"' +
+        (abiertoAhora ? ' onclick="elegirCuandoPedido(\'ahora\')"' : ' disabled style="opacity:.45;cursor:not-allowed"') + '>' +
         '<span><i class="fa-solid fa-bolt"></i> ' + t('ahora') + '</span>' +
-        '<span class="text-xs opacity-80">' + t('ahora_sub') + '</span></button>' +
-      '<button type="button" id="cuandoProgramar" class="btn btn-outline flex-col !py-2" onclick="elegirCuandoPedido(\'programar\')">' +
+        '<span class="text-xs opacity-80">' + (abiertoAhora ? t('ahora_sub') : t('restaurant_cerrado_pedido')) + '</span></button>' +
+      '<button type="button" id="cuandoProgramar" class="btn ' +
+        (!abiertoAhora || APP.cuandoPedido === 'programar' ? 'btn-dorado' : 'btn-outline') + ' flex-col !py-2" onclick="elegirCuandoPedido(\'programar\')">' +
         '<span><i class="fa-regular fa-clock"></i> ' + t('programar_hora') + '</span></button>' +
     '</div>' +
     '<div id="horasPedidoHab" class="oculto grid grid-cols-3 gap-2 mb-3"></div>' +
@@ -2518,6 +2541,8 @@ function renderModalPedidoHabitacion() {
 
   if (categoriasConProductos[0]) cargarProductosPrepedido(categoriasConProductos[0].ID, null);
   renderCarritoPrepedido();
+  // Si arranca en "programar" (restaurant cerrado ahora), muestra las horas.
+  if (APP.cuandoPedido === 'programar') elegirCuandoPedido('programar');
 }
 
 /* Alterna entre "Ahora" y "Programar hora". */
