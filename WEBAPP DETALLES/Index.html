@@ -148,7 +148,9 @@
         </div>
         <div class="acciones">
           <button class="btn btn-ghost" onclick="volverInicio()"><i class="fa-solid fa-arrow-left"></i> <span data-t="btn_cambiar">Cambiar tipo</span></button>
-          <button class="btn btn-dark" onclick="generarPDF()"><i class="fa-solid fa-file-arrow-down"></i> <span data-t="btn_pdf">Generar tarjeta (PDF)</span></button>
+          <button class="btn btn-dark" onclick="generarPDF()"><i class="fa-solid fa-file-pdf"></i> <span data-t="btn_pdf">PDF</span></button>
+          <button class="btn btn-dark" onclick="generarImagen('png')"><i class="fa-solid fa-image"></i> <span data-t="btn_png">PNG</span></button>
+          <button class="btn btn-dark" onclick="generarImagen('jpeg')"><i class="fa-solid fa-image"></i> <span data-t="btn_jpg">JPG</span></button>
         </div>
       </div>
 
@@ -465,7 +467,7 @@
     var UI = {
       es: { titulo: 'Detalles Cascadas', subtitulo: 'Tarjetas de atención · Cascadas Hotel', paso1: 'Elige el tipo de tarjeta',
         paso_variante: 'Elige el diseño', paso2: 'Completa los datos', paso3: 'Vista previa', lbl_mensaje: 'Mensaje (editable)',
-        hint_mensaje: 'Viene un texto sugerido; puedes cambiarlo como quieras.', btn_cambiar: 'Cambiar tipo', btn_pdf: 'Generar PDF',
+        hint_mensaje: 'Viene un texto sugerido; puedes cambiarlo como quieras.', btn_cambiar: 'Cambiar tipo', btn_pdf: 'PDF', btn_png: 'PNG', btn_jpg: 'JPG',
         cupon: 'Cupón', tarjeta: 'Tarjeta', giftcardtag: 'Gift Card', previa_reverso: 'Reverso (color sólido, a sangre completa)',
         gc_historial: 'Gift Cards emitidas',
         var_reverso_nom: 'Clásica (con reverso)', var_reverso_desc: 'La tarjeta de libro de siempre: se dobla al medio, reverso grafito con el logo. Doble cara.',
@@ -474,7 +476,7 @@
         copias_lbl: '¿Cuántas tarjetas por hoja?', copias_1: '1 tarjeta', copias_2: '2 tarjetas' },
       en: { titulo: 'Detalles Cascadas', subtitulo: 'Guest cards · Cascadas Hotel', paso1: 'Choose the card type',
         paso_variante: 'Choose the design', paso2: 'Fill in the details', paso3: 'Preview', lbl_mensaje: 'Message (editable)',
-        hint_mensaje: 'A suggested text is prefilled; edit it however you like.', btn_cambiar: 'Change type', btn_pdf: 'Generate PDF',
+        hint_mensaje: 'A suggested text is prefilled; edit it however you like.', btn_cambiar: 'Change type', btn_pdf: 'PDF', btn_png: 'PNG', btn_jpg: 'JPG',
         cupon: 'Voucher', tarjeta: 'Card', giftcardtag: 'Gift Card', previa_reverso: 'Back (solid color, full bleed)',
         gc_historial: 'Issued Gift Cards',
         var_reverso_nom: 'Classic (with back)', var_reverso_desc: 'The usual book-fold card: folds in half, graphite back with the logo. Double-sided.',
@@ -724,34 +726,39 @@
     //  DIBUJO — motivos y tarjeta (via "pen" ligado a una transformacion)
     //  Todo se dibuja en coordenadas locales de tarjeta 105 x 148.5 (mm).
     // =====================================================================
-    function penFor(doc, tf, rotated) {
+    function penFor(doc, tf, rotated, S) {
+      // S = factor de escala. Las POSICIONES ya vienen escaladas por tf; aqui
+      // se escalan los "largos" (grosores, radios, tamaño de letra, imagenes)
+      // para que la tarjeta crezca uniforme, no con lineas finas y letra chica.
+      S = S || 1;
       function P(x, y) { return tf(x, y); }
       function seg(pts) { var d = []; for (var i = 1; i < pts.length; i++) d.push([pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]]); return d; }
       return {
-        line: function (x1, y1, x2, y2, col, w) { doc.setDrawColor(col[0], col[1], col[2]); doc.setLineWidth(w || .4); var a = P(x1, y1), b = P(x2, y2); doc.line(a[0], a[1], b[0], b[1]); },
-        circle: function (cx, cy, r, col, w, fill) { var c = P(cx, cy); if (fill) doc.setFillColor(fill[0], fill[1], fill[2]); if (col) doc.setDrawColor(col[0], col[1], col[2]); doc.setLineWidth(w || .4); doc.circle(c[0], c[1], r, fill && col ? 'FD' : (fill ? 'F' : 'S')); },
-        dot: function (cx, cy, r, col) { var c = P(cx, cy); doc.setFillColor(col[0], col[1], col[2]); doc.circle(c[0], c[1], r, 'F'); },
-        poly: function (localPts, col, w) { doc.setDrawColor(col[0], col[1], col[2]); doc.setLineWidth(w || .4); var pts = localPts.map(function (p) { return P(p[0], p[1]); }); doc.lines(seg(pts), pts[0][0], pts[0][1], [1, 1], 'S', false); },
+        line: function (x1, y1, x2, y2, col, w) { doc.setDrawColor(col[0], col[1], col[2]); doc.setLineWidth((w || .4) * S); var a = P(x1, y1), b = P(x2, y2); doc.line(a[0], a[1], b[0], b[1]); },
+        circle: function (cx, cy, r, col, w, fill) { var c = P(cx, cy); if (fill) doc.setFillColor(fill[0], fill[1], fill[2]); if (col) doc.setDrawColor(col[0], col[1], col[2]); doc.setLineWidth((w || .4) * S); doc.circle(c[0], c[1], r * S, fill && col ? 'FD' : (fill ? 'F' : 'S')); },
+        dot: function (cx, cy, r, col) { var c = P(cx, cy); doc.setFillColor(col[0], col[1], col[2]); doc.circle(c[0], c[1], r * S, 'F'); },
+        poly: function (localPts, col, w) { doc.setDrawColor(col[0], col[1], col[2]); doc.setLineWidth((w || .4) * S); var pts = localPts.map(function (p) { return P(p[0], p[1]); }); doc.lines(seg(pts), pts[0][0], pts[0][1], [1, 1], 'S', false); },
         fill: function (localPts, col) { doc.setFillColor(col[0], col[1], col[2]); var pts = localPts.map(function (p) { return P(p[0], p[1]); }); doc.lines(seg(pts), pts[0][0], pts[0][1], [1, 1], 'F', true); },
-        rect: function (x, y, w, h, col, lw, dash) { doc.setDrawColor(col[0], col[1], col[2]); doc.setLineWidth(lw || .4); if (dash && doc.setLineDashPattern) doc.setLineDashPattern(dash, 0); var pts = [[x, y], [x + w, y], [x + w, y + h], [x, y + h], [x, y]].map(function (p) { return P(p[0], p[1]); }); doc.lines(seg(pts), pts[0][0], pts[0][1], [1, 1], 'S', true); if (dash && doc.setLineDashPattern) doc.setLineDashPattern([], 0); },
+        rect: function (x, y, w, h, col, lw, dash) { doc.setDrawColor(col[0], col[1], col[2]); doc.setLineWidth((lw || .4) * S); if (dash && doc.setLineDashPattern) doc.setLineDashPattern(dash.map(function (v) { return v * S; }), 0); var pts = [[x, y], [x + w, y], [x + w, y + h], [x, y + h], [x, y]].map(function (p) { return P(p[0], p[1]); }); doc.lines(seg(pts), pts[0][0], pts[0][1], [1, 1], 'S', true); if (dash && doc.setLineDashPattern) doc.setLineDashPattern([], 0); },
         bg: function (x, y, w, h, col) { doc.setFillColor(col[0], col[1], col[2]); var a = P(x, y), b = P(x + w, y + h); doc.rect(Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]), 'F'); },
-        image: function (dataUrl, x, y, w, h) { var a = P(x, y); try { doc.addImage(dataUrl, 'PNG', a[0], a[1], w, h); } catch (e) {} },
+        image: function (dataUrl, x, y, w, h) { var a = P(x, y); try { doc.addImage(dataUrl, 'PNG', a[0], a[1], w * S, h * S); } catch (e) {} },
         text: function (str, x, y, size, col, opts) {
           opts = opts || {}; var p = P(x, y);
           doc.setTextColor(col[0], col[1], col[2]);
           doc.setFont(opts.font || 'helvetica', opts.style || 'normal');
-          doc.setFontSize(size);
+          doc.setFontSize(size * S);
           var align = opts.align || 'center';
+          var cs = opts.charSpace ? opts.charSpace * S : 0;
           // jsPDF calcula el centrado de "align:center" SIN contar el ancho extra
           // de charSpace, asi que un texto con letter-spacing queda corrido hacia
           // un lado. Para evitarlo, cuando hay charSpace centramos a mano.
-          if (opts.charSpace && align === 'center' && !rotated) {
-            var w = doc.getTextWidth(str) + opts.charSpace * Math.max(0, str.length - 1);
-            doc.text(str, p[0] - w / 2, p[1], { align: 'left', baseline: 'alphabetic', charSpace: opts.charSpace });
+          if (cs && align === 'center' && !rotated) {
+            var w = doc.getTextWidth(str) + cs * Math.max(0, str.length - 1);
+            doc.text(str, p[0] - w / 2, p[1], { align: 'left', baseline: 'alphabetic', charSpace: cs });
             return;
           }
           var o = { align: align, baseline: 'alphabetic' };
-          if (opts.charSpace) o.charSpace = opts.charSpace;
+          if (cs) o.charSpace = cs;
           if (rotated) o.angle = 180;
           doc.text(str, p[0], p[1], o);
         }
@@ -925,43 +932,57 @@
       return 'Detalle_' + o.nombre.es.replace(/[^a-zA-Z0-9]/g, '_') + '_' + new Date().toISOString().slice(0, 10) + '.pdf';
     }
 
+    // Hoja HORIZONTAL (A4 apaisado, 297 x 210 mm). Ubica 1 tarjeta grande al
+    // centro, o 2 lado a lado (mas chicas). Devuelve, para cada copia, el
+    // factor de escala y el desplazamiento en la hoja.
+    var HOJA_W = 297, HOJA_H = 210;
+    function layoutTarjetas(cw, ch, copias) {
+      var M = 12, G = 10;   // margen y separacion entre las 2 copias
+      if (copias === 2) {
+        var anchoDisp = (HOJA_W - 2 * M - G) / 2;
+        var S = Math.min(anchoDisp / cw, (HOJA_H - 2 * M) / ch);
+        var totalW = 2 * cw * S + G, x0 = (HOJA_W - totalW) / 2, offY = (HOJA_H - ch * S) / 2;
+        return [{ S: S, offX: x0, offY: offY }, { S: S, offX: x0 + cw * S + G, offY: offY }];
+      }
+      var S1 = Math.min((HOJA_W - 2 * M) / cw, (HOJA_H - 2 * M) / ch);
+      return [{ S: S1, offX: (HOJA_W - cw * S1) / 2, offY: (HOJA_H - ch * S1) / 2 }];
+    }
+
     function construirHojaTarjeta(doc, o, d, mensaje, copias) {
-      // 1 o 2 copias (a eleccion), apiladas verticalmente en la hoja A4.
       copias = copias === 2 ? 2 : 1;
-      var offsets = copias === 2 ? [0, CARD_H] : [(297 - CARD_H) / 2];
-      offsets.forEach(function (offY) {
-        var tfIzq = function (x, y) { return [x, offY + y]; };
-        var tfDer = function (x, y) { return [CARD_W + x, offY + y]; };
-        dibujarPagPortada(penFor(doc, tfIzq, false), o, d);
-        dibujarPagMensaje(penFor(doc, tfDer, false), o, d, mensaje);
+      var cw = CARD_W * 2, ch = CARD_H;            // tarjeta abierta: 210 x 148.5
+      var lay = layoutTarjetas(cw, ch, copias);
+
+      // Pagina 1: frente (portada izquierda + mensaje derecha) de cada copia.
+      lay.forEach(function (L) {
+        var tfIzq = function (x, y) { return [L.offX + x * L.S, L.offY + y * L.S]; };
+        var tfDer = function (x, y) { return [L.offX + (CARD_W + x) * L.S, L.offY + y * L.S]; };
+        dibujarPagPortada(penFor(doc, tfIzq, false, L.S), o, d);
+        dibujarPagMensaje(penFor(doc, tfDer, false, L.S), o, d, mensaje);
       });
 
-      // Guias: cortes horizontales (separan cada tarjeta del resto de la
-      // hoja / entre copias) + 1 doblez vertical al medio de cada una.
+      // Guias: marco de corte alrededor de cada tarjeta + doblez vertical al medio.
       doc.setDrawColor(185, 185, 185); doc.setLineWidth(.2);
       if (doc.setLineDashPattern) doc.setLineDashPattern([1.4, 1.4], 0);
-      if (copias === 2) {
-        doc.line(6, CARD_H, 204, CARD_H);
-        offsets.forEach(function (offY) { doc.line(CARD_W, offY + 4, CARD_W, offY + CARD_H - 4); });
-      } else {
-        var offY = offsets[0];
-        doc.line(6, offY, 204, offY);
-        doc.line(6, offY + CARD_H, 204, offY + CARD_H);
-        doc.line(CARD_W, offY + 4, CARD_W, offY + CARD_H - 4);
-      }
+      lay.forEach(function (L) {
+        var x1 = L.offX, x2 = L.offX + cw * L.S, y1 = L.offY, y2 = L.offY + ch * L.S;
+        doc.line(x1, y1, x2, y1); doc.line(x1, y2, x2, y2);
+        doc.line(x1, y1, x1, y2); doc.line(x2, y1, x2, y2);
+        var xFold = L.offX + CARD_W * L.S;
+        doc.line(xFold, y1 + 4 * L.S, xFold, y2 - 4 * L.S);
+      });
       if (doc.setLineDashPattern) doc.setLineDashPattern([], 0);
 
       // Pagina 2: reverso solido a sangre completa, con el logo centrado en
-      // cada mitad (izq/der) de cada copia para que quede bien puesto sea
-      // cual sea la tapa que termine al frente despues de doblar.
+      // cada mitad (izq/der) de cada copia.
       doc.addPage();
       doc.setFillColor(GRAFITO[0], GRAFITO[1], GRAFITO[2]);
-      doc.rect(0, 0, 210, 297, 'F');
-      offsets.forEach(function (offY) {
-        var tfLogoIzq = function (x, y) { return [x, offY + y]; };
-        var tfLogoDer = function (x, y) { return [CARD_W + x, offY + y]; };
-        dibujarMarca(penFor(doc, tfLogoIzq, false), CARD_W / 2, CARD_H / 2, 26, [235, 233, 230], [200, 197, 193], 78);
-        dibujarMarca(penFor(doc, tfLogoDer, false), CARD_W / 2, CARD_H / 2, 26, [235, 233, 230], [200, 197, 193], 78);
+      doc.rect(0, 0, HOJA_W, HOJA_H, 'F');
+      lay.forEach(function (L) {
+        var tfLogoIzq = function (x, y) { return [L.offX + x * L.S, L.offY + y * L.S]; };
+        var tfLogoDer = function (x, y) { return [L.offX + (CARD_W + x) * L.S, L.offY + y * L.S]; };
+        dibujarMarca(penFor(doc, tfLogoIzq, false, L.S), CARD_W / 2, CARD_H / 2, 26, [235, 233, 230], [200, 197, 193], 78);
+        dibujarMarca(penFor(doc, tfLogoDer, false, L.S), CARD_W / 2, CARD_H / 2, 26, [235, 233, 230], [200, 197, 193], 78);
       });
     }
 
@@ -1019,23 +1040,18 @@
 
     function construirHojaUnica(doc, o, d, mensaje, oscuro, copias) {
       copias = copias === 2 ? 2 : 1;
-      var left = (210 - MINI_W) / 2;
+      var lay = layoutTarjetas(MINI_W, MINI_H, copias);   // hoja horizontal
+      lay.forEach(function (L) {
+        var tf = function (x, y) { return [L.offX + x * L.S, L.offY + y * L.S]; };
+        dibujarTarjetaUnica(penFor(doc, tf, false, L.S), o, d, mensaje, oscuro);
+      });
+      // Con 2 copias, guia de corte vertical entre ambas.
       if (copias === 2) {
-        var gap = 10, totalH = MINI_H * 2 + gap, topMargin = (297 - totalH) / 2;
-        [0, 1].forEach(function (i) {
-          var offY = topMargin + i * (MINI_H + gap);
-          var tf = function (x, y) { return [left + x, offY + y]; };
-          dibujarTarjetaUnica(penFor(doc, tf, false), o, d, mensaje, oscuro);
-        });
-        var yCorte = topMargin + MINI_H + gap / 2;
+        var xCorte = (lay[0].offX + MINI_W * lay[0].S + lay[1].offX) / 2;
         doc.setDrawColor(185, 185, 185); doc.setLineWidth(.2);
         if (doc.setLineDashPattern) doc.setLineDashPattern([1.4, 1.4], 0);
-        doc.line(left - 4, yCorte, left + MINI_W + 4, yCorte);
+        doc.line(xCorte, lay[0].offY - 4, xCorte, lay[0].offY + MINI_H * lay[0].S + 4);
         if (doc.setLineDashPattern) doc.setLineDashPattern([], 0);
-      } else {
-        var offY1 = (297 - MINI_H) / 2;
-        var tf1 = function (x, y) { return [left + x, offY1 + y]; };
-        dibujarTarjetaUnica(penFor(doc, tf1, false), o, d, mensaje, oscuro);
       }
     }
 
@@ -1163,6 +1179,68 @@
       dibujarGiftCard(penFor(doc, function (x, y) { return [x, y]; }, false), o, d, mensaje);
     }
 
+    // =====================================================================
+    //  EXPORTAR A IMAGEN (PNG / JPEG)
+    //  Se dibuja UNA tarjeta (la misma que la vista previa) en un SVG con
+    //  fuentes de sistema, y ese SVG se rasteriza a un canvas de alta
+    //  resolucion. Reusa exactamente el mismo dibujo, sin duplicar nada.
+    // =====================================================================
+    function construirSVGExport() {
+      var o = T[APP.ocasion], d = datosForm();
+      var mensaje = document.getElementById('inpMensaje').value;
+      var svg = document.createElementNS(SVGNS, 'svg');
+      var W, H;
+      if (o.full) {
+        W = GC_W; H = GC_H; dibujarGiftCard(penSVG(svg, true), o, d, mensaje);
+      } else if (o.cupon) {
+        W = CUPON_W; H = CUPON_H; dibujarCupon(penSVG(svg, true), o, d, mensaje);
+      } else if (APP.variante === 'grafito' || APP.variante === 'color') {
+        W = MINI_W; H = MINI_H; dibujarTarjetaUnica(penSVG(svg, true), o, d, mensaje, APP.variante === 'grafito');
+      } else {
+        W = CARD_W * 2; H = CARD_H;
+        dibujarPagPortada(penSVGOffset(svg, 0, 0, true), o, d);
+        dibujarPagMensaje(penSVGOffset(svg, CARD_W, 0, true), o, d, mensaje);
+        // Guia de doblez al medio (la tarjeta clasica se dobla en dos).
+        var l = document.createElementNS(SVGNS, 'line');
+        l.setAttribute('x1', CARD_W); l.setAttribute('y1', 0); l.setAttribute('x2', CARD_W); l.setAttribute('y2', CARD_H);
+        l.setAttribute('stroke', '#B9B9BC'); l.setAttribute('stroke-width', .5); l.setAttribute('stroke-dasharray', '2 2');
+        svg.appendChild(l);
+      }
+      svg.setAttribute('xmlns', SVGNS);
+      svg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+      svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+      svg.setAttribute('width', W); svg.setAttribute('height', H);
+      return { svg: svg, W: W, H: H };
+    }
+
+    async function generarImagen(tipo) {
+      var o = T[APP.ocasion]; if (!o) return;
+      await obtenerLogo().then(function (logo) { APP.logo = logo; });
+      var ex = construirSVGExport();
+      var svgStr = new XMLSerializer().serializeToString(ex.svg);
+      var fuente = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
+      var img = new Image();
+      img.onload = function () {
+        var ppmm = 8;   // ~200 ppp: nitido para imprimir o enviar
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.round(ex.W * ppmm); canvas.height = Math.round(ex.H * ppmm);
+        var ctx = canvas.getContext('2d');
+        if (tipo === 'jpeg') { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        var data;
+        try { data = canvas.toDataURL(tipo === 'jpeg' ? 'image/jpeg' : 'image/png', tipo === 'jpeg' ? 0.92 : undefined); }
+        catch (e) { toast(APP.idioma === 'en' ? 'Could not create the image.' : 'No se pudo generar la imagen.', 'error'); return; }
+        var a = document.createElement('a');
+        a.href = data;
+        a.download = nombreDeArchivo(o).replace(/\.pdf$/i, tipo === 'jpeg' ? '.jpg' : '.png');
+        document.body.appendChild(a); a.click(); a.remove();
+        // Una Gift Card entregada como imagen tambien queda registrada.
+        if (o.full) guardarGiftCardEmitida(datosForm(), document.getElementById('inpMensaje').value);
+      };
+      img.onerror = function () { toast(APP.idioma === 'en' ? 'Could not create the image.' : 'No se pudo generar la imagen.', 'error'); };
+      img.src = fuente;
+    }
+
     async function generarPDF() {
       if (typeof jspdf === 'undefined') { toast('No se pudo cargar el generador de PDF', 'error'); return; }
       var o = T[APP.ocasion], d = datosForm();
@@ -1177,13 +1255,13 @@
         doc = new jspdf.jsPDF('p', 'mm', 'a4');
         construirHojaCupones(doc, o, d, mensaje);
       } else if (APP.variante === 'grafito') {
-        doc = new jspdf.jsPDF('p', 'mm', 'a4');
+        doc = new jspdf.jsPDF('l', 'mm', 'a4');      // hoja horizontal
         construirHojaUnica(doc, o, d, mensaje, true, APP.copias);
       } else if (APP.variante === 'color') {
-        doc = new jspdf.jsPDF('p', 'mm', 'a4');
+        doc = new jspdf.jsPDF('l', 'mm', 'a4');
         construirHojaUnica(doc, o, d, mensaje, false, APP.copias);
       } else {
-        doc = new jspdf.jsPDF('p', 'mm', 'a4');
+        doc = new jspdf.jsPDF('l', 'mm', 'a4');
         construirHojaTarjeta(doc, o, d, mensaje, APP.copias);
       }
       doc.save(nombreDeArchivo(o));
@@ -1285,8 +1363,8 @@
     }
     // Variante del pen SVG que ademas desplaza todo en (offX,offY): se usa
     // para pintar la vista previa de ambas paginas (izq/der) en un mismo SVG.
-    function penSVGOffset(svg, offX, offY) {
-      var base = penSVG(svg);
+    function penSVGOffset(svg, offX, offY, sys) {
+      var base = penSVG(svg, sys);
       return {
         line: function (x1, y1, x2, y2, col, w) { base.line(x1 + offX, y1 + offY, x2 + offX, y2 + offY, col, w); },
         circle: function (cx, cy, r, col, w, fill) { base.circle(cx + offX, cy + offY, r, col, w, fill); },
@@ -1303,8 +1381,13 @@
     var SVGNS = 'http://www.w3.org/2000/svg';
     function rgb(c) { return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; }
     function rectSVG(x, y, w, h, fill) { var e = document.createElementNS(SVGNS, 'rect'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('width', w); e.setAttribute('height', h); e.setAttribute('fill', fill); return e; }
-    function penSVG(svg) {
+    function penSVG(svg, sys) {
       function ptsStr(pts) { return pts.map(function (p) { return p[0].toFixed(2) + ' ' + p[1].toFixed(2); }).join(' L '); }
+      // sys=true usa fuentes del sistema (para exportar a PNG/JPEG: rasterizan
+      // sin depender de las web fonts y calzan con las del PDF). Sin sys, la
+      // vista previa usa las web fonts bonitas.
+      var famSerif = sys ? 'Georgia, "Times New Roman", serif' : 'Cormorant Garamond, Georgia, serif';
+      var famSans = sys ? 'Arial, Helvetica, sans-serif' : 'Oswald, sans-serif';
       return {
         line: function (x1, y1, x2, y2, col, w) { var e = document.createElementNS(SVGNS, 'line'); e.setAttribute('x1', x1); e.setAttribute('y1', y1); e.setAttribute('x2', x2); e.setAttribute('y2', y2); e.setAttribute('stroke', rgb(col)); e.setAttribute('stroke-width', w || .4); svg.appendChild(e); },
         circle: function (cx, cy, r, col, w, fill) { var e = document.createElementNS(SVGNS, 'circle'); e.setAttribute('cx', cx); e.setAttribute('cy', cy); e.setAttribute('r', r); e.setAttribute('fill', fill ? rgb(fill) : 'none'); if (col) { e.setAttribute('stroke', rgb(col)); e.setAttribute('stroke-width', w || .4); } svg.appendChild(e); },
@@ -1314,7 +1397,7 @@
         rect: function (x, y, w, h, col, lw, dash) { var e = document.createElementNS(SVGNS, 'rect'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('width', w); e.setAttribute('height', h); e.setAttribute('fill', 'none'); e.setAttribute('stroke', rgb(col)); e.setAttribute('stroke-width', lw || .4); if (dash) e.setAttribute('stroke-dasharray', dash.join(' ')); svg.appendChild(e); },
         bg: function (x, y, w, h, col) { svg.appendChild(rectSVG(x, y, w, h, rgb(col))); },
         image: function (dataUrl, x, y, w, h) { var e = document.createElementNS(SVGNS, 'image'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('width', w); e.setAttribute('height', h); e.setAttributeNS('http://www.w3.org/1999/xlink', 'href', dataUrl); svg.appendChild(e); },
-        text: function (str, x, y, size, col, opts) { opts = opts || {}; var e = document.createElementNS(SVGNS, 'text'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('text-anchor', opts.align === 'left' ? 'start' : 'middle'); e.setAttribute('font-size', size); e.setAttribute('fill', rgb(col)); e.setAttribute('font-family', opts.font === 'times' ? 'Cormorant Garamond, Georgia, serif' : 'Oswald, sans-serif'); if (opts.style === 'italic') e.setAttribute('font-style', 'italic'); if (opts.style === 'bold') e.setAttribute('font-weight', '600'); if (opts.charSpace) e.setAttribute('letter-spacing', opts.charSpace); e.textContent = str; svg.appendChild(e); }
+        text: function (str, x, y, size, col, opts) { opts = opts || {}; var e = document.createElementNS(SVGNS, 'text'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('text-anchor', opts.align === 'left' ? 'start' : 'middle'); e.setAttribute('font-size', size); e.setAttribute('fill', rgb(col)); e.setAttribute('font-family', opts.font === 'times' ? famSerif : famSans); if (opts.style === 'italic') e.setAttribute('font-style', 'italic'); if (opts.style === 'bold') e.setAttribute('font-weight', '600'); if (opts.charSpace) e.setAttribute('letter-spacing', opts.charSpace); e.textContent = str; svg.appendChild(e); }
       };
     }
 
