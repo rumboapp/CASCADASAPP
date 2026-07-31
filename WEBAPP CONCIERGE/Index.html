@@ -1019,7 +1019,19 @@ var I18N = {
     rango_horario: '{ini} a {fin} hrs', hab_ph: 'Ej: 105',
     recargo_habitacion: 'entrega a la habitacion',
     prepedido_no_disponible: 'El restaurant no esta recibiendo pedidos anticipados hoy.',
-    tu_pedido: 'Tu pedido'
+    tu_pedido: 'Tu pedido',
+    // Pedido directo a la habitacion
+    pedir_hab_titulo: 'Pedir a mi habitacion',
+    pedir_hab_sub: 'Tu pedido llega a tu pieza',
+    cuando: '¿Cuando?', ahora: 'Ahora', ahora_sub: 'Lo antes posible',
+    programar_hora: 'Programar hora', elige_hora_pedido: 'Elige una hora',
+    entrega_a_hab: 'Entrega a la habitacion',
+    confirmar_pedido: 'Confirmar pedido',
+    pedido_recibido: 'Pedido recibido',
+    pedido_recibido_ahora: 'La cocina lo esta preparando. Llegara a tu habitacion lo antes posible.',
+    pedido_recibido_hora: 'Tu pedido quedo agendado para las {hora}.',
+    restaurant_cerrado_pedido: 'El restaurant no esta recibiendo pedidos en este momento.',
+    agrega_algo_pedir: 'Agrega al menos un producto para pedir.'
   },
   en: {
     hotel_subtitle: 'Hotel operations center',
@@ -1086,7 +1098,19 @@ var I18N = {
     rango_horario: '{ini} to {fin} hrs', hab_ph: 'e.g. 105',
     recargo_habitacion: 'room delivery',
     prepedido_no_disponible: "The restaurant isn't taking pre-orders today.",
-    tu_pedido: 'Your order'
+    tu_pedido: 'Your order',
+    // Direct room order
+    pedir_hab_titulo: 'Order to my room',
+    pedir_hab_sub: 'Your order comes to your room',
+    cuando: 'When?', ahora: 'Now', ahora_sub: 'As soon as possible',
+    programar_hora: 'Schedule a time', elige_hora_pedido: 'Choose a time',
+    entrega_a_hab: 'Delivery to your room',
+    confirmar_pedido: 'Confirm order',
+    pedido_recibido: 'Order received',
+    pedido_recibido_ahora: 'The kitchen is preparing it. It will arrive at your room as soon as possible.',
+    pedido_recibido_hora: 'Your order is scheduled for {hora}.',
+    restaurant_cerrado_pedido: "The restaurant isn't taking orders right now.",
+    agrega_algo_pedir: 'Add at least one item to order.'
   }
 };
 
@@ -1155,6 +1179,58 @@ function prepedidoDisponible() {
 /* Recargo configurable del pedido a la habitacion. */
 function recargoHabitacion() {
   return Number(APP.config.PEDIDO_HABITACION_RECARGO) || 0;
+}
+
+/* True si el pedido a la habitacion esta habilitado (interruptor de config). */
+function habilitadoPedidoHabitacion() {
+  return String(APP.config.PEDIDO_HABITACION_ACTIVO || 'TRUE').toUpperCase() !== 'FALSE';
+}
+
+/* El servicio de restaurant (el que recibe pedidos): el que Permite Prepedido. */
+function servicioRestaurant() {
+  var candidatos = (APP.servicios || []).filter(function (s) {
+    return s.PermitePrepedido && s.Activo !== false;
+  });
+  return candidatos.filter(function (s) { return s.Categoria === 'Gastronomia'; })[0] || candidatos[0] || null;
+}
+
+/* Hora actual en formato HH:MM (24h), para los pedidos "ahora". */
+function horaActualHHMM() {
+  var d = new Date();
+  return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+}
+function _hhmmAMin(hhmm) {
+  var p = String(hhmm || '').split(':');
+  return (Number(p[0]) || 0) * 60 + (Number(p[1]) || 0);
+}
+
+/* True si el restaurant esta recibiendo pedidos AHORA MISMO: prepedido activo
+   y la hora actual dentro del rango del servicio. Es la misma ventana que las
+   reservas de mesa, como se pidio. */
+function restaurantAbiertoAhora() {
+  if (!prepedidoDisponible()) return false;
+  var s = servicioRestaurant();
+  if (!s) return false;
+  var ahora = _hhmmAMin(horaActualHHMM());
+  return ahora >= _hhmmAMin(s.HorarioInicio) && ahora < _hhmmAMin(s.HorarioFin);
+}
+
+/* Lista de horas para "programar" un pedido a la habitacion: desde la proxima
+   media hora hasta el cierre del restaurant, en pasos de 30 min. No se limita
+   por capacidad de mesas, porque el pedido a la pieza no ocupa mesa. */
+function horasParaProgramar() {
+  var s = servicioRestaurant();
+  if (!s) return [];
+  var cierre = _hhmmAMin(s.HorarioFin);
+  var apertura = _hhmmAMin(s.HorarioInicio);
+  var ahora = _hhmmAMin(horaActualHHMM());
+  // Arranca en la proxima media hora (o en la apertura si aun no abre).
+  var inicio = Math.max(apertura, Math.ceil((ahora + 1) / 30) * 30);
+  var horas = [];
+  for (var m = inicio; m < cierre; m += 30) {
+    horas.push(('0' + Math.floor(m / 60)).slice(-2) + ':' + ('0' + (m % 60)).slice(-2));
+  }
+  return horas;
 }
 
 /* Aplica el idioma a todos los textos estaticos marcados con data-i18n. */
@@ -1576,6 +1652,7 @@ function renderReservar() {
     '<div class="fade-in">' +
       '<h3 class="text-2xl mb-1 px-1" style="color: var(--verde-bosque)">' + t('reservar_titulo') + '</h3>' +
       '<p class="text-sm opacity-60 mb-4 px-1">' + t('reservar_sub') + '</p>' +
+      bannerPedirHabitacion() +
       '<div class="grid grid-cols-2 gap-3">' + tarjetas + '</div>' +
 
       // Panel de reserva (aparece al elegir un servicio).
@@ -1583,6 +1660,43 @@ function renderReservar() {
     '</div>';
 
   document.getElementById('seccionReservar').innerHTML = html;
+}
+
+/* Tarjeta grande "Pedir a mi habitacion", arriba de todo en Reservar. Es la
+   entrada directa al pedido a la pieza: no pasa por elegir servicio ni hora.
+   Solo aparece si existe el servicio de restaurant. Si el pedido a la
+   habitacion esta apagado, o el restaurant esta cerrado ahora, sale
+   deshabilitada con el motivo. */
+function bannerPedirHabitacion() {
+  var s = servicioRestaurant();
+  if (!s) return '';                       // no hay restaurant: no se muestra
+  var disponible = habilitadoPedidoHabitacion() && restaurantAbiertoAhora();
+  var motivo = !habilitadoPedidoHabitacion() ? t('hab_no_disponible')
+             : !restaurantAbiertoAhora() ? t('restaurant_cerrado_pedido') : '';
+
+  if (disponible) {
+    return '<button onclick="pedirAMiHabitacion()" ' +
+      'class="w-full mb-3 p-4 rounded-2xl flex items-center gap-4 text-left slide-up" ' +
+      'style="background: linear-gradient(135deg, var(--verde-bosque), var(--grafito, #33323A)); color:#fff; border:none; cursor:pointer;">' +
+      '<div class="shrink-0 flex items-center justify-center rounded-xl" style="width:46px;height:46px;background:rgba(255,255,255,.15)">' +
+        '<i class="fa-solid fa-bell-concierge text-xl"></i></div>' +
+      '<div class="flex-1 min-w-0">' +
+        '<p class="font-semibold text-lg leading-tight">' + t('pedir_hab_titulo') + '</p>' +
+        '<p class="text-xs opacity-85 leading-snug">' + t('pedir_hab_sub') +
+          (recargoHabitacion() > 0 ? ' · +' + fmtMoneda(recargoHabitacion()) : '') + '</p>' +
+      '</div>' +
+      '<i class="fa-solid fa-chevron-right opacity-70"></i>' +
+    '</button>';
+  }
+  // Deshabilitada, en tono apagado y con el motivo.
+  return '<div class="w-full mb-3 p-4 rounded-2xl flex items-center gap-4 text-left" ' +
+    'style="background: var(--gris-claro, #EFECE7); color: var(--texto, #33323A); opacity:.7">' +
+    '<div class="shrink-0 flex items-center justify-center rounded-xl" style="width:46px;height:46px;background:rgba(0,0,0,.06)">' +
+      '<i class="fa-solid fa-bell-concierge text-xl"></i></div>' +
+    '<div class="flex-1 min-w-0">' +
+      '<p class="font-semibold text-base leading-tight">' + t('pedir_hab_titulo') + '</p>' +
+      '<p class="text-xs opacity-70 leading-snug">' + motivo + '</p>' +
+    '</div></div>';
 }
 
 /* Recarga servicios desde el backend (boton reintentar). */
@@ -2325,6 +2439,164 @@ function guardarPrepedido() {
       else renderMisReservas();
       APP.prepedidoOrigen = null;
     }
+  });
+}
+
+/* ==========================================================================
+   ===================  PEDIDO DIRECTO A LA HABITACION  ===================
+   Camino rapido: la persona toca "Pedir a mi habitacion", arma el carrito y
+   confirma. Por defecto llega "Ahora" (lo antes posible); si quiere, agenda
+   una hora. Reusa la carta y el carrito del prepedido; al confirmar crea la
+   reserva (entrega Habitacion) y le adjunta el pedido de una vez.
+   ========================================================================== */
+function pedirAMiHabitacion() {
+  if (!habilitadoPedidoHabitacion()) { mostrarToast(t('hab_no_disponible'), 'error'); return; }
+  if (!restaurantAbiertoAhora()) { mostrarToast(t('restaurant_cerrado_pedido'), 'error'); return; }
+  if (!APP.habitacion) { mostrarToast(t('ingresa_hab'), 'error'); return; }
+
+  APP.reservaPrepedido = null;          // todavia no hay reserva: se crea al confirmar
+  APP.prepedidoOrigen = 'huesped_hab';
+  APP.carrito = [];
+  APP.pedidoEntrega = 'Habitacion';
+  APP.pedidoNotasPrevias = '';
+  APP.cuandoPedido = 'ahora';
+  APP.horaPedidoProgramada = null;
+
+  asegurarCarta().then(function () {
+    renderModalPedidoHabitacion();
+  }).catch(function () {
+    mostrarToast(t('no_abrir_pedido'), 'error');
+  });
+}
+
+function renderModalPedidoHabitacion() {
+  var categoriasConProductos = APP.carta.categorias.filter(function (c) {
+    var arr = APP.carta.productosPorCategoria[c.ID];
+    return arr && arr.length;
+  });
+  var categoriasHTML = categoriasConProductos.map(function (c, i) {
+    return '<button class="chip-cat btn ' + (i === 0 ? 'btn-dorado' : 'btn-outline') + ' !py-1.5 !px-3 text-xs shrink-0" data-cat="' + c.ID + '" onclick="cargarProductosPrepedido(\'' + c.ID + '\', this)">' + escaparHTML(nombreDe(c)) + '</button>';
+  }).join('');
+
+  var contenido =
+    // Entrega fija a la habitacion (este flujo es solo para la pieza).
+    '<div class="caja-info p-3 mb-3 flex items-center gap-2 text-sm">' +
+      '<i class="fa-solid fa-bell-concierge" style="color: var(--dorado)"></i>' +
+      '<span>' + t('entrega_a_hab') + ' <b>' + escaparHTML(APP.habitacion) + '</b>' +
+      (recargoHabitacion() > 0 ? ' <span class="opacity-70">(+' + fmtMoneda(recargoHabitacion()) + ')</span>' : '') + '</span>' +
+    '</div>' +
+
+    // ¿Cuando? Ahora (por defecto) o programar una hora.
+    '<label class="lbl">' + t('cuando') + '</label>' +
+    '<div class="grid grid-cols-2 gap-2 mb-2">' +
+      '<button type="button" id="cuandoAhora" class="btn btn-dorado flex-col !py-2" onclick="elegirCuandoPedido(\'ahora\')">' +
+        '<span><i class="fa-solid fa-bolt"></i> ' + t('ahora') + '</span>' +
+        '<span class="text-xs opacity-80">' + t('ahora_sub') + '</span></button>' +
+      '<button type="button" id="cuandoProgramar" class="btn btn-outline flex-col !py-2" onclick="elegirCuandoPedido(\'programar\')">' +
+        '<span><i class="fa-regular fa-clock"></i> ' + t('programar_hora') + '</span></button>' +
+    '</div>' +
+    '<div id="horasPedidoHab" class="oculto grid grid-cols-3 gap-2 mb-3"></div>' +
+
+    // Carrito y carta (mismos IDs que el prepedido, para reusar su logica).
+    '<div id="carritoPrepedido" class="oculto mb-3"></div>' +
+    '<div class="flex gap-2 mb-3 overflow-x-auto pb-1" style="scrollbar-width:thin">' + categoriasHTML + '</div>' +
+    '<div id="listaProductosPrepedido" class="space-y-1"></div>' +
+    '<div class="mt-4"><label class="lbl"><i class="fa-solid fa-pen-to-square"></i> ' + t('notas_pedido') + '</label>' +
+      '<textarea id="notasPedido" class="input" rows="2" placeholder="' + t('notas_pedido_ph') + '"></textarea></div>' +
+    '<div class="sticky bottom-0 -mx-5 px-5 pt-3 pb-1 mt-3 border-t" style="border-color: var(--borde); background: var(--blanco);">' +
+      '<div id="resumenPrepedido" class="flex items-center justify-between text-sm"></div>' +
+    '</div>';
+
+  mostrarModal({
+    titulo: t('pedir_hab_titulo'),
+    contenidoHTML: contenido,
+    botones: [
+      { texto: t('cerrar'), clase: 'btn-outline', accion: cerrarModal },
+      { texto: t('confirmar_pedido'), clase: 'btn-primary', accion: guardarPedidoHabitacion }
+    ]
+  });
+
+  if (categoriasConProductos[0]) cargarProductosPrepedido(categoriasConProductos[0].ID, null);
+  renderCarritoPrepedido();
+}
+
+/* Alterna entre "Ahora" y "Programar hora". */
+function elegirCuandoPedido(modo) {
+  APP.cuandoPedido = modo;
+  var ahora = document.getElementById('cuandoAhora');
+  var prog = document.getElementById('cuandoProgramar');
+  var caja = document.getElementById('horasPedidoHab');
+  var esProg = modo === 'programar';
+  if (ahora) { ahora.classList.toggle('btn-dorado', !esProg); ahora.classList.toggle('btn-outline', esProg); }
+  if (prog) { prog.classList.toggle('btn-dorado', esProg); prog.classList.toggle('btn-outline', !esProg); }
+  if (!caja) return;
+  if (!esProg) { caja.classList.add('oculto'); APP.horaPedidoProgramada = null; return; }
+
+  var horas = horasParaProgramar();
+  if (!horas.length) {
+    caja.innerHTML = '<p class="col-span-3 text-sm opacity-60 text-center py-2">' + t('no_horarios_hoy') + '</p>';
+  } else {
+    caja.innerHTML = horas.map(function (h) {
+      return '<button type="button" class="btn btn-outline !py-2 text-sm" onclick="seleccionarHoraPedidoHab(this,\'' + h + '\')">' + h + '</button>';
+    }).join('');
+  }
+  caja.classList.remove('oculto');
+}
+
+function seleccionarHoraPedidoHab(el, hora) {
+  document.querySelectorAll('#horasPedidoHab button').forEach(function (b) {
+    b.classList.remove('btn-dorado'); b.classList.add('btn-outline');
+  });
+  el.classList.remove('btn-outline'); el.classList.add('btn-dorado');
+  APP.horaPedidoProgramada = hora;
+}
+
+function guardarPedidoHabitacion() {
+  if (!APP.carrito.length) { mostrarToast(t('agrega_algo_pedir'), 'error'); return; }
+  var s = servicioRestaurant();
+  if (!s) { mostrarToast(t('no_abrir_pedido'), 'error'); return; }
+
+  var hora;
+  if (APP.cuandoPedido === 'programar') {
+    if (!APP.horaPedidoProgramada) { mostrarToast(t('elige_hora_pedido'), 'error'); return; }
+    hora = APP.horaPedidoProgramada;
+  } else {
+    hora = horaActualHHMM();
+  }
+
+  var notasEl = document.getElementById('notasPedido');
+  var notas = notasEl ? notasEl.value : '';
+  var items = APP.carrito.map(function (i) { return { productoID: i.productoID, cantidad: i.cantidad, notas: i.notas || '' }; });
+
+  var datosReserva = {
+    habitacion: APP.habitacion,
+    servicioID: s.ID,
+    variante: '',
+    fecha: hoyISO(),
+    horaInicio: hora,
+    personas: 1,
+    notas: '',
+    entrega: 'Habitacion',                 // el backend salta la capacidad de mesas
+    solicitadoPor: 'Huesped Hab ' + APP.habitacion
+  };
+
+  // 1) crea la reserva (entrega a la habitacion) y 2) le adjunta el pedido.
+  llamarAPI('crearReserva', [datosReserva]).then(function (res) {
+    if (!res.success) { mostrarToast(res.mensaje, 'error'); return; }
+    llamarAPI('crearPedido', [res.id, items, notas, 'Habitacion']).then(function (rp) {
+      if (!rp.success) { mostrarToast(rp.mensaje, 'error'); return; }
+      cerrarModal();
+      APP.prepedidoOrigen = null;
+      var msg = (APP.cuandoPedido === 'programar')
+        ? t('pedido_recibido_hora', { hora: hora })
+        : t('pedido_recibido_ahora');
+      mostrarModal({
+        titulo: t('pedido_recibido'),
+        contenidoHTML: '<div class="text-center"><i class="fa-solid fa-circle-check text-4xl mb-3" style="color: var(--verde-bosque)"></i>' +
+          '<p class="text-sm">' + msg + '</p></div>',
+        botones: [{ texto: t('ver_mis_reservas'), clase: 'btn-primary', accion: function () { cerrarModal(); navHuesped('MisReservas'); } }]
+      });
+    });
   });
 }
 

@@ -1449,30 +1449,41 @@ function crearReserva(datos) {
 
     var personas = Number(datos.personas) || 1;
     var iniMin = _horaAMinutos(datos.horaInicio);
-    var finMin = iniMin + _duracionServicio(servicio, variante);
+
+    // Un pedido a la habitacion es una entrega puntual, no ocupa una mesa: no
+    // consume capacidad del restaurant ni dura el bloque de una mesa sentada.
+    // Por eso, cuando la entrega es a la habitacion, solo se valida que la
+    // hora este dentro del horario del restaurant; la capacidad y la duracion
+    // de mesa no aplican.
+    var esEntregaHabitacion = String(datos.entrega || '').toLowerCase() === 'habitacion';
+    var finMin = esEntregaHabitacion ? iniMin : iniMin + _duracionServicio(servicio, variante);
 
     // Horario dentro del rango del servicio.
-    if (iniMin < _horaAMinutos(servicio.HorarioInicio) ||
-        finMin > _horaAMinutos(servicio.HorarioFin)) {
+    var fueraDeRango = esEntregaHabitacion
+      ? (iniMin < _horaAMinutos(servicio.HorarioInicio) || iniMin >= _horaAMinutos(servicio.HorarioFin))
+      : (iniMin < _horaAMinutos(servicio.HorarioInicio) || finMin > _horaAMinutos(servicio.HorarioFin));
+    if (fueraDeRango) {
       return { success: false, mensaje: 'El horario esta fuera del rango permitido.' };
     }
 
-    // No debe caer dentro de un bloqueo.
+    // No debe caer dentro de un bloqueo (aplica tambien al pedido a la pieza:
+    // un bloqueo significa que el restaurant no esta operando).
     var bloqueos = _bloqueosDelDia(datos.servicioID, fecha);
-    if (_bloqueSolapaBloqueos(iniMin, finMin, bloqueos)) {
+    if (_bloqueSolapaBloqueos(iniMin, Math.max(finMin, iniMin + 1), bloqueos)) {
       return { success: false, mensaje: 'El horario esta bloqueado por el hotel.' };
     }
 
-    // Verifica capacidad disponible en el bloque.
-    var reservas = _reservasActivasDelDia(datos.servicioID, fecha);
-    var ocupadas = _personasOcupadasEnBloque(reservas, iniMin, finMin);
-    if (ocupadas + personas > servicio.Capacidad) {
-      return { success: false, mensaje: 'No hay capacidad disponible en ese horario.' };
-    }
-
-    // Servicios exclusivos: cualquier solapamiento bloquea.
-    if (_esServicioExclusivo(servicio) && _hayReservaSolapada(reservas, iniMin, finMin)) {
-      return { success: false, mensaje: 'Ese horario ya esta tomado.' };
+    // Capacidad y exclusividad: solo para reservas que ocupan mesa. El pedido a
+    // la habitacion se las salta.
+    if (!esEntregaHabitacion) {
+      var reservas = _reservasActivasDelDia(datos.servicioID, fecha);
+      var ocupadas = _personasOcupadasEnBloque(reservas, iniMin, finMin);
+      if (ocupadas + personas > servicio.Capacidad) {
+        return { success: false, mensaje: 'No hay capacidad disponible en ese horario.' };
+      }
+      if (_esServicioExclusivo(servicio) && _hayReservaSolapada(reservas, iniMin, finMin)) {
+        return { success: false, mensaje: 'Ese horario ya esta tomado.' };
+      }
     }
 
     // Determina el estado inicial segun reglas de negocio.
