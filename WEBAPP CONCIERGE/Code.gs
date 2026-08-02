@@ -805,6 +805,7 @@ function obtenerCartaCompleta() {
  * @return {Object}
  */
 function obtenerConfiguracionCompleta() {
+  _asegurarClavesPush(); // crea las claves de avisos al telefono si faltan
   var filas = _leerHojaComoObjetos(HOJAS.CONFIGURACION);
   var config = {};
   filas.forEach(function (f) {
@@ -2353,6 +2354,268 @@ function _crearNotificacion(tipo, mensaje, destinatarioRol, habitacion, servicio
     generarID(), new Date(), tipo, mensaje, destinatarioRol || 'TODOS',
     habitacion || '', servicioID || '', 'FALSE', _fechaISO(fechaReferencia || new Date())
   ]);
+  // Aviso REAL al telefono (suena aunque la app este cerrada). Ver bloque
+  // "PUSH EXTERNO" mas abajo. Nunca puede romper la reserva: va en try/catch.
+  _enviarPushExterno(tipo, mensaje, destinatarioRol, habitacion);
+}
+
+// ===========================================================================
+// PUSH EXTERNO (avisos reales al telefono, con la app cerrada)
+// ---------------------------------------------------------------------------
+// Por que existe: la webapp de Apps Script se sirve dentro de un iframe
+// sandbox de googleusercontent.com. Ahi el navegador NO permite registrar un
+// Service Worker ni usar la Web Push API, asi que un aviso "nativo" desde la
+// pagina es imposible: si el telefono se bloquea o el navegador se minimiza,
+// el JavaScript se suspende y el polling deja de correr.
+//
+// La solucion es invertir quien avisa: en vez de que el telefono pregunte,
+// es el SERVIDOR (este script) el que empuja el aviso hacia una app que si
+// tiene push nativo. Se soportan dos canales, ambos gratis:
+//   - Telegram : se crea un bot y un grupo con el personal del restaurant.
+//   - ntfy.sh  : app dedicada a avisos, sin cuenta ni registro.
+// Se puede usar uno, el otro, o los dos a la vez.
+//
+// Todo esto corre en el servidor, o sea funciona con el telefono bloqueado,
+// la app cerrada y el navegador sin abrir.
+// ===========================================================================
+
+/** Claves de Configuracion que usa el push, con su valor por defecto. */
+var CLAVES_PUSH = [
+  ['PUSH_ACTIVO', 'FALSE', 'Envia los avisos al telefono aunque la app este cerrada (Telegram / ntfy)'],
+  ['PUSH_ROLES', 'TODOS', 'Roles que disparan el aviso al telefono. TODOS, o lista: RESTAURANT,COCINA'],
+  ['PUSH_TELEGRAM_TOKEN', '', 'Token del bot de Telegram (te lo da @BotFather)'],
+  ['PUSH_TELEGRAM_CHAT', '', 'ID del chat o grupo de Telegram. Varios separados por coma'],
+  ['PUSH_NTFY_TOPIC', '', 'Nombre del canal en ntfy.sh (usa algo largo y dificil de adivinar)']
+];
+
+/**
+ * Crea en la hoja Configuracion las claves de push que falten. Se llama al
+ * leer la configuracion, asi la app se auto-actualiza sin tocar el Sheet.
+ */
+function _asegurarClavesPush() {
+  try {
+    var hoja = _hoja(HOJAS.CONFIGURACION);
+    var existentes = {};
+    _leerHojaComoObjetos(HOJAS.CONFIGURACION).forEach(function (f) { existentes[f.Clave] = true; });
+    var faltantes = CLAVES_PUSH.filter(function (c) { return !existentes[c[0]]; });
+    if (!faltantes.length) return;
+    faltantes.forEach(function (c) { hoja.appendRow(c); });
+    _invalidarCaches(HOJAS.CONFIGURACION);
+  } catch (e) {
+    /* si no se pueden crear, el push simplemente queda apagado */
+  }
+}
+
+/**
+ * Envia el aviso a los canales configurados. Silencioso ante cualquier fallo:
+ * un problema de red jamas debe impedir que se guarde una reserva.
+ */
+function _enviarPushExterno(tipo, mensaje, destinatarioRol, habitacion) {
+  try {
+    if (String(_obtenerConfigValor('PUSH_ACTIVO') || '').toUpperCase() !== 'TRUE') return;
+
+    // Filtro por rol: permite avisar solo al restaurant, por ejemplo.
+    var roles = String(_obtenerConfigValor('PUSH_ROLES') || 'TODOS').toUpperCase().trim();
+    if (roles && roles !== 'TODOS') {
+      var destino = String(destinatarioRol || 'TODOS').toUpperCase();
+      var permitidos = roles.split(',').map(function (s) { return s.trim(); });
+      if (destino !== 'TODOS' && permitidos.indexOf(destino) === -1) return;
+    }
+
+    var aviso = _formatearMensajePush(tipo, mensaje, habitacion);
+    _pushTelegram(aviso.titulo, aviso.cuerpo);
+    _pushNtfy(aviso.titulo, aviso.cuerpo);
+  } catch (e) {
+    /* nunca romper el flujo de reservas/pedidos */
+  }
+}
+
+/**
+ * Convierte el mensaje interno en algo legible en la pantalla del telefono.
+ * Entiende el formato estructurado "RES|hab|servicio|fecha|hora|estado".
+ */
+function _formatearMensajePush(tipo, mensaje, habitacion) {
+  var m = String(mensaje || '');
+
+  if (m.indexOf('RES|') === 0) {
+    var p = m.split('|');
+    var hab = p[1] || habitacion || '';
+    return {
+      titulo: 'Nueva reserva' + (hab ? '  ·  Hab ' + hab : ''),
+      cuerpo: (p[2] || 'Servicio') +
+        '\n' + _fechaLegiblePush(p[3]) + (p[4] ? '  ·  ' + p[4] + ' hrs' : '') +
+        (p[5] ? '\nEstado: ' + p[5] : '')
+    };
+  }
+
+  var titulos = {
+    pedido: 'Nuevo pedido',
+    reserva: 'Nueva reserva',
+    cancelacion: 'Reserva cancelada',
+    aviso: 'Aviso'
+  };
+  // El titulo ya lleva la habitacion: se saca del cuerpo para no repetirla
+  // ("Nuevo pedido · Hab 204" / "Nuevo prepedido Hab 204").
+  var cuerpo = m;
+  if (habitacion) {
+    cuerpo = cuerpo.replace(new RegExp('\\s*Hab\\.?\\s*' + habitacion + '\\s*$', 'i'), '').trim();
+  }
+  return {
+    titulo: (titulos[String(tipo || '').toLowerCase()] || 'Cascadas Concierge') +
+            (habitacion ? '  ·  Hab ' + habitacion : ''),
+    cuerpo: cuerpo || m || 'Tienes un aviso nuevo en el Concierge.'
+  };
+}
+
+/** "2026-08-01" -> "sabado 1 de agosto". Si no puede, devuelve el original. */
+function _fechaLegiblePush(iso) {
+  try {
+    if (!iso) return '';
+    var d = new Date(String(iso) + 'T12:00:00');
+    if (isNaN(d.getTime())) return String(iso);
+    var dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+    var meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+                 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    return dias[d.getDay()] + ' ' + d.getDate() + ' de ' + meses[d.getMonth()];
+  } catch (e) { return String(iso || ''); }
+}
+
+/** Escapa lo minimo para el parse_mode HTML de Telegram. */
+function _escaparHtmlTelegram(s) {
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Envia por Telegram. Acepta varios chat id separados por coma. */
+function _pushTelegram(titulo, cuerpo) {
+  var token = String(_obtenerConfigValor('PUSH_TELEGRAM_TOKEN') || '').trim();
+  var chats = String(_obtenerConfigValor('PUSH_TELEGRAM_CHAT') || '').trim();
+  if (!token || !chats) return;
+
+  var texto = '<b>' + _escaparHtmlTelegram(titulo) + '</b>\n' + _escaparHtmlTelegram(cuerpo);
+  chats.split(',').forEach(function (chat) {
+    chat = String(chat).trim();
+    if (!chat) return;
+    try {
+      UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+        method: 'post',
+        contentType: 'application/json',
+        muteHttpExceptions: true,
+        payload: JSON.stringify({
+          chat_id: chat, text: texto, parse_mode: 'HTML', disable_web_page_preview: true
+        })
+      });
+    } catch (e) { /* un chat caido no puede frenar a los demas */ }
+  });
+}
+
+/**
+ * Envia por ntfy.sh. Se usa el endpoint JSON (y no las cabeceras) para que
+ * los acentos del titulo viajen sin problemas de codificacion.
+ */
+function _pushNtfy(titulo, cuerpo) {
+  var topic = String(_obtenerConfigValor('PUSH_NTFY_TOPIC') || '').trim();
+  if (!topic) return;
+  try {
+    UrlFetchApp.fetch('https://ntfy.sh/', {
+      method: 'post',
+      contentType: 'application/json',
+      muteHttpExceptions: true,
+      payload: JSON.stringify({
+        topic: topic, title: titulo, message: cuerpo, priority: 4, tags: ['bell']
+      })
+    });
+  } catch (e) { /* silencioso */ }
+}
+
+/**
+ * Manda un aviso de prueba a los canales configurados. Se llama desde el
+ * boton "Enviar aviso de prueba" en Configuracion.
+ * @param {string} email
+ * @return {Object} {success, mensaje}
+ */
+function enviarPushDePrueba(email) {
+  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
+    return { success: false, mensaje: 'No tienes permisos para probar las notificaciones.' };
+  }
+  if (String(_obtenerConfigValor('PUSH_ACTIVO') || '').toUpperCase() !== 'TRUE') {
+    return { success: false, mensaje: 'Primero activa "Avisar al telefono" y guarda los datos del canal.' };
+  }
+  var token = String(_obtenerConfigValor('PUSH_TELEGRAM_TOKEN') || '').trim();
+  var chats = String(_obtenerConfigValor('PUSH_TELEGRAM_CHAT') || '').trim();
+  var topic = String(_obtenerConfigValor('PUSH_NTFY_TOPIC') || '').trim();
+  if ((!token || !chats) && !topic) {
+    return { success: false, mensaje: 'Falta configurar Telegram (token + chat) o el canal de ntfy.' };
+  }
+
+  var canales = [];
+  if (token && chats) {
+    var r = _probarTelegram(token, chats);
+    if (!r.ok) return { success: false, mensaje: 'Telegram: ' + r.detalle };
+    canales.push('Telegram');
+  }
+  if (topic) {
+    _pushNtfy('Prueba de aviso', 'Si ves esto en tu telefono, los avisos del Concierge estan funcionando.');
+    canales.push('ntfy');
+  }
+  return { success: true, mensaje: 'Aviso de prueba enviado por ' + canales.join(' y ') + '.' };
+}
+
+/** Envia la prueba por Telegram devolviendo el error real si algo falla. */
+function _probarTelegram(token, chats) {
+  var texto = '<b>Prueba de aviso</b>\nSi ves esto en tu telefono, los avisos del Concierge estan funcionando.';
+  var ultimo = 'sin respuesta';
+  var alguno = false;
+  chats.split(',').forEach(function (chat) {
+    chat = String(chat).trim();
+    if (!chat) return;
+    try {
+      var res = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+        method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+        payload: JSON.stringify({ chat_id: chat, text: texto, parse_mode: 'HTML' })
+      });
+      var cuerpo = JSON.parse(res.getContentText() || '{}');
+      if (cuerpo.ok) alguno = true;
+      else ultimo = cuerpo.description || res.getContentText();
+    } catch (e) { ultimo = e.message; }
+  });
+  return alguno ? { ok: true } : { ok: false, detalle: ultimo };
+}
+
+/**
+ * Ayuda para encontrar el ID del chat: escribe cualquier mensaje en el grupo
+ * (o al bot) y despues ejecuta esto. Devuelve los chats que vieron al bot.
+ * @param {string} email
+ * @return {Object} {success, mensaje, chats}
+ */
+function detectarChatsTelegram(email) {
+  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
+    return { success: false, mensaje: 'No tienes permisos.', chats: [] };
+  }
+  var token = String(_obtenerConfigValor('PUSH_TELEGRAM_TOKEN') || '').trim();
+  if (!token) return { success: false, mensaje: 'Primero pega el token del bot.', chats: [] };
+  try {
+    var res = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/getUpdates',
+                                { muteHttpExceptions: true });
+    var cuerpo = JSON.parse(res.getContentText() || '{}');
+    if (!cuerpo.ok) {
+      return { success: false, mensaje: 'Telegram respondio: ' + (cuerpo.description || 'error'), chats: [] };
+    }
+    var vistos = {}, chats = [];
+    (cuerpo.result || []).forEach(function (u) {
+      var c = (u.message && u.message.chat) || (u.channel_post && u.channel_post.chat);
+      if (!c || vistos[c.id]) return;
+      vistos[c.id] = true;
+      chats.push({ id: String(c.id), nombre: c.title || c.first_name || c.username || ('Chat ' + c.id) });
+    });
+    if (!chats.length) {
+      return { success: false, chats: [],
+        mensaje: 'No vi ningun chat. Escribe cualquier mensaje en el grupo (o al bot) y vuelve a intentar.' };
+    }
+    return { success: true, mensaje: 'Encontre ' + chats.length + ' chat(s).', chats: chats };
+  } catch (e) {
+    return { success: false, mensaje: 'No pude consultar Telegram: ' + e.message, chats: [] };
+  }
 }
 
 /**
@@ -3103,13 +3366,16 @@ function actualizarConfiguracion(clave, valor, email) {
   if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
     return { success: false, mensaje: 'No tienes permisos para editar la configuracion.' };
   }
+  if (String(clave).indexOf('PUSH_') === 0) _asegurarClavesPush(); // por si es la primera vez
   var hoja = _hoja(HOJAS.CONFIGURACION);
   var filas = _leerHojaComoObjetos(HOJAS.CONFIGURACION);
   for (var i = 0; i < filas.length; i++) {
     if (filas[i].Clave === clave) {
       hoja.getRange(filas[i]._fila, _indiceColumna(hoja, 'Valor') + 1).setValue(valor);
       _invalidarCaches(HOJAS.CONFIGURACION);
-      registrarLog('Editar configuracion', clave + ' = ' + valor, '');
+      // El token del bot no se escribe en el log (es una credencial).
+      var enLog = (clave === 'PUSH_TELEGRAM_TOKEN') ? clave + ' = (oculto)' : clave + ' = ' + valor;
+      registrarLog('Editar configuracion', enLog, '');
       return { success: true, mensaje: 'Configuracion actualizada.' };
     }
   }

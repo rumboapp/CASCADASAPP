@@ -140,7 +140,13 @@ function _crearHojaConfiguracion(ss) {
     ['HOTEL_NOMBRE', 'Cascadas Hotel', 'Nombre del hotel'],
     ['MODO_OSCURO_DEFAULT', 'FALSE', 'Modo oscuro por defecto'],
     ['MONEDA_SIMBOLO', '$', 'Simbolo de moneda'],
-    ['IDIOMA_DEFAULT', 'es', 'Idioma por defecto']
+    ['IDIOMA_DEFAULT', 'es', 'Idioma por defecto'],
+    // Avisos al telefono con la app cerrada (se configuran desde la app)
+    ['PUSH_ACTIVO', 'FALSE', 'Envia los avisos al telefono aunque la app este cerrada (Telegram / ntfy)'],
+    ['PUSH_ROLES', 'TODOS', 'Roles que disparan el aviso al telefono. TODOS, o lista: RESTAURANT,COCINA'],
+    ['PUSH_TELEGRAM_TOKEN', '', 'Token del bot de Telegram (te lo da @BotFather)'],
+    ['PUSH_TELEGRAM_CHAT', '', 'ID del chat o grupo de Telegram. Varios separados por coma'],
+    ['PUSH_NTFY_TOPIC', '', 'Nombre del canal en ntfy.sh (usa algo largo y dificil de adivinar)']
   ];
   _crearHoja(ss, 'Configuracion', encabezados, filas);
 }
