@@ -5004,8 +5004,9 @@ function pintarAvisosTelefono() {
     // ---- Prueba ----
     '<div class="mt-4 pt-4 border-t flex items-center gap-2 flex-wrap" style="border-color:var(--borde)">' +
       '<button class="btn btn-dorado !py-2 !px-3 text-sm" onclick="probarAvisoTelefono()"><i class="fa-solid fa-paper-plane"></i> Enviar aviso de prueba</button>' +
-      '<span class="text-xs opacity-55">Revisa que llegue al celular antes de confiarte.</span>' +
-    '</div>';
+      '<button class="btn btn-outline !py-2 !px-3 text-sm" onclick="verDiagnosticoPush()"><i class="fa-solid fa-stethoscope"></i> Diagnostico</button>' +
+    '</div>' +
+    '<p class="text-xs opacity-55 mt-2">Si el aviso no llega, toca "Diagnostico": muestra si el servidor esta enviando y donde se corta.</p>';
 
   return tarjetaConfig('Avisos al telefono', 'fa-mobile-screen-button', contenido);
 }
@@ -5036,20 +5037,42 @@ function aplicarChatTelegram(id) {
   guardarConfigValor('PUSH_TELEGRAM_CHAT', id);
 }
 
-/* Nombre de canal ntfy dificil de adivinar (el canal es publico por diseno). */
+/* Nombre de canal ntfy dificil de adivinar (el canal es publico por diseno).
+   Cambiar el canal deja fuera a todos los telefonos ya suscritos, asi que se
+   avisa antes: es la causa mas comun de "dejo de llegar de un dia para otro". */
 function generarCanalNtfy() {
+  var campo = document.getElementById('pushNtfy');
+  var actual = campo ? campo.value.trim() : '';
+  if (actual && !confirm('Vas a cambiar el canal.\n\nTodos los telefonos suscritos al canal actual DEJARAN de recibir avisos hasta que cada uno se suscriba al nombre nuevo.\n\nContinuar?')) return;
+
   var abc = 'abcdefghijkmnpqrstuvwxyz23456789';
   var azar = '';
   for (var i = 0; i < 10; i++) azar += abc.charAt(Math.floor(Math.random() * abc.length));
   var nombre = 'cascadas-' + azar;
-  var campo = document.getElementById('pushNtfy');
   if (campo) campo.value = nombre;
   guardarConfigValor('PUSH_NTFY_TOPIC', nombre);
+  if (actual) {
+    mostrarToast('Canal cambiado. Cada telefono debe suscribirse a: ' + nombre, 'exito');
+  }
 }
 
 function probarAvisoTelefono() {
   llamarAPI('enviarPushDePrueba', [APP.usuarioStaff.Email], { loader: true }).then(function (res) {
     mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+  });
+}
+
+/* Radiografia de los avisos: dice si el servidor esta enviando y donde se corta. */
+function verDiagnosticoPush() {
+  llamarAPI('diagnosticoPush', [APP.usuarioStaff.Email], { loader: true }).then(function (res) {
+    mostrarModal({
+      titulo: '<i class="fa-solid fa-stethoscope mr-1" style="color:var(--dorado)"></i> Diagnostico de avisos',
+      contenidoHTML:
+        '<pre class="mono text-xs" style="white-space:pre-wrap;word-break:break-word;max-height:60vh;overflow:auto;' +
+        'background:var(--input,#f3f3f4);padding:12px;border-radius:10px;line-height:1.5">' +
+        escaparHTML(res.texto || 'Sin datos.') + '</pre>',
+      botones: [{ texto: 'Cerrar', clase: 'btn-primary', accion: cerrarModal }]
+    });
   });
 }
 

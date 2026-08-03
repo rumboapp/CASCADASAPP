@@ -2604,6 +2604,101 @@ function enviarPushDePrueba(email) {
   return { success: true, mensaje: 'Aviso de prueba enviado por ' + canales.join(' y ') + '.' + nota };
 }
 
+/**
+ * Marca de version del codigo de avisos. Sirve para saber, desde la app, si
+ * la implementacion publicada es la ultima o quedo una antigua.
+ */
+var VERSION_PUSH = '2026-08-03-c';
+
+/**
+ * Radiografia completa de los avisos: que hay guardado, que responde cada
+ * canal y si una reserva concreta pasaria el filtro. Devuelve texto plano
+ * para poder leerlo o mandarlo por pantallazo.
+ * @param {string} email
+ * @return {Object} {success, texto}
+ */
+function diagnosticoPush(email) {
+  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
+    return { success: false, texto: 'No tienes permisos.' };
+  }
+  var L = [];
+  L.push('VERSION DEL CODIGO: ' + VERSION_PUSH);
+  L.push('(si esto no dice 2026-08-03-c, quedo publicada una version antigua:');
+  L.push(' hay que volver a publicar en Implementar > Administrar implementaciones)');
+  L.push('');
+
+  var activo = String(_obtenerConfigValor('PUSH_ACTIVO') || '').toUpperCase();
+  L.push('AVISOS ACTIVOS: ' + (activo || '(vacio)') + (activo === 'TRUE' ? '' : '   <-- APAGADO'));
+
+  var filtro = String(_obtenerConfigValor('PUSH_ROLES') || 'TODOS');
+  L.push('FILTRO: ' + filtro);
+  var srv = _leerHojaComoObjetos(HOJAS.SERVICIOS) || [];
+  var unaGastro = null, unaOtra = null;
+  srv.forEach(function (s) {
+    var esG = String(s.Categoria || '').toLowerCase().indexOf('gastronom') === 0;
+    if (esG && !unaGastro) unaGastro = s;
+    if (!esG && !unaOtra) unaOtra = s;
+  });
+  if (unaGastro) {
+    L.push('  ' + unaGastro.Nombre + ': ' +
+      (_avisoPasaFiltro(filtro, 'reserva', unaGastro.ID) ? 'SI avisa' : 'NO avisa (filtro)'));
+  }
+  if (unaOtra) {
+    L.push('  ' + unaOtra.Nombre + ': ' +
+      (_avisoPasaFiltro(filtro, 'reserva', unaOtra.ID) ? 'SI avisa' : 'NO avisa (filtro)'));
+  }
+  L.push('');
+
+  // ---- ntfy ----
+  var topic = String(_obtenerConfigValor('PUSH_NTFY_TOPIC') || '');
+  L.push('NTFY');
+  if (!topic.trim()) {
+    L.push('  Sin canal configurado.');
+  } else {
+    L.push('  Canal guardado: "' + topic + '"');
+    L.push('  Largo: ' + topic.length + ' caracteres' +
+      (topic !== topic.trim() ? '   <-- TIENE ESPACIOS AL PRINCIPIO O AL FINAL' : ''));
+    L.push('  El telefono debe estar suscrito a ESTE nombre, identico.');
+    try {
+      var rn = UrlFetchApp.fetch('https://ntfy.sh/', {
+        method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+        payload: JSON.stringify({
+          topic: topic.trim(), title: 'Diagnostico', message: 'Mensaje de diagnostico del Concierge.',
+          priority: 4, tags: ['bell']
+        })
+      });
+      var cod = rn.getResponseCode();
+      L.push('  Respuesta del servidor: HTTP ' + cod + (cod === 200 ? '  (enviado OK)' : '  <-- ERROR'));
+      L.push('  Detalle: ' + String(rn.getContentText() || '').slice(0, 300));
+      if (cod === 200) {
+        L.push('  El servidor SI envio. Si no llego al telefono, el problema esta');
+        L.push('  en el telefono: canal mal escrito, permisos, o ahorro de bateria.');
+      }
+    } catch (e) {
+      L.push('  No se pudo conectar: ' + e.message);
+    }
+  }
+  L.push('');
+
+  // ---- Telegram ----
+  var token = String(_obtenerConfigValor('PUSH_TELEGRAM_TOKEN') || '').trim();
+  var chats = String(_obtenerConfigValor('PUSH_TELEGRAM_CHAT') || '').trim();
+  L.push('TELEGRAM');
+  if (!token || !chats) {
+    L.push('  Sin configurar (token o chat vacio).');
+  } else {
+    L.push('  Chat: ' + chats);
+    var r = _probarTelegram(token, chats);
+    L.push('  ' + (r.ok ? 'Enviado OK' : 'ERROR: ' + r.detalle));
+  }
+  L.push('');
+  L.push('TRUCO: abre en el navegador  https://ntfy.sh/' + topic.trim());
+  L.push('Ahi ves los mensajes que SI estan llegando al canal, en vivo.');
+  L.push('Si los ves ahi pero no en el telefono, el problema es del telefono.');
+
+  return { success: true, texto: L.join('\n') };
+}
+
 /** Envia la prueba por Telegram devolviendo el error real si algo falla. */
 function _probarTelegram(token, chats) {
   var texto = '<b>Prueba de aviso</b>\nSi ves esto en tu telefono, los avisos del Concierge estan funcionando.';
