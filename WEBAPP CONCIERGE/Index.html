@@ -4946,62 +4946,33 @@ function campoOpciones(etiqueta, clave, valorActual, opciones, ayuda) {
    La webapp vive dentro de un iframe sandbox de Google: ahi el navegador no
    deja registrar un Service Worker ni usar Web Push, asi que cuando el
    telefono se bloquea el JavaScript se suspende y el aviso no llega.
-   Por eso el aviso lo manda el SERVIDOR hacia una app que si tiene push
-   nativo (Telegram o ntfy). Aca solo se configura ese puente. */
+   Por eso el aviso lo manda el SERVIDOR hacia ntfy, que si tiene push nativo.
+   Aca solo se configuran los dos canales (general y restaurant). */
 
 function pintarAvisosTelefono() {
   var c = APP.config || {};
   var activo = String(c.PUSH_ACTIVO || 'FALSE').toUpperCase() === 'TRUE';
-  // Traduce los valores de la primera version (el filtro era por rol) para que
-  // el selector no muestre una opcion distinta a la que esta guardada.
-  var rolesActual = String(c.PUSH_ROLES || 'TODOS').toUpperCase().trim();
-  if (rolesActual === 'RESTAURANT' || rolesActual === 'COCINA' || rolesActual === 'RESTAURANT,COCINA') rolesActual = 'GASTRONOMIA';
-  if (rolesActual === 'RECEPCION' || rolesActual === '') rolesActual = 'TODOS';
 
   var contenido =
-    '<p class="text-xs opacity-60 mb-3">Con esto el aviso llega al celular <b>aunque la app este minimizada, cerrada o el telefono bloqueado</b>. ' +
-      'El aviso lo envia el servidor a Telegram o a ntfy, que si suenan como app normal. La campana dentro de la app sigue funcionando igual.</p>' +
+    '<p class="text-xs opacity-60 mb-4">Con esto el aviso llega al celular <b>aunque la app este minimizada, cerrada o el telefono bloqueado</b>. ' +
+      'Lo envia el servidor a la app <b>ntfy</b>, que es gratis y no pide cuenta. La campana dentro de la app sigue funcionando igual.</p>' +
 
     campoToggle('Avisar al telefono', 'PUSH_ACTIVO', activo,
-      'Enciendelo despues de configurar uno de los dos canales de abajo.') +
+      'Enciendelo despues de crear al menos un canal.') +
 
-    campoOpciones('Que avisos se envian', 'PUSH_ROLES', rolesActual,
-      [['TODOS', 'Todos los avisos'],
-       ['GASTRONOMIA', 'Solo restaurant (comida y pedidos)'],
-       ['NO_GASTRONOMIA', 'Todo menos restaurant']],
-      'Si dudas, deja "Todos los avisos". Con un filtro puesto, las reservas que queden fuera no avisan al telefono (igual aparecen en la campana).') +
-
-    // ---- Canal 1: Telegram ----
     '<div class="mt-4 pt-4 border-t" style="border-color:var(--borde)">' +
-      '<p class="font-semibold text-sm mb-1"><i class="fa-brands fa-telegram mr-1" style="color:#29a0da"></i> Opcion 1: Telegram <span class="pill estado-Confirmada ml-1">Recomendado</span></p>' +
-      '<p class="text-xs opacity-60 mb-3">En Telegram abre <b>@BotFather</b>, manda <b>/newbot</b> y sigue los pasos: te entrega un token. ' +
-        'Despues crea un grupo con el personal del restaurant, agrega ahi a tu bot, escribe cualquier mensaje en el grupo y toca "Detectar chat".</p>' +
-      '<label class="lbl">Token del bot</label>' +
-      '<input class="input mono" type="password" id="pushTgToken" value="' + escaparHTML(c.PUSH_TELEGRAM_TOKEN || '') + '" ' +
-        'placeholder="1234567890:AAF..." onchange="guardarConfigValor(\'PUSH_TELEGRAM_TOKEN\', this.value.trim())">' +
-      '<label class="lbl mt-3">ID del chat o grupo</label>' +
-      '<div class="flex gap-2 items-center flex-wrap">' +
-        '<input class="input mono" id="pushTgChat" style="flex:1;min-width:180px" value="' + escaparHTML(c.PUSH_TELEGRAM_CHAT || '') + '" ' +
-          'placeholder="-1001234567890" onchange="guardarConfigValor(\'PUSH_TELEGRAM_CHAT\', this.value.trim())">' +
-        '<button class="btn btn-outline !py-2 !px-3 text-sm shrink-0" onclick="detectarChatTelegram()"><i class="fa-solid fa-magnifying-glass"></i> Detectar chat</button>' +
-      '</div>' +
-      '<p class="text-xs opacity-55 mt-1">Puedes poner varios separados por coma.</p>' +
+      '<p class="text-xs opacity-60 mb-3">Hay <b>dos canales separados</b>, asi no hay que andar prendiendo y apagando nada: ' +
+        'a cada grupo le pasas solo el nombre que le corresponde y cada uno recibe lo suyo.</p>' +
     '</div>' +
 
-    // ---- Canal 2: ntfy ----
-    '<div class="mt-4 pt-4 border-t" style="border-color:var(--borde)">' +
-      '<p class="font-semibold text-sm mb-1"><i class="fa-solid fa-tower-broadcast mr-1" style="color:var(--dorado)"></i> Opcion 2: ntfy (sin cuenta)</p>' +
-      '<p class="text-xs opacity-60 mb-3">Instala la app <b>ntfy</b> (Android o iPhone), toca "+" y suscribete al canal de abajo. No pide registro ni correo. ' +
-        'Como cualquiera que sepa el nombre del canal puede verlo, usa uno largo y raro.</p>' +
-      '<label class="lbl">Nombre del canal</label>' +
-      '<div class="flex gap-2 items-center flex-wrap">' +
-        '<input class="input mono" id="pushNtfy" style="flex:1;min-width:180px" value="' + escaparHTML(c.PUSH_NTFY_TOPIC || '') + '" ' +
-          'placeholder="cascadas-rest-x7k2m9" onchange="guardarConfigValor(\'PUSH_NTFY_TOPIC\', this.value.trim())">' +
-        '<button class="btn btn-outline !py-2 !px-3 text-sm shrink-0" onclick="generarCanalNtfy()"><i class="fa-solid fa-dice"></i> Generar</button>' +
-      '</div>' +
-    '</div>' +
+    bloqueCanal('GENERAL', 'Canal general', 'fa-bell',
+      'Recibe <b>todos</b> los avisos: reservas de cualquier servicio y pedidos. Es el de recepcion.',
+      c.PUSH_NTFY_GENERAL, c.PUSH_NTFY_GENERAL_PREV) +
 
-    // ---- Prueba ----
+    bloqueCanal('RESTAURANT', 'Canal restaurant', 'fa-utensils',
+      'Recibe <b>solo lo de comida</b>: reservas de gastronomia y pedidos. Es el que le pasas al grupo del restaurant.',
+      c.PUSH_NTFY_RESTAURANT, c.PUSH_NTFY_RESTAURANT_PREV) +
+
     '<div class="mt-4 pt-4 border-t flex items-center gap-2 flex-wrap" style="border-color:var(--borde)">' +
       '<button class="btn btn-dorado !py-2 !px-3 text-sm" onclick="probarAvisoTelefono()"><i class="fa-solid fa-paper-plane"></i> Enviar aviso de prueba</button>' +
       '<button class="btn btn-outline !py-2 !px-3 text-sm" onclick="verDiagnosticoPush()"><i class="fa-solid fa-stethoscope"></i> Diagnostico</button>' +
@@ -5011,49 +4982,78 @@ function pintarAvisosTelefono() {
   return tarjetaConfig('Avisos al telefono', 'fa-mobile-screen-button', contenido);
 }
 
-/* Pide a Telegram los chats donde ya vieron al bot y ofrece elegir uno. */
-function detectarChatTelegram() {
-  llamarAPI('detectarChatsTelegram', [APP.usuarioStaff.Email], { loader: true }).then(function (res) {
-    if (!res.success) { mostrarToast(res.mensaje, 'error'); return; }
-    if (res.chats.length === 1) {
-      aplicarChatTelegram(res.chats[0].id);
-      return;
-    }
-    mostrarModal({
-      titulo: 'Elige el chat',
-      contenidoHTML: res.chats.map(function (ch) {
-        return '<button class="btn btn-outline w-full mb-2" onclick="aplicarChatTelegram(\'' + escaparHTML(ch.id) + '\')">' +
-          escaparHTML(ch.nombre) + ' <span class="opacity-50 ml-1">(' + escaparHTML(ch.id) + ')</span></button>';
-      }).join(''),
-      botones: [{ texto: 'Cerrar', clase: 'btn-primary', accion: cerrarModal }]
-    });
-  });
+/* Un canal. El boton de generar SOLO aparece si esta vacio: una vez que hay
+   gente suscrita, regenerar sin querer los deja a todos sin avisos, asi que
+   cambiarlo queda detras de un enlace discreto que ademas pide confirmacion. */
+function bloqueCanal(cual, titulo, icono, ayuda, valor, previo) {
+  var v = String(valor || '').trim();
+  var prev = String(previo || '').trim();
+  var id = 'canal' + cual;
+
+  var accion = v
+    ? '<button class="text-xs underline opacity-60 hover:opacity-100" style="background:none;border:none;cursor:pointer;padding:0" ' +
+        'onclick="cambiarCanal(\'' + cual + '\')">Generar otro nombre</button>'
+    : '<button class="btn btn-outline !py-2 !px-3 text-sm shrink-0" onclick="generarCanal(\'' + cual + '\')">' +
+        '<i class="fa-solid fa-dice"></i> Generar</button>';
+
+  var restaurar = (prev && prev !== v)
+    ? '<p class="text-xs mt-2" style="color:var(--dorado)"><i class="fa-solid fa-clock-rotate-left"></i> ' +
+        'Antes era <span class="mono">' + escaparHTML(prev) + '</span> · ' +
+        '<button class="underline" style="background:none;border:none;color:inherit;cursor:pointer;padding:0" ' +
+        'onclick="restaurarCanal(\'' + cual + '\')">restaurar ese</button></p>'
+    : '';
+
+  return '<div class="card p-4 mb-3" style="background:var(--input,#f3f3f4)">' +
+    '<p class="font-semibold text-sm mb-1"><i class="fa-solid ' + icono + ' mr-1" style="color:var(--dorado)"></i> ' + titulo + '</p>' +
+    '<p class="text-xs opacity-60 mb-3">' + ayuda + '</p>' +
+    '<div class="flex gap-2 items-center flex-wrap">' +
+      '<input class="input mono" id="' + id + '" style="flex:1;min-width:170px" value="' + escaparHTML(v) + '" ' +
+        'placeholder="sin canal" onchange="guardarCanal(\'' + cual + '\', this.value)">' +
+      accion +
+    '</div>' +
+    restaurar +
+  '</div>';
 }
 
-function aplicarChatTelegram(id) {
-  cerrarModal();
-  var campo = document.getElementById('pushTgChat');
-  if (campo) campo.value = id;
-  guardarConfigValor('PUSH_TELEGRAM_CHAT', id);
-}
-
-/* Nombre de canal ntfy dificil de adivinar (el canal es publico por diseno).
-   Cambiar el canal deja fuera a todos los telefonos ya suscritos, asi que se
-   avisa antes: es la causa mas comun de "dejo de llegar de un dia para otro". */
-function generarCanalNtfy() {
-  var campo = document.getElementById('pushNtfy');
-  var actual = campo ? campo.value.trim() : '';
-  if (actual && !confirm('Vas a cambiar el canal.\n\nTodos los telefonos suscritos al canal actual DEJARAN de recibir avisos hasta que cada uno se suscriba al nombre nuevo.\n\nContinuar?')) return;
-
+/* Nombre largo y aleatorio: el canal es publico para quien lo adivine. */
+function nombreCanalAzar(cual) {
   var abc = 'abcdefghijkmnpqrstuvwxyz23456789';
   var azar = '';
   for (var i = 0; i < 10; i++) azar += abc.charAt(Math.floor(Math.random() * abc.length));
-  var nombre = 'cascadas-' + azar;
-  if (campo) campo.value = nombre;
-  guardarConfigValor('PUSH_NTFY_TOPIC', nombre);
-  if (actual) {
-    mostrarToast('Canal cambiado. Cada telefono debe suscribirse a: ' + nombre, 'exito');
-  }
+  return 'cascadas-' + (cual === 'RESTAURANT' ? 'rest-' : 'gen-') + azar;
+}
+
+function generarCanal(cual) {
+  guardarCanal(cual, nombreCanalAzar(cual));
+}
+
+/* Cambiar uno que ya existe: se avisa con nombre y todo antes de tocarlo. */
+function cambiarCanal(cual) {
+  var campo = document.getElementById('canal' + cual);
+  var actual = campo ? campo.value.trim() : '';
+  if (!confirm('El canal actual es:\n\n' + actual +
+    '\n\nSi generas otro, TODOS los telefonos suscritos a este dejaran de recibir avisos ' +
+    'hasta que cada uno se suscriba al nombre nuevo.\n\nGuardaremos el actual por si te arrepientes.\n\nContinuar?')) return;
+  guardarCanal(cual, nombreCanalAzar(cual));
+}
+
+function guardarCanal(cual, valor) {
+  llamarAPI('cambiarCanalNtfy', [cual, valor, APP.usuarioStaff.Email], { loader: false }).then(function (res) {
+    if (!res.success) { mostrarToast(res.mensaje, 'error'); return; }
+    APP.config['PUSH_NTFY_' + cual] = String(valor || '').trim();
+    if (res.anterior) APP.config['PUSH_NTFY_' + cual + '_PREV'] = res.anterior;
+    mostrarToast(res.mensaje, 'exito');
+    pintarConfig();
+  });
+}
+
+function restaurarCanal(cual) {
+  llamarAPI('restaurarCanalNtfy', [cual, APP.usuarioStaff.Email], { loader: true }).then(function (res) {
+    mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+    if (res.success) {
+      renderConfig(); // recarga la config real desde el servidor
+    }
+  });
 }
 
 function probarAvisoTelefono() {

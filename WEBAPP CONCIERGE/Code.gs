@@ -2369,11 +2369,15 @@ function _crearNotificacion(tipo, mensaje, destinatarioRol, habitacion, servicio
 // el JavaScript se suspende y el polling deja de correr.
 //
 // La solucion es invertir quien avisa: en vez de que el telefono pregunte,
-// es el SERVIDOR (este script) el que empuja el aviso hacia una app que si
-// tiene push nativo. Se soportan dos canales, ambos gratis:
-//   - Telegram : se crea un bot y un grupo con el personal del restaurant.
-//   - ntfy.sh  : app dedicada a avisos, sin cuenta ni registro.
-// Se puede usar uno, el otro, o los dos a la vez.
+// es el SERVIDOR (este script) el que empuja el aviso hacia ntfy.sh, una app
+// gratuita de avisos que no pide cuenta ni registro.
+//
+// Hay DOS canales independientes, para no tener que andar prendiendo y
+// apagando filtros segun quien esta de turno:
+//   - General    : recibe TODOS los avisos (recepcion).
+//   - Restaurant : recibe solo lo de comida (reservas de gastronomia y
+//                  pedidos). A ese grupo se le pasa solo este nombre.
+// Cada persona se suscribe al canal que le corresponde y listo.
 //
 // Todo esto corre en el servidor, o sea funciona con el telefono bloqueado,
 // la app cerrada y el navegador sin abrir.
@@ -2381,76 +2385,92 @@ function _crearNotificacion(tipo, mensaje, destinatarioRol, habitacion, servicio
 
 /** Claves de Configuracion que usa el push, con su valor por defecto. */
 var CLAVES_PUSH = [
-  ['PUSH_ACTIVO', 'FALSE', 'Envia los avisos al telefono aunque la app este cerrada (Telegram / ntfy)'],
-  ['PUSH_ROLES', 'TODOS', 'Que avisos se envian al telefono: TODOS, GASTRONOMIA o NO_GASTRONOMIA'],
-  ['PUSH_TELEGRAM_TOKEN', '', 'Token del bot de Telegram (te lo da @BotFather)'],
-  ['PUSH_TELEGRAM_CHAT', '', 'ID del chat o grupo de Telegram. Varios separados por coma'],
-  ['PUSH_NTFY_TOPIC', '', 'Nombre del canal en ntfy.sh (usa algo largo y dificil de adivinar)']
+  ['PUSH_ACTIVO', 'FALSE', 'Envia los avisos al telefono aunque la app este cerrada (ntfy)'],
+  ['PUSH_NTFY_GENERAL', '', 'Canal de ntfy que recibe TODOS los avisos'],
+  ['PUSH_NTFY_RESTAURANT', '', 'Canal de ntfy que recibe solo comida (gastronomia y pedidos)'],
+  ['PUSH_NTFY_GENERAL_PREV', '', 'Canal general anterior, por si se regenera sin querer'],
+  ['PUSH_NTFY_RESTAURANT_PREV', '', 'Canal de restaurant anterior, por si se regenera sin querer']
 ];
 
 /**
  * Crea en la hoja Configuracion las claves de push que falten. Se llama al
  * leer la configuracion, asi la app se auto-actualiza sin tocar el Sheet.
+ * Tambien migra el canal unico de la primera version al canal general, para
+ * que nadie pierda el que ya tenia funcionando.
  */
 function _asegurarClavesPush() {
   try {
     var hoja = _hoja(HOJAS.CONFIGURACION);
     var existentes = {};
-    _leerHojaComoObjetos(HOJAS.CONFIGURACION).forEach(function (f) { existentes[f.Clave] = true; });
+    _leerHojaComoObjetos(HOJAS.CONFIGURACION).forEach(function (f) { existentes[f.Clave] = f; });
+
     var faltantes = CLAVES_PUSH.filter(function (c) { return !existentes[c[0]]; });
-    if (!faltantes.length) return;
-    faltantes.forEach(function (c) { hoja.appendRow(c); });
-    _invalidarCaches(HOJAS.CONFIGURACION);
+    if (faltantes.length) {
+      faltantes.forEach(function (c) { hoja.appendRow(c); });
+      _invalidarCaches(HOJAS.CONFIGURACION);
+    }
+
+    // Migracion: PUSH_NTFY_TOPIC (canal unico) -> PUSH_NTFY_GENERAL.
+    var viejo = existentes['PUSH_NTFY_TOPIC'];
+    if (viejo && String(viejo.Valor || '').trim() &&
+        !String(_obtenerConfigValor('PUSH_NTFY_GENERAL') || '').trim()) {
+      _fijarConfig('PUSH_NTFY_GENERAL', String(viejo.Valor).trim());
+    }
   } catch (e) {
     /* si no se pueden crear, el push simplemente queda apagado */
   }
 }
 
+/** Escribe una clave de configuracion (creandola si no existe). */
+function _fijarConfig(clave, valor) {
+  var hoja = _hoja(HOJAS.CONFIGURACION);
+  var filas = _leerHojaComoObjetos(HOJAS.CONFIGURACION);
+  for (var i = 0; i < filas.length; i++) {
+    if (filas[i].Clave === clave) {
+      hoja.getRange(filas[i]._fila, _indiceColumna(hoja, 'Valor') + 1).setValue(valor);
+      _invalidarCaches(HOJAS.CONFIGURACION);
+      return;
+    }
+  }
+  hoja.appendRow([clave, valor, '']);
+  _invalidarCaches(HOJAS.CONFIGURACION);
+}
+
 /**
- * Envia el aviso a los canales configurados. Silencioso ante cualquier fallo:
+ * Reparte el aviso entre los dos canales. Silencioso ante cualquier fallo:
  * un problema de red jamas debe impedir que se guarde una reserva.
  */
 function _enviarPushExterno(tipo, mensaje, destinatarioRol, habitacion, servicioID) {
   try {
     if (String(_obtenerConfigValor('PUSH_ACTIVO') || '').toUpperCase() !== 'TRUE') return;
-    if (!_avisoPasaFiltro(_obtenerConfigValor('PUSH_ROLES'), tipo, servicioID)) return;
 
     var aviso = _formatearMensajePush(tipo, mensaje, habitacion);
-    _pushTelegram(aviso.titulo, aviso.cuerpo);
-    _pushNtfy(aviso.titulo, aviso.cuerpo);
+    var general = String(_obtenerConfigValor('PUSH_NTFY_GENERAL') || '').trim();
+    var rest    = String(_obtenerConfigValor('PUSH_NTFY_RESTAURANT') || '').trim();
+
+    if (general) _pushNtfy(general, aviso.titulo, aviso.cuerpo);
+
+    // Al restaurant solo lo suyo. Si por error los dos canales tienen el mismo
+    // nombre, no se manda dos veces el mismo aviso.
+    if (rest && rest !== general && _esAvisoDeComida(tipo, servicioID)) {
+      _pushNtfy(rest, aviso.titulo, aviso.cuerpo);
+    }
   } catch (e) {
     /* nunca romper el flujo de reservas/pedidos */
   }
 }
 
 /**
- * Decide si un aviso pasa el filtro elegido en Configuracion.
+ * True si el aviso es de comida: un pedido, o una reserva de un servicio de
+ * la categoria Gastronomia.
  *
- * OJO: NO se puede filtrar por DestinatarioRol. Todas las reservas se generan
- * con rol RECEPCION sin importar el servicio (ver crearReserva), asi que
- * filtrar por rol dejaba fuera absolutamente todas las reservas. Se filtra por
- * la categoria real del servicio, que es lo que una persona entiende cuando
- * dice "solo los del restaurant".
- *
- * @param {string} filtro Valor de PUSH_ROLES
- * @param {string} tipo   'reserva' | 'pedido' | ...
- * @param {string} servicioID
- * @return {boolean}
+ * OJO: no sirve mirar DestinatarioRol. Todas las reservas se generan con rol
+ * RECEPCION sin importar el servicio (ver crearReserva), asi que hay que ir a
+ * buscar la categoria real del servicio.
  */
-function _avisoPasaFiltro(filtro, tipo, servicioID) {
-  var f = String(filtro || 'TODOS').toUpperCase().trim();
-
-  // Valores de la primera version, cuando el filtro era por rol. Se traducen
-  // para que nadie quede sin avisos despues de actualizar.
-  if (f === 'RESTAURANT' || f === 'COCINA' || f === 'RESTAURANT,COCINA') f = 'GASTRONOMIA';
-  if (f === 'RECEPCION' || f === '') f = 'TODOS';
-
-  if (f === 'TODOS') return true;
-
-  var esComida = (String(tipo || '').toLowerCase() === 'pedido') || _servicioEsGastronomia(servicioID);
-  if (f === 'GASTRONOMIA') return esComida;
-  if (f === 'NO_GASTRONOMIA') return !esComida;
-  return true; // filtro desconocido: mejor avisar de mas que de menos
+function _esAvisoDeComida(tipo, servicioID) {
+  if (String(tipo || '').toLowerCase() === 'pedido') return true;
+  return _servicioEsGastronomia(servicioID);
 }
 
 /** True si el servicio pertenece a la categoria Gastronomia. */
@@ -2517,57 +2537,80 @@ function _fechaLegiblePush(iso) {
   } catch (e) { return String(iso || ''); }
 }
 
-/** Escapa lo minimo para el parse_mode HTML de Telegram. */
-function _escaparHtmlTelegram(s) {
-  return String(s === null || s === undefined ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-/** Envia por Telegram. Acepta varios chat id separados por coma. */
-function _pushTelegram(titulo, cuerpo) {
-  var token = String(_obtenerConfigValor('PUSH_TELEGRAM_TOKEN') || '').trim();
-  var chats = String(_obtenerConfigValor('PUSH_TELEGRAM_CHAT') || '').trim();
-  if (!token || !chats) return;
-
-  var texto = '<b>' + _escaparHtmlTelegram(titulo) + '</b>\n' + _escaparHtmlTelegram(cuerpo);
-  chats.split(',').forEach(function (chat) {
-    chat = String(chat).trim();
-    if (!chat) return;
-    try {
-      UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
-        method: 'post',
-        contentType: 'application/json',
-        muteHttpExceptions: true,
-        payload: JSON.stringify({
-          chat_id: chat, text: texto, parse_mode: 'HTML', disable_web_page_preview: true
-        })
-      });
-    } catch (e) { /* un chat caido no puede frenar a los demas */ }
-  });
-}
-
 /**
- * Envia por ntfy.sh. Se usa el endpoint JSON (y no las cabeceras) para que
- * los acentos del titulo viajen sin problemas de codificacion.
+ * Publica en un canal de ntfy. Se usa el endpoint JSON (y no las cabeceras)
+ * para que los acentos del titulo viajen sin problemas de codificacion.
+ * @return {number} codigo HTTP, o 0 si ni siquiera se pudo conectar
  */
-function _pushNtfy(titulo, cuerpo) {
-  var topic = String(_obtenerConfigValor('PUSH_NTFY_TOPIC') || '').trim();
-  if (!topic) return;
+function _pushNtfy(canal, titulo, cuerpo) {
+  if (!canal) return 0;
   try {
-    UrlFetchApp.fetch('https://ntfy.sh/', {
+    var r = UrlFetchApp.fetch('https://ntfy.sh/', {
       method: 'post',
       contentType: 'application/json',
       muteHttpExceptions: true,
       payload: JSON.stringify({
-        topic: topic, title: titulo, message: cuerpo, priority: 4, tags: ['bell']
+        topic: String(canal).trim(), title: titulo, message: cuerpo, priority: 4, tags: ['bell']
       })
     });
-  } catch (e) { /* silencioso */ }
+    return r.getResponseCode();
+  } catch (e) { return 0; }
 }
 
 /**
- * Manda un aviso de prueba a los canales configurados. Se llama desde el
- * boton "Enviar aviso de prueba" en Configuracion.
+ * Marca de version del codigo de avisos. Sirve para saber, desde la app, si
+ * la implementacion publicada es la ultima o quedo una antigua.
+ */
+var VERSION_PUSH = '2026-08-03-d';
+
+/**
+ * Cambia el nombre de un canal guardando el anterior, para poder recuperarlo
+ * si alguien regenera sin querer y deja a todo el mundo sin avisos.
+ * @param {string} cual  'GENERAL' o 'RESTAURANT'
+ * @param {string} nuevo
+ * @param {string} email
+ * @return {Object} {success, mensaje, anterior}
+ */
+function cambiarCanalNtfy(cual, nuevo, email) {
+  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
+    return { success: false, mensaje: 'No tienes permisos.', anterior: '' };
+  }
+  var clave = (String(cual).toUpperCase() === 'RESTAURANT') ? 'PUSH_NTFY_RESTAURANT' : 'PUSH_NTFY_GENERAL';
+  var anterior = String(_obtenerConfigValor(clave) || '').trim();
+  var limpio = String(nuevo || '').trim();
+
+  if (anterior && anterior !== limpio) _fijarConfig(clave + '_PREV', anterior);
+  _fijarConfig(clave, limpio);
+  registrarLog('Cambiar canal de avisos', clave + ': ' + (anterior || '(vacio)') + ' -> ' + (limpio || '(vacio)'), '');
+
+  return {
+    success: true,
+    anterior: anterior,
+    mensaje: limpio
+      ? 'Canal guardado. Cada telefono debe suscribirse a: ' + limpio
+      : 'Canal borrado.'
+  };
+}
+
+/** Devuelve el canal anterior al lugar donde estaba. */
+function restaurarCanalNtfy(cual, email) {
+  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
+    return { success: false, mensaje: 'No tienes permisos.' };
+  }
+  var clave = (String(cual).toUpperCase() === 'RESTAURANT') ? 'PUSH_NTFY_RESTAURANT' : 'PUSH_NTFY_GENERAL';
+  var previo = String(_obtenerConfigValor(clave + '_PREV') || '').trim();
+  if (!previo) return { success: false, mensaje: 'No hay un canal anterior guardado.' };
+
+  var actual = String(_obtenerConfigValor(clave) || '').trim();
+  _fijarConfig(clave, previo);
+  _fijarConfig(clave + '_PREV', actual); // permite ir y volver
+  registrarLog('Restaurar canal de avisos', clave + ' -> ' + previo, '');
+  return { success: true, mensaje: 'Restaurado: ' + previo, canal: previo };
+}
+
+/**
+ * Manda un aviso de prueba a cada canal configurado, con un texto distinto
+ * para saber cual llego a que grupo.
  * @param {string} email
  * @return {Object} {success, mensaje}
  */
@@ -2576,43 +2619,32 @@ function enviarPushDePrueba(email) {
     return { success: false, mensaje: 'No tienes permisos para probar las notificaciones.' };
   }
   if (String(_obtenerConfigValor('PUSH_ACTIVO') || '').toUpperCase() !== 'TRUE') {
-    return { success: false, mensaje: 'Primero activa "Avisar al telefono" y guarda los datos del canal.' };
+    return { success: false, mensaje: 'Primero activa "Avisar al telefono".' };
   }
-  var token = String(_obtenerConfigValor('PUSH_TELEGRAM_TOKEN') || '').trim();
-  var chats = String(_obtenerConfigValor('PUSH_TELEGRAM_CHAT') || '').trim();
-  var topic = String(_obtenerConfigValor('PUSH_NTFY_TOPIC') || '').trim();
-  if ((!token || !chats) && !topic) {
-    return { success: false, mensaje: 'Falta configurar Telegram (token + chat) o el canal de ntfy.' };
-  }
+  var general = String(_obtenerConfigValor('PUSH_NTFY_GENERAL') || '').trim();
+  var rest    = String(_obtenerConfigValor('PUSH_NTFY_RESTAURANT') || '').trim();
+  if (!general && !rest) return { success: false, mensaje: 'Falta configurar al menos un canal.' };
 
-  var canales = [];
-  if (token && chats) {
-    var r = _probarTelegram(token, chats);
-    if (!r.ok) return { success: false, mensaje: 'Telegram: ' + r.detalle };
-    canales.push('Telegram');
+  var partes = [], fallas = [];
+  if (general) {
+    var c1 = _pushNtfy(general, 'Prueba · Avisos generales',
+      'Si ves esto, el canal general esta funcionando.');
+    if (c1 === 200) partes.push('general'); else fallas.push('general (HTTP ' + c1 + ')');
   }
-  if (topic) {
-    _pushNtfy('Prueba de aviso', 'Si ves esto en tu telefono, los avisos del Concierge estan funcionando.');
-    canales.push('ntfy');
+  if (rest) {
+    var c2 = _pushNtfy(rest, 'Prueba · Avisos restaurant',
+      'Si ves esto, el canal del restaurant esta funcionando.');
+    if (c2 === 200) partes.push('restaurant'); else fallas.push('restaurant (HTTP ' + c2 + ')');
   }
-
-  // La prueba se salta el filtro a proposito (comprueba el canal). Si el filtro
-  // esta acotado hay que decirlo, o el "funciono" da una falsa seguridad.
-  var f = _avisoPasaFiltro(_obtenerConfigValor('PUSH_ROLES'), 'reserva', null) &&
-          _avisoPasaFiltro(_obtenerConfigValor('PUSH_ROLES'), 'pedido', null);
-  var nota = f ? '' : ' Ojo: tienes un filtro activo, asi que no todas las reservas van a avisar.';
-  return { success: true, mensaje: 'Aviso de prueba enviado por ' + canales.join(' y ') + '.' + nota };
+  if (fallas.length) {
+    return { success: false, mensaje: 'No se pudo enviar a: ' + fallas.join(', ') + '. Toca Diagnostico.' };
+  }
+  return { success: true, mensaje: 'Enviado al canal ' + partes.join(' y al ') + '. Revisa los telefonos.' };
 }
 
 /**
- * Marca de version del codigo de avisos. Sirve para saber, desde la app, si
- * la implementacion publicada es la ultima o quedo una antigua.
- */
-var VERSION_PUSH = '2026-08-03-c';
-
-/**
  * Radiografia completa de los avisos: que hay guardado, que responde cada
- * canal y si una reserva concreta pasaria el filtro. Devuelve texto plano
+ * canal y a cual de los dos iria cada tipo de reserva. Devuelve texto plano
  * para poder leerlo o mandarlo por pantallazo.
  * @param {string} email
  * @return {Object} {success, texto}
@@ -2623,137 +2655,59 @@ function diagnosticoPush(email) {
   }
   var L = [];
   L.push('VERSION DEL CODIGO: ' + VERSION_PUSH);
-  L.push('(si esto no dice 2026-08-03-c, quedo publicada una version antigua:');
+  L.push('(si no dice ' + VERSION_PUSH + ', quedo publicada una version antigua:');
   L.push(' hay que volver a publicar en Implementar > Administrar implementaciones)');
   L.push('');
 
   var activo = String(_obtenerConfigValor('PUSH_ACTIVO') || '').toUpperCase();
   L.push('AVISOS ACTIVOS: ' + (activo || '(vacio)') + (activo === 'TRUE' ? '' : '   <-- APAGADO'));
+  L.push('');
 
-  var filtro = String(_obtenerConfigValor('PUSH_ROLES') || 'TODOS');
-  L.push('FILTRO: ' + filtro);
-  var srv = _leerHojaComoObjetos(HOJAS.SERVICIOS) || [];
-  var unaGastro = null, unaOtra = null;
-  srv.forEach(function (s) {
-    var esG = String(s.Categoria || '').toLowerCase().indexOf('gastronom') === 0;
-    if (esG && !unaGastro) unaGastro = s;
-    if (!esG && !unaOtra) unaOtra = s;
+  var general = String(_obtenerConfigValor('PUSH_NTFY_GENERAL') || '');
+  var rest    = String(_obtenerConfigValor('PUSH_NTFY_RESTAURANT') || '');
+
+  L.push('--- CANAL GENERAL (recibe todo) ---');
+  L.push(_lineasCanalDiag(general, 'PUSH_NTFY_GENERAL_PREV'));
+  L.push('');
+  L.push('--- CANAL RESTAURANT (solo comida) ---');
+  L.push(_lineasCanalDiag(rest, 'PUSH_NTFY_RESTAURANT_PREV'));
+  if (general.trim() && general.trim() === rest.trim()) {
+    L.push('  OJO: los dos canales tienen el mismo nombre. El aviso se manda una sola vez.');
+  }
+  L.push('');
+
+  L.push('--- A DONDE VA CADA RESERVA ---');
+  (_leerHojaComoObjetos(HOJAS.SERVICIOS) || []).forEach(function (s) {
+    if (String(s.Activo).toUpperCase() === 'FALSE') return;
+    var comida = _servicioEsGastronomia(s.ID);
+    L.push('  ' + s.Nombre + ': general' + (comida ? ' + restaurant' : ''));
   });
-  if (unaGastro) {
-    L.push('  ' + unaGastro.Nombre + ': ' +
-      (_avisoPasaFiltro(filtro, 'reserva', unaGastro.ID) ? 'SI avisa' : 'NO avisa (filtro)'));
-  }
-  if (unaOtra) {
-    L.push('  ' + unaOtra.Nombre + ': ' +
-      (_avisoPasaFiltro(filtro, 'reserva', unaOtra.ID) ? 'SI avisa' : 'NO avisa (filtro)'));
-  }
+  L.push('  Pedidos de comida: general + restaurant');
   L.push('');
 
-  // ---- ntfy ----
-  var topic = String(_obtenerConfigValor('PUSH_NTFY_TOPIC') || '');
-  L.push('NTFY');
-  if (!topic.trim()) {
-    L.push('  Sin canal configurado.');
-  } else {
-    L.push('  Canal guardado: "' + topic + '"');
-    L.push('  Largo: ' + topic.length + ' caracteres' +
-      (topic !== topic.trim() ? '   <-- TIENE ESPACIOS AL PRINCIPIO O AL FINAL' : ''));
-    L.push('  El telefono debe estar suscrito a ESTE nombre, identico.');
-    try {
-      var rn = UrlFetchApp.fetch('https://ntfy.sh/', {
-        method: 'post', contentType: 'application/json', muteHttpExceptions: true,
-        payload: JSON.stringify({
-          topic: topic.trim(), title: 'Diagnostico', message: 'Mensaje de diagnostico del Concierge.',
-          priority: 4, tags: ['bell']
-        })
-      });
-      var cod = rn.getResponseCode();
-      L.push('  Respuesta del servidor: HTTP ' + cod + (cod === 200 ? '  (enviado OK)' : '  <-- ERROR'));
-      L.push('  Detalle: ' + String(rn.getContentText() || '').slice(0, 300));
-      if (cod === 200) {
-        L.push('  El servidor SI envio. Si no llego al telefono, el problema esta');
-        L.push('  en el telefono: canal mal escrito, permisos, o ahorro de bateria.');
-      }
-    } catch (e) {
-      L.push('  No se pudo conectar: ' + e.message);
-    }
-  }
-  L.push('');
-
-  // ---- Telegram ----
-  var token = String(_obtenerConfigValor('PUSH_TELEGRAM_TOKEN') || '').trim();
-  var chats = String(_obtenerConfigValor('PUSH_TELEGRAM_CHAT') || '').trim();
-  L.push('TELEGRAM');
-  if (!token || !chats) {
-    L.push('  Sin configurar (token o chat vacio).');
-  } else {
-    L.push('  Chat: ' + chats);
-    var r = _probarTelegram(token, chats);
-    L.push('  ' + (r.ok ? 'Enviado OK' : 'ERROR: ' + r.detalle));
-  }
-  L.push('');
-  L.push('TRUCO: abre en el navegador  https://ntfy.sh/' + topic.trim());
-  L.push('Ahi ves los mensajes que SI estan llegando al canal, en vivo.');
-  L.push('Si los ves ahi pero no en el telefono, el problema es del telefono.');
+  L.push('TRUCO: abre en el navegador  https://ntfy.sh/' + (general.trim() || 'tu-canal'));
+  L.push('Ahi ves en vivo los mensajes que SI estan llegando al canal.');
+  L.push('Si los ves ahi pero no en el telefono, el problema es del telefono:');
+  L.push('canal mal escrito, permisos, o ahorro de bateria.');
 
   return { success: true, texto: L.join('\n') };
 }
 
-/** Envia la prueba por Telegram devolviendo el error real si algo falla. */
-function _probarTelegram(token, chats) {
-  var texto = '<b>Prueba de aviso</b>\nSi ves esto en tu telefono, los avisos del Concierge estan funcionando.';
-  var ultimo = 'sin respuesta';
-  var alguno = false;
-  chats.split(',').forEach(function (chat) {
-    chat = String(chat).trim();
-    if (!chat) return;
-    try {
-      var res = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
-        method: 'post', contentType: 'application/json', muteHttpExceptions: true,
-        payload: JSON.stringify({ chat_id: chat, text: texto, parse_mode: 'HTML' })
-      });
-      var cuerpo = JSON.parse(res.getContentText() || '{}');
-      if (cuerpo.ok) alguno = true;
-      else ultimo = cuerpo.description || res.getContentText();
-    } catch (e) { ultimo = e.message; }
-  });
-  return alguno ? { ok: true } : { ok: false, detalle: ultimo };
-}
-
-/**
- * Ayuda para encontrar el ID del chat: escribe cualquier mensaje en el grupo
- * (o al bot) y despues ejecuta esto. Devuelve los chats que vieron al bot.
- * @param {string} email
- * @return {Object} {success, mensaje, chats}
- */
-function detectarChatsTelegram(email) {
-  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
-    return { success: false, mensaje: 'No tienes permisos.', chats: [] };
+/** Bloque de diagnostico de un canal: lo que hay guardado y que responde ntfy. */
+function _lineasCanalDiag(canal, clavePrev) {
+  var L = [];
+  if (!canal.trim()) {
+    L.push('  Sin configurar.');
+  } else {
+    L.push('  Nombre guardado: "' + canal + '"');
+    L.push('  Largo: ' + canal.length + ' caracteres' +
+      (canal !== canal.trim() ? '   <-- TIENE ESPACIOS AL PRINCIPIO O AL FINAL' : ''));
+    var cod = _pushNtfy(canal, 'Diagnostico', 'Mensaje de diagnostico del Concierge.');
+    L.push('  Respuesta del servidor: HTTP ' + cod + (cod === 200 ? '  (enviado OK)' : '  <-- ERROR'));
   }
-  var token = String(_obtenerConfigValor('PUSH_TELEGRAM_TOKEN') || '').trim();
-  if (!token) return { success: false, mensaje: 'Primero pega el token del bot.', chats: [] };
-  try {
-    var res = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/getUpdates',
-                                { muteHttpExceptions: true });
-    var cuerpo = JSON.parse(res.getContentText() || '{}');
-    if (!cuerpo.ok) {
-      return { success: false, mensaje: 'Telegram respondio: ' + (cuerpo.description || 'error'), chats: [] };
-    }
-    var vistos = {}, chats = [];
-    (cuerpo.result || []).forEach(function (u) {
-      var c = (u.message && u.message.chat) || (u.channel_post && u.channel_post.chat);
-      if (!c || vistos[c.id]) return;
-      vistos[c.id] = true;
-      chats.push({ id: String(c.id), nombre: c.title || c.first_name || c.username || ('Chat ' + c.id) });
-    });
-    if (!chats.length) {
-      return { success: false, chats: [],
-        mensaje: 'No vi ningun chat. Escribe cualquier mensaje en el grupo (o al bot) y vuelve a intentar.' };
-    }
-    return { success: true, mensaje: 'Encontre ' + chats.length + ' chat(s).', chats: chats };
-  } catch (e) {
-    return { success: false, mensaje: 'No pude consultar Telegram: ' + e.message, chats: [] };
-  }
+  var prev = String(_obtenerConfigValor(clavePrev) || '').trim();
+  if (prev) L.push('  Canal anterior guardado: "' + prev + '"  (se puede restaurar)');
+  return L.join('\n');
 }
 
 /**

@@ -142,11 +142,11 @@ function _crearHojaConfiguracion(ss) {
     ['MONEDA_SIMBOLO', '$', 'Simbolo de moneda'],
     ['IDIOMA_DEFAULT', 'es', 'Idioma por defecto'],
     // Avisos al telefono con la app cerrada (se configuran desde la app)
-    ['PUSH_ACTIVO', 'FALSE', 'Envia los avisos al telefono aunque la app este cerrada (Telegram / ntfy)'],
-    ['PUSH_ROLES', 'TODOS', 'Roles que disparan el aviso al telefono. TODOS, o lista: RESTAURANT,COCINA'],
-    ['PUSH_TELEGRAM_TOKEN', '', 'Token del bot de Telegram (te lo da @BotFather)'],
-    ['PUSH_TELEGRAM_CHAT', '', 'ID del chat o grupo de Telegram. Varios separados por coma'],
-    ['PUSH_NTFY_TOPIC', '', 'Nombre del canal en ntfy.sh (usa algo largo y dificil de adivinar)']
+    ['PUSH_ACTIVO', 'FALSE', 'Envia los avisos al telefono aunque la app este cerrada (ntfy)'],
+    ['PUSH_NTFY_GENERAL', '', 'Canal de ntfy que recibe TODOS los avisos'],
+    ['PUSH_NTFY_RESTAURANT', '', 'Canal de ntfy que recibe solo comida (gastronomia y pedidos)'],
+    ['PUSH_NTFY_GENERAL_PREV', '', 'Canal general anterior, por si se regenera sin querer'],
+    ['PUSH_NTFY_RESTAURANT_PREV', '', 'Canal de restaurant anterior, por si se regenera sin querer']
   ];
   _crearHoja(ss, 'Configuracion', encabezados, filas);
 }
