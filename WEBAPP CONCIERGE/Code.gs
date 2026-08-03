@@ -3465,9 +3465,7 @@ function actualizarConfiguracion(clave, valor, email) {
     if (filas[i].Clave === clave) {
       hoja.getRange(filas[i]._fila, _indiceColumna(hoja, 'Valor') + 1).setValue(valor);
       _invalidarCaches(HOJAS.CONFIGURACION);
-      // El token del bot no se escribe en el log (es una credencial).
-      var enLog = (clave === 'PUSH_TELEGRAM_TOKEN') ? clave + ' = (oculto)' : clave + ' = ' + valor;
-      registrarLog('Editar configuracion', enLog, '');
+      registrarLog('Editar configuracion', clave + ' = ' + valor, '');
       return { success: true, mensaje: 'Configuracion actualizada.' };
     }
   }
