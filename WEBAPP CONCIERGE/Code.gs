@@ -1542,12 +1542,16 @@ function crearReserva(datos) {
     }
 
     var nombreCompleto = servicio.Nombre + (variante ? ' (' + variante + ')' : '');
-    registrarLog('Crear reserva', nombreCompleto + ' ' + fecha + ' ' + datos.horaInicio, datos.habitacion);
 
+    // El aviso va ANTES del registro: escribir en la hoja del log es un viaje
+    // al Sheet, y dejarlo delante retrasaba el mensaje de Telegram sin que
+    // nadie gane nada. El log no es urgente; el aviso al personal si.
     // Genera notificacion para el staff. Mensaje estructurado (el cliente lo
     // muestra como pop-up grande): RES|habitacion|servicio|fecha|hora|estado
     var mensajeNotif = 'RES|' + datos.habitacion + '|' + nombreCompleto + '|' + fecha + '|' + datos.horaInicio + '|' + estado;
     _crearNotificacion('reserva', mensajeNotif, 'RECEPCION', datos.habitacion, datos.servicioID, fecha);
+
+    registrarLog('Crear reserva', nombreCompleto + ' ' + fecha + ' ' + datos.horaInicio, datos.habitacion);
 
     return { success: true, id: id, estado: estado, mensaje: 'Reserva creada correctamente.' };
   } catch (err) {
@@ -2422,13 +2426,16 @@ function _esNotifParaRol(n, rol) {
 
 /** Inserta una notificacion. */
 function _crearNotificacion(tipo, mensaje, destinatarioRol, habitacion, servicioID, fechaReferencia) {
+  // Primero el telefono, despues la hoja: appendRow es un viaje al Sheet, y
+  // ponerlo delante solo retrasaba el mensaje de Telegram. Si el aviso fallara
+  // no pasa nada (va en try/catch) y la notificacion queda igual registrada
+  // para la campana de la app.
+  _enviarPushExterno(tipo, mensaje, destinatarioRol, habitacion, servicioID);
+
   _hoja(HOJAS.NOTIFICACIONES).appendRow([
     generarID(), new Date(), tipo, mensaje, destinatarioRol || 'TODOS',
     habitacion || '', servicioID || '', 'FALSE', _fechaISO(fechaReferencia || new Date())
   ]);
-  // Aviso REAL al telefono (suena aunque la app este cerrada). Ver bloque
-  // "PUSH EXTERNO" mas abajo. Nunca puede romper la reserva: va en try/catch.
-  _enviarPushExterno(tipo, mensaje, destinatarioRol, habitacion, servicioID);
 }
 
 // ===========================================================================
@@ -2468,7 +2475,9 @@ var CLAVES_PUSH = [
   ['PUSH_TG_GENERAL', '', 'ID del grupo de Telegram que recibe TODOS los avisos'],
   ['PUSH_TG_RESTAURANT', '', 'ID del grupo de Telegram que recibe solo comida (gastronomia y pedidos)'],
   ['PUSH_TG_LINK_GENERAL', '', 'Enlace de invitacion al grupo general (para el QR que se imprime)'],
-  ['PUSH_TG_LINK_RESTAURANT', '', 'Enlace de invitacion al grupo del restaurant (para el QR que se imprime)']
+  ['PUSH_TG_LINK_RESTAURANT', '', 'Enlace de invitacion al grupo del restaurant (para el QR que se imprime)'],
+  ['RESUMEN_DIARIO_ACTIVO', 'FALSE', 'Envia cada mañana el resumen de reservas del dia a los grupos'],
+  ['RESUMEN_DIARIO_HORA', '8', 'Hora a la que se envia el resumen diario (0-23)']
 ];
 
 /** Claves de la etapa ntfy, que ya no se usan y se limpian de la hoja. */
@@ -2538,13 +2547,13 @@ function _enviarPushExterno(tipo, mensaje, destinatarioRol, habitacion, servicio
     var general = String(_obtenerConfigValor('PUSH_TG_GENERAL') || '').trim();
     var rest    = String(_obtenerConfigValor('PUSH_TG_RESTAURANT') || '').trim();
 
-    if (general) _pushTelegram(general, aviso.titulo, aviso.cuerpo);
-
+    var destinos = [];
+    if (general) destinos.push(general);
     // Al restaurant solo lo suyo. Si por error los dos grupos son el mismo,
     // no se manda dos veces el mismo aviso.
-    if (rest && rest !== general && _esAvisoDeComida(tipo, servicioID)) {
-      _pushTelegram(rest, aviso.titulo, aviso.cuerpo);
-    }
+    if (rest && rest !== general && _esAvisoDeComida(tipo, servicioID)) destinos.push(rest);
+
+    _pushTelegramVarios(destinos, aviso.titulo, aviso.cuerpo);
   } catch (e) {
     /* nunca romper el flujo de reservas/pedidos */
   }
@@ -2688,6 +2697,42 @@ function _pushTelegram(chatID, titulo, cuerpo) {
     };
   } catch (e) {
     return { ok: false, codigo: 0, detalle: e.message };
+  }
+}
+
+/**
+ * Manda el MISMO mensaje a varios grupos en paralelo.
+ *
+ * fetchAll dispara todas las peticiones a la vez; con fetch una por una, el
+ * segundo grupo esperaba a que terminara el primero y el aviso llegaba
+ * notoriamente mas tarde.
+ */
+function _pushTelegramVarios(chatIDs, titulo, cuerpo) {
+  if (!chatIDs || !chatIDs.length) return;
+  var token = String(_obtenerConfigValor('PUSH_TG_TOKEN') || '').trim();
+  if (!token) return;
+
+  var texto = '<b>' + _escaparHtmlTelegram(titulo) + '</b>\n' + _escaparHtmlTelegram(cuerpo);
+  var peticiones = chatIDs.map(function (chat) {
+    return {
+      url: 'https://api.telegram.org/bot' + token + '/sendMessage',
+      method: 'post',
+      contentType: 'application/json',
+      muteHttpExceptions: true,
+      payload: JSON.stringify({
+        chat_id: String(chat).trim(), text: texto,
+        parse_mode: 'HTML', disable_web_page_preview: true
+      })
+    };
+  });
+
+  try {
+    UrlFetchApp.fetchAll(peticiones);
+  } catch (e) {
+    /* si fetchAll falla entero, se intenta uno por uno para no perder el aviso */
+    chatIDs.forEach(function (chat) {
+      try { _pushTelegram(chat, titulo, cuerpo); } catch (e2) { /* silencioso */ }
+    });
   }
 }
 
@@ -2961,6 +3006,192 @@ function _lineasGrupoDiag(chatID) {
   L.push('  Respuesta de Telegram: HTTP ' + res.codigo + (res.ok ? '' : '  ' + (res.detalle || '')));
   L.push(_explicaErrorTelegram(res));
   return L.join('\n');
+}
+
+// ===========================================================================
+// RESUMEN DIARIO AUTOMATICO
+// ---------------------------------------------------------------------------
+// Un activador por tiempo dispara resumenDiarioTelegram() cada mañana y manda
+// el parte del dia a los dos grupos: al general todo, al restaurant solo lo
+// de comida. Corre en el servidor de Google, o sea funciona con todos los
+// telefonos apagados y sin que nadie abra la app.
+//
+// El activador se instala y se quita desde Configuracion; no hay que tocar el
+// editor de Apps Script.
+// ===========================================================================
+
+var FUNCION_RESUMEN = 'resumenDiarioTelegram';
+
+/**
+ * Arma y envia el resumen del dia. La ejecuta el activador; tambien se puede
+ * llamar a mano desde el editor para probarla.
+ */
+function resumenDiarioTelegram() {
+  try {
+    if (String(_obtenerConfigValor('PUSH_ACTIVO') || '').toUpperCase() !== 'TRUE') return;
+
+    var hoy = _fechaISO(new Date());
+    var reservas = _reservasDelDiaParaResumen(hoy);
+
+    var general = String(_obtenerConfigValor('PUSH_TG_GENERAL') || '').trim();
+    var rest    = String(_obtenerConfigValor('PUSH_TG_RESTAURANT') || '').trim();
+
+    if (general) {
+      var t1 = _textoResumen(reservas, hoy, false);
+      _pushTelegramVarios([general], t1.titulo, t1.cuerpo);
+    }
+    if (rest && rest !== general) {
+      var soloComida = reservas.filter(function (r) { return r.esComida; });
+      var t2 = _textoResumen(soloComida, hoy, true);
+      _pushTelegramVarios([rest], t2.titulo, t2.cuerpo);
+    }
+  } catch (err) {
+    Logger.log('Fallo el resumen diario: ' + err.message);
+  }
+}
+
+/** Reservas vigentes del dia, ordenadas por hora y ya normalizadas. */
+function _reservasDelDiaParaResumen(fechaISO) {
+  var servicios = {};
+  _leerHojaComoObjetos(HOJAS.SERVICIOS).forEach(function (s) { servicios[s.ID] = s; });
+
+  return _leerHojaComoObjetos(HOJAS.RESERVAS).filter(function (r) {
+    if (_fechaISO(r.Fecha) !== fechaISO) return false;
+    if (_esEstadoCancelado(r.Estado)) return false;
+    return String(r.Estado) !== ESTADOS.NO_ASISTIO;
+  }).map(function (r) {
+    var s = servicios[r.ServicioID] || {};
+    return {
+      hora: _horaATexto(r.HoraInicio),
+      servicio: String(s.Nombre || r.ServicioID),
+      habitacion: String(r.Habitacion || ''),
+      personas: Number(r.Personas) || 0,
+      variante: r.Variante ? String(r.Variante) : '',
+      tienePedido: !!r.PrepedidoID,
+      esComida: String(s.Categoria || '').toLowerCase().indexOf('gastronom') === 0
+    };
+  }).sort(function (a, b) {
+    return _horaAMinutos(a.hora) - _horaAMinutos(b.hora);
+  });
+}
+
+/** Texto del resumen, agrupado por hora como una minuta de servicio. */
+function _textoResumen(reservas, fechaISO, esRestaurant) {
+  var titulo = esRestaurant ? '📋 HOY EN EL RESTAURANT' : '📋 RESUMEN DEL DIA';
+  var L = ['📅 ' + _fechaLegiblePush(fechaISO)];
+
+  if (!reservas.length) {
+    L.push('');
+    L.push(esRestaurant ? 'Sin reservas de comida para hoy.' : 'Sin reservas para hoy.');
+    return { titulo: titulo, cuerpo: L.join('\n') };
+  }
+
+  var porHora = {}, horas = [];
+  reservas.forEach(function (r) {
+    if (!porHora[r.hora]) { porHora[r.hora] = []; horas.push(r.hora); }
+    porHora[r.hora].push(r);
+  });
+
+  var totalPersonas = 0;
+  horas.forEach(function (h) {
+    L.push('');
+    L.push('⏰ ' + h + ' hrs');
+    porHora[h].forEach(function (r) {
+      totalPersonas += r.personas;
+      L.push('   ' + r.servicio + (r.variante ? ' (' + r.variante + ')' : '') +
+             '  ·  ' + _etiquetaHabPush(r.habitacion) +
+             '  ·  ' + r.personas + (r.personas === 1 ? ' pers' : ' pers') +
+             (r.tienePedido ? '  🧾' : ''));
+    });
+  });
+
+  L.push('');
+  L.push('👥 ' + reservas.length + (reservas.length === 1 ? ' reserva' : ' reservas') +
+         '  ·  ' + totalPersonas + ' personas');
+  if (reservas.some(function (r) { return r.tienePedido; })) {
+    L.push('🧾 = ya tiene pedido anticipado');
+  }
+  return { titulo: titulo, cuerpo: L.join('\n') };
+}
+
+/**
+ * Instala (o reprograma) el activador diario. Borra los que hubiera para no
+ * terminar con varios disparando el mismo mensaje repetido.
+ * @param {number} hora 0-23
+ * @return {Object} {success, mensaje}
+ */
+function programarResumenDiario(hora, email) {
+  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
+    return { success: false, mensaje: 'No tienes permisos.' };
+  }
+  try {
+    var h = Math.max(0, Math.min(23, Number(hora) || 8));
+    _borrarActivadoresResumen();
+    ScriptApp.newTrigger(FUNCION_RESUMEN).timeBased().atHour(h).everyDays(1).create();
+    _fijarConfig('RESUMEN_DIARIO_HORA', String(h));
+    _fijarConfig('RESUMEN_DIARIO_ACTIVO', 'TRUE');
+    registrarLog('Programar resumen diario', 'a las ' + h + ':00', '');
+    return { success: true, mensaje: 'Listo: el resumen se enviara todos los dias alrededor de las ' + h + ':00.' };
+  } catch (err) {
+    return { success: false, mensaje: 'No se pudo programar: ' + err.message };
+  }
+}
+
+/** Quita el envio automatico. */
+function cancelarResumenDiario(email) {
+  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
+    return { success: false, mensaje: 'No tienes permisos.' };
+  }
+  try {
+    _borrarActivadoresResumen();
+    _fijarConfig('RESUMEN_DIARIO_ACTIVO', 'FALSE');
+    registrarLog('Cancelar resumen diario', '', '');
+    return { success: true, mensaje: 'Resumen diario desactivado.' };
+  } catch (err) {
+    return { success: false, mensaje: 'No se pudo desactivar: ' + err.message };
+  }
+}
+
+/** Borra todos los activadores del resumen (evita duplicados). */
+function _borrarActivadoresResumen() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === FUNCION_RESUMEN) ScriptApp.deleteTrigger(t);
+  });
+}
+
+/**
+ * Manda el resumen de hoy ahora mismo, para ver como queda sin esperar a
+ * mañana.
+ * @return {Object} {success, mensaje}
+ */
+function enviarResumenAhora(email) {
+  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
+    return { success: false, mensaje: 'No tienes permisos.' };
+  }
+  if (String(_obtenerConfigValor('PUSH_ACTIVO') || '').toUpperCase() !== 'TRUE') {
+    return { success: false, mensaje: 'Primero activa "Avisar al telefono".' };
+  }
+  try {
+    resumenDiarioTelegram();
+    var n = _reservasDelDiaParaResumen(_fechaISO(new Date())).length;
+    return { success: true, mensaje: 'Resumen enviado (' + n + ' reservas hoy). Revisa los grupos.' };
+  } catch (err) {
+    return { success: false, mensaje: 'No se pudo enviar: ' + err.message };
+  }
+}
+
+/** Estado del envio automatico, para pintarlo en Configuracion. */
+function estadoResumenDiario() {
+  var activo = false;
+  try {
+    activo = ScriptApp.getProjectTriggers().some(function (t) {
+      return t.getHandlerFunction() === FUNCION_RESUMEN;
+    });
+  } catch (e) { /* sin permiso para leer activadores */ }
+  return {
+    activo: activo,
+    hora: Number(_obtenerConfigValor('RESUMEN_DIARIO_HORA')) || 8
+  };
 }
 
 /**

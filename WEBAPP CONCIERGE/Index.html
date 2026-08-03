@@ -5008,12 +5008,71 @@ function pintarAvisosTelefono() {
     bloqueGrupo('RESTAURANT', 'Grupo restaurant', 'fa-utensils', 'Solo comida y pedidos',
       c.PUSH_TG_RESTAURANT, c.PUSH_TG_LINK_RESTAURANT) +
 
-    '<div class="flex items-center gap-2 flex-wrap mt-1">' +
+    // Resumen automatico de cada mañana (activador por tiempo en el servidor).
+    '<div class="card p-3 mt-3" style="background:var(--input,#f3f3f4)">' +
+      '<p class="font-semibold text-sm mb-2"><i class="fa-solid fa-clock mr-1" style="color:var(--dorado)"></i> ' +
+        'Resumen de la mañana <span id="estadoResumen" class="opacity-50 font-normal">· cargando</span></p>' +
+      '<p class="text-xs opacity-60 mb-2">Manda solo, cada dia, las reservas de la jornada a los dos grupos.</p>' +
+      '<div class="flex gap-2 items-center flex-wrap">' +
+        '<select class="input" id="horaResumen" style="max-width:110px">' + opcionesHoraResumen() + '</select>' +
+        '<button class="btn btn-dorado !py-2 !px-3 text-sm" onclick="activarResumen()"><i class="fa-solid fa-check"></i> Activar</button>' +
+        '<button class="btn btn-outline !py-2 !px-3 text-sm" onclick="desactivarResumen()">Desactivar</button>' +
+        '<button class="btn btn-outline !py-2 !px-3 text-sm" onclick="enviarResumenAhora()" title="Ver como queda"><i class="fa-solid fa-paper-plane"></i></button>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="flex items-center gap-2 flex-wrap mt-3">' +
       '<button class="btn btn-dorado !py-2 !px-3 text-sm" onclick="probarAvisoTelefono()"><i class="fa-solid fa-paper-plane"></i> Probar</button>' +
       '<button class="btn btn-outline !py-2 !px-3 text-sm" onclick="verDiagnosticoPush()"><i class="fa-solid fa-stethoscope"></i> Diagnostico</button>' +
     '</div>';
 
+  setTimeout(cargarEstadoResumen, 0); // el DOM aun no existe en este ciclo
   return tarjetaConfig('Avisos al telefono', 'fa-mobile-screen-button', contenido);
+}
+
+function opcionesHoraResumen() {
+  var h = '';
+  for (var i = 5; i <= 12; i++) {
+    h += '<option value="' + i + '">' + (i < 10 ? '0' + i : i) + ':00</option>';
+  }
+  return h;
+}
+
+/* Lee del servidor si el activador existe de verdad (no basta con la config:
+   alguien pudo borrar el activador desde el editor de Apps Script). */
+function cargarEstadoResumen() {
+  llamarAPI('estadoResumenDiario', [], { loader: false, silencioso: true }).then(function (e) {
+    var txt = document.getElementById('estadoResumen');
+    var sel = document.getElementById('horaResumen');
+    if (sel && e && e.hora) sel.value = String(e.hora);
+    if (!txt) return;
+    txt.textContent = (e && e.activo)
+      ? '· activo a las ' + (e.hora < 10 ? '0' + e.hora : e.hora) + ':00'
+      : '· desactivado';
+    txt.style.color = (e && e.activo) ? 'var(--dorado)' : '';
+  }).catch(function () {});
+}
+
+function activarResumen() {
+  var sel = document.getElementById('horaResumen');
+  llamarAPI('programarResumenDiario', [sel ? sel.value : 8, APP.usuarioStaff.Email], { loader: true })
+    .then(function (res) {
+      mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+      cargarEstadoResumen();
+    });
+}
+
+function desactivarResumen() {
+  llamarAPI('cancelarResumenDiario', [APP.usuarioStaff.Email], { loader: true }).then(function (res) {
+    mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+    cargarEstadoResumen();
+  });
+}
+
+function enviarResumenAhora() {
+  llamarAPI('enviarResumenAhora', [APP.usuarioStaff.Email], { loader: true }).then(function (res) {
+    mostrarToast(res.mensaje, res.success ? 'exito' : 'error');
+  });
 }
 
 /* Un grupo: el ID (a donde se avisa) y el enlace de invitacion (para el QR).
