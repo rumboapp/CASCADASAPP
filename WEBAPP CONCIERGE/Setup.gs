@@ -145,7 +145,9 @@ function _crearHojaConfiguracion(ss) {
     ['PUSH_ACTIVO', 'FALSE', 'Envia los avisos al telefono aunque la app este cerrada (Telegram)'],
     ['PUSH_TG_TOKEN', '', 'Token del bot de Telegram (lo entrega @BotFather)'],
     ['PUSH_TG_GENERAL', '', 'ID del grupo de Telegram que recibe TODOS los avisos'],
-    ['PUSH_TG_RESTAURANT', '', 'ID del grupo de Telegram que recibe solo comida (gastronomia y pedidos)']
+    ['PUSH_TG_RESTAURANT', '', 'ID del grupo de Telegram que recibe solo comida (gastronomia y pedidos)'],
+    ['PUSH_TG_LINK_GENERAL', '', 'Enlace de invitacion al grupo general (para el QR que se imprime)'],
+    ['PUSH_TG_LINK_RESTAURANT', '', 'Enlace de invitacion al grupo del restaurant (para el QR que se imprime)']
   ];
   _crearHoja(ss, 'Configuracion', encabezados, filas);
 }

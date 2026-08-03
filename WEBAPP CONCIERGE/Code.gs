@@ -2394,7 +2394,9 @@ var CLAVES_PUSH = [
   ['PUSH_ACTIVO', 'FALSE', 'Envia los avisos al telefono aunque la app este cerrada (Telegram)'],
   ['PUSH_TG_TOKEN', '', 'Token del bot de Telegram (lo entrega @BotFather)'],
   ['PUSH_TG_GENERAL', '', 'ID del grupo de Telegram que recibe TODOS los avisos'],
-  ['PUSH_TG_RESTAURANT', '', 'ID del grupo de Telegram que recibe solo comida (gastronomia y pedidos)']
+  ['PUSH_TG_RESTAURANT', '', 'ID del grupo de Telegram que recibe solo comida (gastronomia y pedidos)'],
+  ['PUSH_TG_LINK_GENERAL', '', 'Enlace de invitacion al grupo general (para el QR que se imprime)'],
+  ['PUSH_TG_LINK_RESTAURANT', '', 'Enlace de invitacion al grupo del restaurant (para el QR que se imprime)']
 ];
 
 /** Claves de la etapa ntfy, que ya no se usan y se limpian de la hoja. */
@@ -2513,31 +2515,49 @@ function _formatearMensajePush(tipo, mensaje, habitacion) {
   if (m.indexOf('RES|') === 0) {
     var p = m.split('|');
     var hab = p[1] || habitacion || '';
-    return {
-      titulo: 'Nueva reserva' + (hab ? '  ·  Hab ' + hab : ''),
-      cuerpo: (p[2] || 'Servicio') +
-        '\n' + _fechaLegiblePush(p[3]) + (p[4] ? '  ·  ' + p[4] + ' hrs' : '') +
-        (p[5] ? '\nEstado: ' + p[5] : '')
-    };
+    var lineas = [];
+    lineas.push('🏨 ' + _etiquetaHabPush(hab));
+    lineas.push('🛎️ ' + (p[2] || 'Servicio') + (p[4] ? '  ·  ' + p[4] + ' hrs' : ''));
+    lineas.push('📅 ' + _fechaLegiblePush(p[3]));
+    if (p[5]) lineas.push(_emojiEstado(p[5]) + ' ' + p[5]);
+    return { titulo: '🔔 NUEVA RESERVA', cuerpo: lineas.join('\n') };
   }
 
-  var titulos = {
-    pedido: 'Nuevo pedido',
-    reserva: 'Nueva reserva',
-    cancelacion: 'Reserva cancelada',
-    aviso: 'Aviso'
+  var encabezados = {
+    pedido: '🍽️ NUEVO PEDIDO',
+    reserva: '🔔 NUEVA RESERVA',
+    cancelacion: '❌ RESERVA CANCELADA',
+    aviso: '📣 AVISO'
   };
-  // El titulo ya lleva la habitacion: se saca del cuerpo para no repetirla
-  // ("Nuevo pedido · Hab 204" / "Nuevo prepedido Hab 204").
+  // El encabezado ya lleva la habitacion en su propia linea: se saca del
+  // cuerpo para no repetirla ("Nuevo prepedido Hab 204").
   var cuerpo = m;
   if (habitacion) {
     cuerpo = cuerpo.replace(new RegExp('\\s*Hab\\.?\\s*' + habitacion + '\\s*$', 'i'), '').trim();
   }
+  var partes = [];
+  if (habitacion) partes.push('🏨 ' + _etiquetaHabPush(habitacion));
+  if (cuerpo) partes.push('📝 ' + cuerpo);
   return {
-    titulo: (titulos[String(tipo || '').toLowerCase()] || 'Cascadas Concierge') +
-            (habitacion ? '  ·  Hab ' + habitacion : ''),
-    cuerpo: cuerpo || m || 'Tienes un aviso nuevo en el Concierge.'
+    titulo: encabezados[String(tipo || '').toLowerCase()] || '📣 CASCADAS CONCIERGE',
+    cuerpo: partes.join('\n') || 'Tienes un aviso nuevo en el Concierge.'
   };
+}
+
+/** "204" -> "Hab 204". Si no es un numero, se deja tal cual (ej: "Pasajero"). */
+function _etiquetaHabPush(hab) {
+  var h = String(hab || '').trim();
+  return /^\d+$/.test(h) ? 'Hab ' + h : h;
+}
+
+/** Emoji segun el estado de la reserva, para reconocerlo de una mirada. */
+function _emojiEstado(estado) {
+  var e = String(estado || '').toLowerCase();
+  if (e.indexOf('confirm') === 0) return '✅';
+  if (e.indexOf('pendiente') === 0) return '⏳';
+  if (e.indexOf('cancel') === 0) return '❌';
+  if (e.indexOf('complet') === 0) return '🏁';
+  return '•';
 }
 
 /** "2026-08-01" -> "sabado 1 de agosto". Si no puede, devuelve el original. */

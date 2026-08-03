@@ -19,6 +19,8 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://npmcdn.com/flatpickr/dist/l10n/es.js"></script>
+  <!-- QR (para el codigo de invitacion a los grupos de Telegram) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <!-- Google Fonts: Bebas Neue (titulos) + Oswald (interfaz) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -5008,11 +5010,11 @@ function pintarAvisosTelefono() {
 
     bloqueGrupo('GENERAL', 'Grupo general', 'fa-bell',
       'Recibe <b>todos</b> los avisos: reservas de cualquier servicio y pedidos. Es el de recepcion.',
-      c.PUSH_TG_GENERAL) +
+      c.PUSH_TG_GENERAL, c.PUSH_TG_LINK_GENERAL) +
 
     bloqueGrupo('RESTAURANT', 'Grupo restaurant', 'fa-utensils',
       'Recibe <b>solo lo de comida</b>: reservas de gastronomia y pedidos. A este grupo agregas al personal del restaurant.',
-      c.PUSH_TG_RESTAURANT) +
+      c.PUSH_TG_RESTAURANT, c.PUSH_TG_LINK_RESTAURANT) +
 
     '<div class="mt-4 pt-4 border-t flex items-center gap-2 flex-wrap" style="border-color:var(--borde)">' +
       '<button class="btn btn-dorado !py-2 !px-3 text-sm" onclick="probarAvisoTelefono()"><i class="fa-solid fa-paper-plane"></i> Enviar aviso de prueba</button>' +
@@ -5024,19 +5026,90 @@ function pintarAvisosTelefono() {
 }
 
 /* Un grupo. El ID lo entrega Telegram, no se inventa aca: por eso se detecta
-   en vez de generarse, y se puede pegar a mano si alguien ya lo conoce. */
-function bloqueGrupo(cual, titulo, icono, ayuda, valor) {
+   en vez de generarse, y se puede pegar a mano si alguien ya lo conoce.
+   El enlace de invitacion es otra cosa distinta del ID: sirve para el QR que
+   se imprime y se le pasa al personal para que entre al grupo. */
+function bloqueGrupo(cual, titulo, icono, ayuda, valor, enlace) {
   var v = String(valor || '').trim();
+  var link = String(enlace || '').trim();
   return '<div class="card p-4 mb-3" style="background:var(--input,#f3f3f4)">' +
     '<p class="font-semibold text-sm mb-1"><i class="fa-solid ' + icono + ' mr-1" style="color:var(--dorado)"></i> ' + titulo + '</p>' +
     '<p class="text-xs opacity-60 mb-3">' + ayuda + '</p>' +
+
+    '<label class="lbl">ID del grupo (a donde se manda el aviso)</label>' +
     '<div class="flex gap-2 items-center flex-wrap">' +
       '<input class="input mono" id="grupo' + cual + '" style="flex:1;min-width:150px" value="' + escaparHTML(v) + '" ' +
         'placeholder="-1001234567890" onchange="guardarGrupo(\'' + cual + '\', this.value)">' +
       '<button class="btn btn-outline !py-2 !px-3 text-sm shrink-0" onclick="detectarGrupo(\'' + cual + '\')">' +
         '<i class="fa-solid fa-magnifying-glass"></i> Detectar grupos</button>' +
     '</div>' +
+
+    '<label class="lbl mt-3">Enlace para invitar (para el QR)</label>' +
+    '<p class="text-xs opacity-55 mb-1">En Telegram: abre el grupo &rarr; toca el nombre &rarr; <b>Editar</b> &rarr; <b>Tipo de grupo</b> &rarr; <b>Enlace de invitacion</b>. Copialo y pegalo aca.</p>' +
+    '<div class="flex gap-2 items-center flex-wrap">' +
+      '<input class="input mono" id="link' + cual + '" style="flex:1;min-width:150px" value="' + escaparHTML(link) + '" ' +
+        'placeholder="https://t.me/+..." onchange="guardarConfigValor(\'PUSH_TG_LINK_' + cual + '\', this.value.trim())">' +
+      '<button class="btn btn-dorado !py-2 !px-3 text-sm shrink-0" onclick="verQRGrupo(\'' + cual + '\')">' +
+        '<i class="fa-solid fa-qrcode"></i> QR</button>' +
+    '</div>' +
   '</div>';
+}
+
+/* Muestra el QR del enlace de invitacion, para imprimirlo y pegarlo donde el
+   personal lo pueda escanear. Se lee del campo (y no de APP.config) para que
+   funcione apenas se pega el enlace, sin tener que recargar. */
+function verQRGrupo(cual) {
+  var campo = document.getElementById('link' + cual);
+  var url = campo ? campo.value.trim() : '';
+  if (!url) { mostrarToast('Primero pega el enlace de invitacion del grupo.', 'error'); return; }
+  if (typeof QRCode === 'undefined') { mostrarToast('No se pudo cargar el generador de QR. Revisa la conexion.', 'error'); return; }
+
+  var nombre = (cual === 'RESTAURANT') ? 'Grupo restaurant' : 'Grupo general';
+  mostrarModal({
+    titulo: '<i class="fa-solid fa-qrcode mr-1" style="color:var(--dorado)"></i> QR · ' + nombre,
+    contenidoHTML:
+      '<p class="text-sm text-center mb-3">Escanea para entrar al grupo de avisos</p>' +
+      '<div id="qrGrupo" class="flex justify-center p-3" style="background:#fff;border-radius:12px"></div>' +
+      '<p class="mono text-xs mt-3 break-all text-center" style="word-break:break-all">' + escaparHTML(url) + '</p>' +
+      '<div class="flex gap-2 mt-3 flex-wrap justify-center">' +
+        '<button class="btn btn-outline !py-2 !px-3 text-sm" onclick="copiarAlPortapapeles(' + JSON.stringify(url).replace(/"/g, '&quot;') + ', \'Enlace copiado\')">' +
+          '<i class="fa-solid fa-link"></i> Copiar enlace</button>' +
+        '<button class="btn btn-dorado !py-2 !px-3 text-sm" onclick="descargarQRGrupo(' + JSON.stringify(nombre).replace(/"/g, '&quot;') + ')">' +
+          '<i class="fa-solid fa-download"></i> Descargar PNG</button>' +
+      '</div>',
+    botones: [{ texto: 'Cerrar', clase: 'btn-primary', accion: cerrarModal }]
+  });
+
+  // El modal se pinta en este mismo ciclo: se espera un tick a que el
+  // contenedor exista de verdad antes de dibujar encima.
+  setTimeout(function () {
+    var caja = document.getElementById('qrGrupo');
+    if (!caja) return;
+    caja.innerHTML = '';
+    new QRCode(caja, { text: url, width: 240, height: 240, colorDark: '#3A3A3C', colorLight: '#ffffff' });
+  }, 30);
+}
+
+/* Baja el QR como PNG para imprimirlo o mandarlo por mensaje. */
+function descargarQRGrupo(nombre) {
+  var caja = document.getElementById('qrGrupo');
+  var lienzo = caja ? caja.querySelector('canvas') : null;
+  if (!lienzo) {
+    // Algunas versiones de la libreria dejan solo un <img> con el data URI.
+    var img = caja ? caja.querySelector('img') : null;
+    if (img && img.src) { _bajarArchivo(img.src, nombre); return; }
+    mostrarToast('El QR aun no esta listo.', 'error');
+    return;
+  }
+  try { _bajarArchivo(lienzo.toDataURL('image/png'), nombre); }
+  catch (e) { mostrarToast('No se pudo descargar el QR.', 'error'); }
+}
+
+function _bajarArchivo(datos, nombre) {
+  var a = document.createElement('a');
+  a.href = datos;
+  a.download = 'QR ' + String(nombre || 'grupo').replace(/[^\w\s-]/g, '') + '.png';
+  document.body.appendChild(a); a.click(); a.remove();
 }
 
 function guardarGrupo(cual, valor) {
