@@ -2680,30 +2680,46 @@ function detectarGruposTelegram(email) {
   var token = String(_obtenerConfigValor('PUSH_TG_TOKEN') || '').trim();
   if (!token) return { success: false, mensaje: 'Primero pega el token del bot.', chats: [] };
   try {
-    var r = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/getUpdates',
-                              { muteHttpExceptions: true });
+    // allowed_updates explicito: por defecto Telegram NO entrega chat_member,
+    // que es justo el evento de "agregaron el bot a un grupo". Pidiendolo, un
+    // grupo se detecta con solo meter el bot, sin depender de que el /id haya
+    // quedado registrado.
+    var url = 'https://api.telegram.org/bot' + token + '/getUpdates' +
+      '?limit=100&allowed_updates=' +
+      encodeURIComponent(JSON.stringify(['message', 'channel_post', 'my_chat_member', 'chat_member']));
+    var r = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
     var cuerpo = JSON.parse(r.getContentText() || '{}');
     if (!cuerpo.ok) {
       return { success: false, chats: [],
         mensaje: 'Telegram respondio: ' + (cuerpo.description || 'error') };
     }
+
+    var actualizaciones = cuerpo.result || [];
     var vistos = {}, chats = [];
-    (cuerpo.result || []).forEach(function (u) {
-      var msg = u.message || u.channel_post || u.my_chat_member || {};
-      var ch = msg.chat;
+    // De la mas nueva a la mas vieja: el grupo recien creado queda arriba.
+    actualizaciones.slice().reverse().forEach(function (u) {
+      var evento = u.message || u.channel_post || u.my_chat_member || u.chat_member ||
+                   u.edited_message || {};
+      var ch = evento.chat;
       if (!ch || vistos[ch.id]) return;
       vistos[ch.id] = true;
       chats.push({
         id: String(ch.id),
-        nombre: ch.title || ch.first_name || ch.username || ('Chat ' + ch.id)
+        nombre: ch.title || ch.first_name || ch.username || ('Chat ' + ch.id),
+        tipo: ch.type || ''
       });
     });
+
     if (!chats.length) {
       return { success: false, chats: [],
-        mensaje: 'No vi ningun grupo. Escribe "/id" DENTRO del grupo (con la barra) y vuelve a intentar. ' +
-                 'Sin la barra el bot no puede leer el mensaje.' };
+        mensaje: 'No vi ningun grupo (Telegram devolvio ' + actualizaciones.length + ' eventos). ' +
+                 'Escribe "/id" DENTRO del grupo, con la barra: sin ella el bot no puede leer el mensaje.' };
     }
-    return { success: true, mensaje: 'Encontre ' + chats.length + ' grupo(s).', chats: chats };
+    return {
+      success: true,
+      mensaje: 'Encontre ' + chats.length + ' grupo(s) en ' + actualizaciones.length + ' eventos.',
+      chats: chats
+    };
   } catch (e) {
     return { success: false, mensaje: 'No pude consultar Telegram: ' + e.message, chats: [] };
   }

@@ -5120,19 +5120,54 @@ function guardarGrupo(cual, valor) {
   });
 }
 
-/* Pregunta a Telegram en que grupos ya escribieron al bot. */
+/* Pregunta a Telegram en que grupos ya vieron al bot. */
 function detectarGrupo(cual) {
   llamarAPI('detectarGruposTelegram', [APP.usuarioStaff.Email], { loader: true }).then(function (res) {
-    if (!res.success) { mostrarToast(res.mensaje, 'error'); return; }
+    if (!res.success) { mostrarModal(_modalSinGrupos(res.mensaje)); return; }
+
+    // Marca el que ya esta usando el OTRO grupo, para no repetirlo por error.
+    var otro = (cual === 'RESTAURANT')
+      ? String(APP.config.PUSH_TG_GENERAL || '').trim()
+      : String(APP.config.PUSH_TG_RESTAURANT || '').trim();
+
     mostrarModal({
       titulo: 'Elige el grupo ' + (cual === 'RESTAURANT' ? 'del restaurant' : 'general'),
-      contenidoHTML: res.chats.map(function (ch) {
-        return '<button class="btn btn-outline w-full mb-2" onclick="aplicarGrupo(\'' + cual + '\', \'' + escaparHTML(ch.id) + '\')">' +
-          escaparHTML(ch.nombre) + ' <span class="opacity-50 ml-1 mono">(' + escaparHTML(ch.id) + ')</span></button>';
-      }).join(''),
+      contenidoHTML:
+        res.chats.map(function (ch) {
+          var usado = otro && String(ch.id) === otro;
+          return '<button class="btn btn-outline w-full mb-2 text-left" onclick="aplicarGrupo(\'' + cual + '\', \'' + escaparHTML(ch.id) + '\')">' +
+            '<b>' + escaparHTML(ch.nombre) + '</b>' +
+            (usado ? ' <span class="pill estado-Pendiente ml-1">ya es el otro</span>' : '') +
+            '<br><span class="opacity-50 mono text-xs">' + escaparHTML(ch.id) + '</span></button>';
+        }).join('') +
+        '<p class="text-xs opacity-55 mt-2">' + escaparHTML(res.mensaje) + '</p>' +
+        _ayudaGrupoQueFalta(),
       botones: [{ texto: 'Cerrar', clase: 'btn-primary', accion: cerrarModal }]
     });
   });
+}
+
+/* Modal cuando no aparecio ningun grupo. */
+function _modalSinGrupos(mensaje) {
+  return {
+    titulo: 'No encontre el grupo',
+    contenidoHTML: '<p class="text-sm mb-2">' + escaparHTML(mensaje || '') + '</p>' + _ayudaGrupoQueFalta(),
+    botones: [{ texto: 'Entendido', clase: 'btn-primary', accion: cerrarModal }]
+  };
+}
+
+/* Los tres motivos reales por los que un grupo no aparece, en orden. */
+function _ayudaGrupoQueFalta() {
+  return '<div class="card p-3 mt-3" style="background:var(--input,#f3f3f4)">' +
+    '<p class="text-xs font-semibold mb-1">¿Falta un grupo en la lista?</p>' +
+    '<ol class="text-xs opacity-70" style="padding-left:1.1rem;line-height:1.7">' +
+      '<li>Escribe <b class="mono">/id</b> en ese grupo <b>ahora</b> y vuelve a tocar "Detectar grupos". ' +
+        'Telegram solo guarda los mensajes recientes: si pasaron mas de 24 horas, se perdio.</li>' +
+      '<li>Comprueba que el bot este dentro del grupo. Si tienes dudas, sacalo y vuelve a agregarlo: ' +
+        'eso solo ya lo registra.</li>' +
+      '<li>Si igual no aparece, agrega <b class="mono">@RawDataBot</b> al grupo: te dice el ID ' +
+        '(un numero negativo largo) y lo pegas a mano en el campo. Despues puedes sacarlo.</li>' +
+    '</ol></div>';
 }
 
 function aplicarGrupo(cual, id) {
