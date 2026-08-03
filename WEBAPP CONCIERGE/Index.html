@@ -802,26 +802,32 @@ function llamarAPI(nombreFuncion, parametros, opciones) {
         reject(error);
       });
 
-    // Si la funcion no existe en la version PUBLICADA (tipico: se pego codigo
-    // nuevo pero no se volvio a publicar), invocarla lanza un TypeError DENTRO
-    // de este Promise: no pasa por withFailureHandler y el boton se queda mudo.
-    // Se detecta antes y se dice exactamente que hacer.
-    if (typeof puente[nombreFuncion] !== 'function') {
+    // Si la funcion no existe en la version que sirvio ESTA pagina, invocarla
+    // lanza un TypeError DENTRO de este Promise: no pasa por
+    // withFailureHandler y el boton se queda mudo. Se intenta la llamada y
+    // solo si revienta se explica que hacer.
+    //
+    // Se prueba llamando (y no mirando si la propiedad existe) para no
+    // rechazar por error llamadas que si son validas: google.script.run no
+    // garantiza exponer las funciones como propiedades consultables.
+    try {
+      puente[nombreFuncion].apply(null, parametros || []);
+    } catch (err) {
       mostrarLoaderGlobal(false);
-      var aviso = 'La version publicada de la app no tiene la funcion "' + nombreFuncion + '".\n\n' +
-        'Falta volver a publicar: Implementar > Administrar implementaciones > el lapiz > Version: Nueva > Implementar.';
+      var aviso = 'Esta pagina no conoce la funcion "' + nombreFuncion + '".\n\n' +
+        '1) Recarga la pagina con Ctrl+Shift+R (o cierra y vuelve a abrir la app). ' +
+        'Si la tenias abierta desde antes de actualizar, sigue usando la version vieja.\n\n' +
+        '2) Si sigue igual, falta volver a publicar: Implementar > Administrar implementaciones > ' +
+        'el lapiz > Version: Nueva > Implementar.';
       if (!opciones.silencioso) {
         mostrarModal({
-          titulo: 'Falta volver a publicar',
+          titulo: 'Recarga la pagina',
           contenidoHTML: '<p class="text-sm" style="white-space:pre-line">' + escaparHTML(aviso) + '</p>',
           botones: [{ texto: t('entendido'), clase: 'btn-primary', accion: cerrarModal }]
         });
       }
       reject(new Error(aviso));
-      return;
     }
-
-    puente[nombreFuncion].apply(null, parametros || []);
   });
 }
 
