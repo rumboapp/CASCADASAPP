@@ -2575,21 +2575,25 @@ function cambiarCanalNtfy(cual, nuevo, email) {
   if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
     return { success: false, mensaje: 'No tienes permisos.', anterior: '' };
   }
-  var clave = (String(cual).toUpperCase() === 'RESTAURANT') ? 'PUSH_NTFY_RESTAURANT' : 'PUSH_NTFY_GENERAL';
-  var anterior = String(_obtenerConfigValor(clave) || '').trim();
-  var limpio = String(nuevo || '').trim();
+  try {
+    var clave = (String(cual).toUpperCase() === 'RESTAURANT') ? 'PUSH_NTFY_RESTAURANT' : 'PUSH_NTFY_GENERAL';
+    var anterior = String(_obtenerConfigValor(clave) || '').trim();
+    var limpio = String(nuevo || '').trim();
 
-  if (anterior && anterior !== limpio) _fijarConfig(clave + '_PREV', anterior);
-  _fijarConfig(clave, limpio);
-  registrarLog('Cambiar canal de avisos', clave + ': ' + (anterior || '(vacio)') + ' -> ' + (limpio || '(vacio)'), '');
+    if (anterior && anterior !== limpio) _fijarConfig(clave + '_PREV', anterior);
+    _fijarConfig(clave, limpio);
+    registrarLog('Cambiar canal de avisos', clave + ': ' + (anterior || '(vacio)') + ' -> ' + (limpio || '(vacio)'), '');
 
-  return {
-    success: true,
-    anterior: anterior,
-    mensaje: limpio
-      ? 'Canal guardado. Cada telefono debe suscribirse a: ' + limpio
-      : 'Canal borrado.'
-  };
+    return {
+      success: true,
+      anterior: anterior,
+      mensaje: limpio
+        ? 'Canal guardado. Cada telefono debe suscribirse a: ' + limpio
+        : 'Canal borrado.'
+    };
+  } catch (err) {
+    return { success: false, anterior: '', mensaje: 'No se pudo guardar el canal: ' + err.message };
+  }
 }
 
 /** Devuelve el canal anterior al lugar donde estaba. */
@@ -2643,15 +2647,48 @@ function enviarPushDePrueba(email) {
 }
 
 /**
+ * REVISION DESDE EL EDITOR. Se ejecuta a mano desde el menu de funciones de
+ * Apps Script (no necesita publicar nada) y escribe el resultado en el
+ * registro. Sirve para separar dos cosas que se confunden:
+ *   - si falla aca, el problema esta en el codigo o en la configuracion;
+ *   - si aca funciona pero en la app no, quedo publicada una version antigua.
+ */
+function revisarAvisos() {
+  try {
+    var r = diagnosticoPush(_emailActual());
+    Logger.log(r.texto || JSON.stringify(r));
+  } catch (err) {
+    Logger.log('FALLO EL DIAGNOSTICO: ' + err.message);
+    Logger.log(err.stack || '');
+  }
+}
+
+/** Email del usuario que ejecuta, para las revisiones manuales. */
+function _emailActual() {
+  try { return Session.getActiveUser().getEmail(); } catch (e) { return ''; }
+}
+
+/**
  * Radiografia completa de los avisos: que hay guardado, que responde cada
  * canal y a cual de los dos iria cada tipo de reserva. Devuelve texto plano
  * para poder leerlo o mandarlo por pantallazo.
+ *
+ * Nunca lanza: si algo revienta lo devuelve como texto, porque justamente se
+ * usa cuando algo esta fallando y un error mudo no ayuda a nadie.
  * @param {string} email
  * @return {Object} {success, texto}
  */
 function diagnosticoPush(email) {
+  try {
+    return _diagnosticoPushInterno(email);
+  } catch (err) {
+    return { success: true, texto: 'EL DIAGNOSTICO FALLO:\n' + err.message + '\n\n' + (err.stack || '') };
+  }
+}
+
+function _diagnosticoPushInterno(email) {
   if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
-    return { success: false, texto: 'No tienes permisos.' };
+    return { success: false, texto: 'No tienes permisos. Email visto: "' + (email || '(vacio)') + '"' };
   }
   var L = [];
   L.push('VERSION DEL CODIGO: ' + VERSION_PUSH);

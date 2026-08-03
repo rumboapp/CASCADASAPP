@@ -784,7 +784,7 @@ function llamarAPI(nombreFuncion, parametros, opciones) {
   opciones = opciones || {};
   return new Promise(function (resolve, reject) {
     if (opciones.loader !== false) mostrarLoaderGlobal(true);
-    google.script.run
+    var puente = google.script.run
       .withSuccessHandler(function (resultado) {
         mostrarLoaderGlobal(false);
         resolve(resultado);
@@ -800,7 +800,28 @@ function llamarAPI(nombreFuncion, parametros, opciones) {
           });
         }
         reject(error);
-      })[nombreFuncion].apply(null, parametros || []);
+      });
+
+    // Si la funcion no existe en la version PUBLICADA (tipico: se pego codigo
+    // nuevo pero no se volvio a publicar), invocarla lanza un TypeError DENTRO
+    // de este Promise: no pasa por withFailureHandler y el boton se queda mudo.
+    // Se detecta antes y se dice exactamente que hacer.
+    if (typeof puente[nombreFuncion] !== 'function') {
+      mostrarLoaderGlobal(false);
+      var aviso = 'La version publicada de la app no tiene la funcion "' + nombreFuncion + '".\n\n' +
+        'Falta volver a publicar: Implementar > Administrar implementaciones > el lapiz > Version: Nueva > Implementar.';
+      if (!opciones.silencioso) {
+        mostrarModal({
+          titulo: 'Falta volver a publicar',
+          contenidoHTML: '<p class="text-sm" style="white-space:pre-line">' + escaparHTML(aviso) + '</p>',
+          botones: [{ texto: t('entendido'), clase: 'btn-primary', accion: cerrarModal }]
+        });
+      }
+      reject(new Error(aviso));
+      return;
+    }
+
+    puente[nombreFuncion].apply(null, parametros || []);
   });
 }
 
