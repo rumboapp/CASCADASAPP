@@ -2654,9 +2654,16 @@ function enviarPushDePrueba(email) {
  *   - si aca funciona pero en la app no, quedo publicada una version antigua.
  */
 function revisarAvisos() {
+  // NO se pide rol: para llegar aca hay que poder abrir el editor de Apps
+  // Script, o sea ya se es dueño del proyecto. Ademas la cuenta que ejecuta
+  // (la dueña del script) normalmente NO esta en la hoja Usuarios, que es
+  // para los logins de la app: son dos identidades distintas.
   try {
-    var r = diagnosticoPush(_emailActual());
-    Logger.log(r.texto || JSON.stringify(r));
+    Logger.log('Ejecutando como: ' + (_emailActual() || '(desconocido)'));
+    Logger.log('');
+    Logger.log(_textoDiagnosticoPush());
+    Logger.log('');
+    Logger.log(_textoUsuariosApp());
   } catch (err) {
     Logger.log('FALLO EL DIAGNOSTICO: ' + err.message);
     Logger.log(err.stack || '');
@@ -2666,6 +2673,27 @@ function revisarAvisos() {
 /** Email del usuario que ejecuta, para las revisiones manuales. */
 function _emailActual() {
   try { return Session.getActiveUser().getEmail(); } catch (e) { return ''; }
+}
+
+/**
+ * Quien puede usar los botones dentro de la app. Sirve para descartar el
+ * "No tienes permisos" cuando el diagnostico se pide desde la app.
+ */
+function _textoUsuariosApp() {
+  try {
+    var permitidos = ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'];
+    var L = ['--- QUIEN PUEDE USAR ESTOS BOTONES EN LA APP ---'];
+    var usuarios = _leerHojaComoObjetos(HOJAS.USUARIOS) || [];
+    if (!usuarios.length) L.push('  (la hoja Usuarios esta vacia)');
+    usuarios.forEach(function (u) {
+      var ok = permitidos.indexOf(String(u.Rol || '').toUpperCase()) !== -1;
+      L.push('  ' + (ok ? 'SI' : 'no') + '  ' + (u.Email || '(sin email)') + '   rol: ' + (u.Rol || '(sin rol)'));
+    });
+    L.push('  Con los que dicen SI puedes entrar a la app y usar Diagnostico.');
+    return L.join('\n');
+  } catch (e) {
+    return 'No se pudo leer la hoja Usuarios: ' + e.message;
+  }
 }
 
 /**
@@ -2680,16 +2708,25 @@ function _emailActual() {
  */
 function diagnosticoPush(email) {
   try {
-    return _diagnosticoPushInterno(email);
+    if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
+      return {
+        success: true,
+        texto: 'Tu usuario no tiene permiso para ver esto.\n' +
+               'Email visto: "' + (email || '(vacio)') + '"\n\n' +
+               'Ese email tiene que estar en la hoja Usuarios con rol\n' +
+               'RECEPCION, ADMINISTRADOR, COCINA o RESTAURANT.\n\n' +
+               'Alternativa: en el editor de Apps Script ejecuta la funcion\n' +
+               '"revisarAvisos", que no pide permisos.'
+      };
+    }
+    return { success: true, texto: _textoDiagnosticoPush() };
   } catch (err) {
     return { success: true, texto: 'EL DIAGNOSTICO FALLO:\n' + err.message + '\n\n' + (err.stack || '') };
   }
 }
 
-function _diagnosticoPushInterno(email) {
-  if (!_validarRolPermitido(email, ['RECEPCION', 'ADMINISTRADOR', 'COCINA', 'RESTAURANT'])) {
-    return { success: false, texto: 'No tienes permisos. Email visto: "' + (email || '(vacio)') + '"' };
-  }
+/** Arma el texto del diagnostico. Sin control de permisos: lo hace quien llama. */
+function _textoDiagnosticoPush() {
   var L = [];
   L.push('VERSION DEL CODIGO: ' + VERSION_PUSH);
   L.push('(si no dice ' + VERSION_PUSH + ', quedo publicada una version antigua:');
@@ -2727,7 +2764,7 @@ function _diagnosticoPushInterno(email) {
   L.push('Si los ves ahi pero no en el telefono, el problema es del telefono:');
   L.push('canal mal escrito, permisos, o ahorro de bateria.');
 
-  return { success: true, texto: L.join('\n') };
+  return L.join('\n');
 }
 
 /** Bloque de diagnostico de un canal: lo que hay guardado y que responde ntfy. */
