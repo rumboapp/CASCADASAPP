@@ -2386,6 +2386,7 @@ function _crearNotificacion(tipo, mensaje, destinatarioRol, habitacion, servicio
 /** Claves de Configuracion que usa el push, con su valor por defecto. */
 var CLAVES_PUSH = [
   ['PUSH_ACTIVO', 'FALSE', 'Envia los avisos al telefono aunque la app este cerrada (ntfy)'],
+  ['PUSH_NTFY_TOKEN', '', 'Token de acceso de la cuenta ntfy.sh (evita el HTTP 429 por IP compartida)'],
   ['PUSH_NTFY_GENERAL', '', 'Canal de ntfy que recibe TODOS los avisos'],
   ['PUSH_NTFY_RESTAURANT', '', 'Canal de ntfy que recibe solo comida (gastronomia y pedidos)'],
   ['PUSH_NTFY_GENERAL_PREV', '', 'Canal general anterior, por si se regenera sin querer'],
@@ -2545,16 +2546,46 @@ function _fechaLegiblePush(iso) {
 function _pushNtfy(canal, titulo, cuerpo) {
   if (!canal) return 0;
   try {
-    var r = UrlFetchApp.fetch('https://ntfy.sh/', {
+    var opciones = {
       method: 'post',
       contentType: 'application/json',
       muteHttpExceptions: true,
       payload: JSON.stringify({
         topic: String(canal).trim(), title: titulo, message: cuerpo, priority: 4, tags: ['bell']
       })
-    });
+    };
+    // Token de cuenta: IMPRESCINDIBLE en la practica. ntfy.sh limita por IP y
+    // Apps Script sale por IPs compartidas con muchisimos scripts de Google,
+    // asi que sin token el cupo lo agotan terceros y devuelve HTTP 429.
+    // Con token el limite se cuenta contra la cuenta propia.
+    var token = String(_obtenerConfigValor('PUSH_NTFY_TOKEN') || '').trim();
+    if (token) opciones.headers = { Authorization: 'Bearer ' + token };
+
+    var r = UrlFetchApp.fetch('https://ntfy.sh/', opciones);
     return r.getResponseCode();
   } catch (e) { return 0; }
+}
+
+/** Traduce el codigo HTTP de ntfy a algo accionable. */
+function _explicaCodigoNtfy(cod) {
+  if (cod === 200) return '  (enviado OK)';
+  if (cod === 429) {
+    return '  <-- CUPO AGOTADO\n' +
+      '  ntfy.sh limita por direccion IP, y Apps Script sale por IPs\n' +
+      '  compartidas con muchisimos otros scripts de Google: el cupo lo\n' +
+      '  gastan terceros, no tu. Por eso funciona una vez y despues no.\n' +
+      '  SOLUCION: crea una cuenta gratis en ntfy.sh, genera un token de\n' +
+      '  acceso y pegalo en Configuracion > Avisos al telefono. Con token\n' +
+      '  el limite se cuenta contra tu cuenta y esto se acaba.';
+  }
+  if (cod === 401 || cod === 403) {
+    return '  <-- TOKEN RECHAZADO\n' +
+      '  El token esta malo, vencido, o no tiene permiso de publicar en\n' +
+      '  este canal. Genera uno nuevo en ntfy.sh (Account > Access tokens).';
+  }
+  if (cod === 400) return '  <-- El nombre del canal no es valido para ntfy.';
+  if (cod === 0)   return '  <-- No se pudo ni conectar con ntfy.sh.';
+  return '  <-- ERROR';
 }
 
 /**
@@ -2641,7 +2672,13 @@ function enviarPushDePrueba(email) {
     if (c2 === 200) partes.push('restaurant'); else fallas.push('restaurant (HTTP ' + c2 + ')');
   }
   if (fallas.length) {
-    return { success: false, mensaje: 'No se pudo enviar a: ' + fallas.join(', ') + '. Toca Diagnostico.' };
+    var msg = 'No se pudo enviar a: ' + fallas.join(', ') + '.';
+    if (fallas.join(' ').indexOf('429') !== -1) {
+      msg += ' Cupo de ntfy agotado por IP compartida: crea una cuenta gratis en ntfy.sh y pega el token aca abajo.';
+    } else {
+      msg += ' Toca Diagnostico.';
+    }
+    return { success: false, mensaje: msg };
   }
   return { success: true, mensaje: 'Enviado al canal ' + partes.join(' y al ') + '. Revisa los telefonos.' };
 }
@@ -2735,6 +2772,8 @@ function _textoDiagnosticoPush() {
 
   var activo = String(_obtenerConfigValor('PUSH_ACTIVO') || '').toUpperCase();
   L.push('AVISOS ACTIVOS: ' + (activo || '(vacio)') + (activo === 'TRUE' ? '' : '   <-- APAGADO'));
+  var tk = String(_obtenerConfigValor('PUSH_NTFY_TOKEN') || '').trim();
+  L.push('TOKEN DE NTFY: ' + (tk ? 'si (' + tk.slice(0, 6) + '...)' : 'NO   <-- sin token, ntfy corta por IP compartida (HTTP 429)'));
   L.push('');
 
   var general = String(_obtenerConfigValor('PUSH_NTFY_GENERAL') || '');
@@ -2777,7 +2816,8 @@ function _lineasCanalDiag(canal, clavePrev) {
     L.push('  Largo: ' + canal.length + ' caracteres' +
       (canal !== canal.trim() ? '   <-- TIENE ESPACIOS AL PRINCIPIO O AL FINAL' : ''));
     var cod = _pushNtfy(canal, 'Diagnostico', 'Mensaje de diagnostico del Concierge.');
-    L.push('  Respuesta del servidor: HTTP ' + cod + (cod === 200 ? '  (enviado OK)' : '  <-- ERROR'));
+    L.push('  Respuesta del servidor: HTTP ' + cod);
+    L.push(_explicaCodigoNtfy(cod));
   }
   var prev = String(_obtenerConfigValor(clavePrev) || '').trim();
   if (prev) L.push('  Canal anterior guardado: "' + prev + '"  (se puede restaurar)');

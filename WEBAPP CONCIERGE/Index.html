@@ -4981,6 +4981,18 @@ function pintarAvisosTelefono() {
     campoToggle('Avisar al telefono', 'PUSH_ACTIVO', activo,
       'Enciendelo despues de crear al menos un canal.') +
 
+    // Sin token, ntfy.sh corta por IP y Apps Script sale por IPs compartidas
+    // con media Google: el cupo lo gastan terceros y devuelve HTTP 429.
+    '<div class="mt-4 pt-4 border-t" style="border-color:var(--borde)">' +
+      '<p class="font-semibold text-sm mb-1"><i class="fa-solid fa-key mr-1" style="color:var(--dorado)"></i> Token de ntfy ' +
+        (String(c.PUSH_NTFY_TOKEN || '').trim() ? '' : '<span class="pill estado-Cancelada ml-1">Falta</span>') + '</p>' +
+      '<p class="text-xs opacity-60 mb-2">Sin esto los avisos fallan con "cupo agotado": ntfy limita por conexion y Google comparte la suya entre miles de apps. ' +
+        'Con token el limite se cuenta contra tu cuenta.</p>' +
+      '<p class="text-xs opacity-60 mb-3">Entra a <b>ntfy.sh</b> &rarr; crea una cuenta gratis &rarr; <b>Account</b> &rarr; <b>Access tokens</b> &rarr; <b>Create access token</b>. Pega aca lo que empieza con <span class="mono">tk_</span>.</p>' +
+      '<input class="input mono" type="password" id="ntfyToken" value="' + escaparHTML(c.PUSH_NTFY_TOKEN || '') + '" ' +
+        'placeholder="tk_..." onchange="guardarConfigValor(\'PUSH_NTFY_TOKEN\', this.value.trim())">' +
+    '</div>' +
+
     '<div class="mt-4 pt-4 border-t" style="border-color:var(--borde)">' +
       '<p class="text-xs opacity-60 mb-3">Hay <b>dos canales separados</b>, asi no hay que andar prendiendo y apagando nada: ' +
         'a cada grupo le pasas solo el nombre que le corresponde y cada uno recibe lo suyo.</p>' +
