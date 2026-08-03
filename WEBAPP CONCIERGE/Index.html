@@ -2733,10 +2733,18 @@ function pollNotificaciones() {
       APP.notifsCache = notifs;
       actualizarBadgeNotif();
 
-      // Refresca el Centro de Operaciones (si esta visible y sin modal abierto)
-      // en el MISMO camino que dispara los pop-ups, para que nunca quede desfasado.
+      // Refresca el Centro de Operaciones en el MISMO camino que dispara los
+      // pop-ups, para que nunca quede desfasado. Pero SOLO cuando hace falta:
+      // antes se recargaba cada 20s aunque no hubiera pasado nada, que es la
+      // llamada mas cara de la app. Ahora se recarga si llego algo nuevo, y
+      // ademas cada cierto rato por si alguien edito desde otro dispositivo
+      // (eso no genera notificacion).
       var modalAbierto = document.getElementById('contenedorModal').innerHTML.trim() !== '';
-      if (APP.staffVistaActual === 'Operaciones' && !modalAbierto) {
+      APP.ciclosSinRefrescarOps = (APP.ciclosSinRefrescarOps || 0) + 1;
+      var tocaRefrescoPeriodico = APP.ciclosSinRefrescarOps >= 9; // ~3 minutos
+      if (APP.staffVistaActual === 'Operaciones' && !modalAbierto &&
+          (nuevas.length > 0 || tocaRefrescoPeriodico)) {
+        APP.ciclosSinRefrescarOps = 0;
         cargarOpsContenido();
       }
 
@@ -2747,7 +2755,7 @@ function pollNotificaciones() {
       if (nuevasNoLeidas.length <= 3) {
         nuevasNoLeidas.forEach(function (n) {
           var res = parseNotifReserva(n.Mensaje);
-          if (res) mostrarPopupReserva(res);
+          if (res) mostrarPopupReserva(res, n.Tipo);
           else mostrarPopupNotif(escaparHTML(n.Mensaje));
         });
       } else {
@@ -2770,19 +2778,23 @@ function fechaCorta(iso) {
   return d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' });
 }
 
-/* Pop-up GRANDE y notorio para una reserva nueva. */
-function mostrarPopupReserva(d) {
+/* Pop-up GRANDE y notorio para una reserva nueva (o una cancelacion). */
+function mostrarPopupReserva(d, tipo) {
+  var esCancelacion = String(tipo || '').toLowerCase() === 'cancelacion';
+  var color = esCancelacion ? 'var(--rojo, #8B3A3A)' : 'var(--grafito)';
   var div = document.createElement('div');
   div.className = 'card slide-up shadow-lg';
-  div.style.borderLeft = '6px solid var(--grafito)';
+  div.style.borderLeft = '6px solid ' + color;
   div.style.maxWidth = '360px';
   div.innerHTML =
     '<div class="p-5">' +
       '<div class="flex items-center justify-between mb-2">' +
-        '<span class="pill" style="background:var(--grafito);color:#fff"><i class="fa-solid fa-bell mr-1"></i> NUEVA RESERVA</span>' +
+        '<span class="pill" style="background:' + color + ';color:#fff"><i class="fa-solid ' +
+          (esCancelacion ? 'fa-ban' : 'fa-bell') + ' mr-1"></i> ' +
+          (esCancelacion ? 'RESERVA CANCELADA' : 'NUEVA RESERVA') + '</span>' +
         '<button class="text-2xl leading-none opacity-50 hover:opacity-100" onclick="this.closest(\'.card\').remove()">&times;</button>' +
       '</div>' +
-      '<p class="font-bold leading-none" style="font-size:2.2rem;color:var(--grafito)">' + escaparHTML(etiquetaHab(d.hab)) + '</p>' +
+      '<p class="font-bold leading-none" style="font-size:2.2rem;color:' + color + '">' + escaparHTML(etiquetaHab(d.hab)) + '</p>' +
       '<p class="text-lg font-semibold mt-1">' + escaparHTML(d.servicio) + '</p>' +
       '<p class="text-base mt-2"><i class="fa-regular fa-calendar mr-1"></i> ' + escaparHTML(fechaCorta(d.fecha)) +
         ' &nbsp;·&nbsp; <i class="fa-regular fa-clock mr-1"></i> <b>' + escaparHTML(d.hora) + '</b></p>' +
@@ -4981,76 +4993,48 @@ function campoOpciones(etiqueta, clave, valorActual, opciones, ayuda) {
 function pintarAvisosTelefono() {
   var c = APP.config || {};
   var activo = String(c.PUSH_ACTIVO || 'FALSE').toUpperCase() === 'TRUE';
-  var token = String(c.PUSH_TG_TOKEN || '').trim();
 
   var contenido =
-    '<p class="text-xs opacity-60 mb-4">Con esto el aviso llega al celular <b>aunque la app este minimizada, cerrada o el telefono bloqueado</b>. ' +
-      'Lo envia el servidor a un grupo de <b>Telegram</b>. La campana dentro de la app sigue funcionando igual.</p>' +
-
     campoToggle('Avisar al telefono', 'PUSH_ACTIVO', activo,
-      'Enciendelo despues de configurar el bot y al menos un grupo.') +
+      'Los avisos llegan a Telegram aunque la app este cerrada.') +
 
-    // ---- Paso 1: el bot ----
-    '<div class="mt-4 pt-4 border-t" style="border-color:var(--borde)">' +
-      '<p class="font-semibold text-sm mb-1"><i class="fa-brands fa-telegram mr-1" style="color:#29a0da"></i> 1. El bot ' +
-        (token ? '' : '<span class="pill estado-Cancelada ml-1">Falta</span>') + '</p>' +
-      '<p class="text-xs opacity-60 mb-3">En Telegram busca <b>@BotFather</b>, mandale <b>/newbot</b> y sigue los pasos. ' +
-        'Al final te entrega un token largo: pegalo aca.</p>' +
-      '<input class="input mono" type="password" id="tgToken" value="' + escaparHTML(token) + '" ' +
-        'placeholder="1234567890:AAF..." onchange="guardarConfigValor(\'PUSH_TG_TOKEN\', this.value.trim())">' +
-    '</div>' +
+    '<label class="lbl mt-3">Token del bot</label>' +
+    '<input class="input mono" type="password" id="tgToken" value="' + escaparHTML(c.PUSH_TG_TOKEN || '') + '" ' +
+      'placeholder="1234567890:AAF..." onchange="guardarConfigValor(\'PUSH_TG_TOKEN\', this.value.trim())">' +
 
-    // ---- Paso 2: los grupos ----
-    '<div class="mt-4 pt-4 border-t" style="border-color:var(--borde)">' +
-      '<p class="font-semibold text-sm mb-1"><i class="fa-solid fa-users mr-1" style="color:var(--dorado)"></i> 2. Los grupos</p>' +
-      '<p class="text-xs opacity-60 mb-2">Crea el grupo en Telegram, <b>agrega a tu bot</b> como miembro y escribe <b class="mono">/id</b> dentro del grupo. ' +
-        'Despues toca "Detectar grupos".</p>' +
-      '<p class="text-xs opacity-55 mb-3"><i class="fa-solid fa-circle-info"></i> El mensaje tiene que empezar con la barra <b class="mono">/</b>: sin ella el bot no puede leerlo.</p>' +
-    '</div>' +
-
-    bloqueGrupo('GENERAL', 'Grupo general', 'fa-bell',
-      'Recibe <b>todos</b> los avisos: reservas de cualquier servicio y pedidos. Es el de recepcion.',
+    bloqueGrupo('GENERAL', 'Grupo general', 'fa-bell', 'Todos los avisos',
       c.PUSH_TG_GENERAL, c.PUSH_TG_LINK_GENERAL) +
 
-    bloqueGrupo('RESTAURANT', 'Grupo restaurant', 'fa-utensils',
-      'Recibe <b>solo lo de comida</b>: reservas de gastronomia y pedidos. A este grupo agregas al personal del restaurant.',
+    bloqueGrupo('RESTAURANT', 'Grupo restaurant', 'fa-utensils', 'Solo comida y pedidos',
       c.PUSH_TG_RESTAURANT, c.PUSH_TG_LINK_RESTAURANT) +
 
-    '<div class="mt-4 pt-4 border-t flex items-center gap-2 flex-wrap" style="border-color:var(--borde)">' +
-      '<button class="btn btn-dorado !py-2 !px-3 text-sm" onclick="probarAvisoTelefono()"><i class="fa-solid fa-paper-plane"></i> Enviar aviso de prueba</button>' +
+    '<div class="flex items-center gap-2 flex-wrap mt-1">' +
+      '<button class="btn btn-dorado !py-2 !px-3 text-sm" onclick="probarAvisoTelefono()"><i class="fa-solid fa-paper-plane"></i> Probar</button>' +
       '<button class="btn btn-outline !py-2 !px-3 text-sm" onclick="verDiagnosticoPush()"><i class="fa-solid fa-stethoscope"></i> Diagnostico</button>' +
-    '</div>' +
-    '<p class="text-xs opacity-55 mt-2">Si el aviso no llega, toca "Diagnostico": muestra que responde Telegram y donde se corta.</p>';
+    '</div>';
 
   return tarjetaConfig('Avisos al telefono', 'fa-mobile-screen-button', contenido);
 }
 
-/* Un grupo. El ID lo entrega Telegram, no se inventa aca: por eso se detecta
-   en vez de generarse, y se puede pegar a mano si alguien ya lo conoce.
-   El enlace de invitacion es otra cosa distinta del ID: sirve para el QR que
-   se imprime y se le pasa al personal para que entre al grupo. */
+/* Un grupo: el ID (a donde se avisa) y el enlace de invitacion (para el QR).
+   Son cosas distintas, por eso van en campos separados. */
 function bloqueGrupo(cual, titulo, icono, ayuda, valor, enlace) {
-  var v = String(valor || '').trim();
-  var link = String(enlace || '').trim();
-  return '<div class="card p-4 mb-3" style="background:var(--input,#f3f3f4)">' +
-    '<p class="font-semibold text-sm mb-1"><i class="fa-solid ' + icono + ' mr-1" style="color:var(--dorado)"></i> ' + titulo + '</p>' +
-    '<p class="text-xs opacity-60 mb-3">' + ayuda + '</p>' +
+  return '<div class="card p-3 mt-3" style="background:var(--input,#f3f3f4)">' +
+    '<p class="font-semibold text-sm mb-2"><i class="fa-solid ' + icono + ' mr-1" style="color:var(--dorado)"></i> ' +
+      titulo + ' <span class="opacity-50 font-normal">· ' + ayuda + '</span></p>' +
 
-    '<label class="lbl">ID del grupo (a donde se manda el aviso)</label>' +
     '<div class="flex gap-2 items-center flex-wrap">' +
-      '<input class="input mono" id="grupo' + cual + '" style="flex:1;min-width:150px" value="' + escaparHTML(v) + '" ' +
-        'placeholder="-1001234567890" onchange="guardarGrupo(\'' + cual + '\', this.value)">' +
-      '<button class="btn btn-outline !py-2 !px-3 text-sm shrink-0" onclick="detectarGrupo(\'' + cual + '\')">' +
-        '<i class="fa-solid fa-magnifying-glass"></i> Detectar grupos</button>' +
+      '<input class="input mono" id="grupo' + cual + '" style="flex:1;min-width:140px" value="' + escaparHTML(String(valor || '').trim()) + '" ' +
+        'placeholder="ID del grupo" onchange="guardarGrupo(\'' + cual + '\', this.value)">' +
+      '<button class="btn btn-outline !py-2 !px-3 text-sm shrink-0" onclick="detectarGrupo(\'' + cual + '\')" title="Detectar grupos">' +
+        '<i class="fa-solid fa-magnifying-glass"></i></button>' +
     '</div>' +
 
-    '<label class="lbl mt-3">Enlace para invitar (para el QR)</label>' +
-    '<p class="text-xs opacity-55 mb-1">En Telegram: abre el grupo &rarr; toca el nombre &rarr; <b>Editar</b> &rarr; <b>Tipo de grupo</b> &rarr; <b>Enlace de invitacion</b>. Copialo y pegalo aca.</p>' +
-    '<div class="flex gap-2 items-center flex-wrap">' +
-      '<input class="input mono" id="link' + cual + '" style="flex:1;min-width:150px" value="' + escaparHTML(link) + '" ' +
-        'placeholder="https://t.me/+..." onchange="guardarConfigValor(\'PUSH_TG_LINK_' + cual + '\', this.value.trim())">' +
-      '<button class="btn btn-dorado !py-2 !px-3 text-sm shrink-0" onclick="verQRGrupo(\'' + cual + '\')">' +
-        '<i class="fa-solid fa-qrcode"></i> QR</button>' +
+    '<div class="flex gap-2 items-center flex-wrap mt-2">' +
+      '<input class="input mono" id="link' + cual + '" style="flex:1;min-width:140px" value="' + escaparHTML(String(enlace || '').trim()) + '" ' +
+        'placeholder="Enlace de invitacion" onchange="guardarConfigValor(\'PUSH_TG_LINK_' + cual + '\', this.value.trim())">' +
+      '<button class="btn btn-dorado !py-2 !px-3 text-sm shrink-0" onclick="verQRGrupo(\'' + cual + '\')" title="Ver QR">' +
+        '<i class="fa-solid fa-qrcode"></i></button>' +
     '</div>' +
   '</div>';
 }

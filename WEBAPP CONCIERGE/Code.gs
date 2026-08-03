@@ -388,6 +388,7 @@ function _asegurarColumna(hoja, nombre, valorDefecto) {
   if (encabezados.indexOf(nombre) !== -1) return; // ya existe
   var col = hoja.getLastColumn() + 1;
   hoja.getRange(1, col).setValue(nombre);
+  _encabezadosCache[hoja.getName()] = null; // la fila de encabezados cambio
   var nFilas = hoja.getLastRow() - 1;
   if (nFilas > 0 && valorDefecto !== '') {
     var valores = [];
@@ -733,6 +734,10 @@ function _cachePut(clave, obj, ttl) {
 /** Invalida los caches derivados y la lectura en memoria de una hoja. */
 function _invalidarCaches(nombreHoja) {
   if (nombreHoja) _lecturaCache[nombreHoja] = null;
+  // El mapa de configuracion se arma sobre la hoja: si cambia, hay que
+  // rehacerlo o se seguiria sirviendo el valor viejo dentro de esta ejecucion.
+  if (!nombreHoja || nombreHoja === HOJAS.CONFIGURACION) _configMapa = null;
+  if (nombreHoja) _encabezadosCache[nombreHoja] = null; else _encabezadosCache = {};
   try {
     CacheService.getScriptCache().removeAll(['datosIniciales', 'cartaCompleta']);
   } catch (e) { /* nunca romper el flujo por el cache */ }
@@ -747,8 +752,18 @@ function _aBooleano(valor) {
 }
 
 /** Devuelve el indice (0-based) de una columna por su encabezado. */
+var _encabezadosCache = {};
 function _indiceColumna(hoja, nombreColumna) {
-  var encabezados = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0];
+  // La fila de encabezados se lee UNA vez por hoja y por ejecucion. Antes cada
+  // consulta era un viaje al Sheet, y hay decenas por peticion (leer una
+  // columna, escribir otra, etc.). La cache se limpia si se agrega una
+  // columna (_asegurarColumna) o si se invalida la hoja.
+  var nombre = hoja.getName();
+  var encabezados = _encabezadosCache[nombre];
+  if (!encabezados) {
+    encabezados = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0];
+    _encabezadosCache[nombre] = encabezados;
+  }
   return encabezados.indexOf(nombreColumna);
 }
 
@@ -815,13 +830,20 @@ function obtenerConfiguracionCompleta() {
   return config;
 }
 
-/** Helper interno: valor de una clave de configuracion. */
+/**
+ * Helper interno: valor de una clave de configuracion.
+ * Se arma un mapa una sola vez por ejecucion: antes cada consulta recorria
+ * toda la hoja, y hay decenas de consultas por peticion.
+ */
+var _configMapa = null;
 function _obtenerConfigValor(clave) {
-  var filas = _leerHojaComoObjetos(HOJAS.CONFIGURACION);
-  for (var i = 0; i < filas.length; i++) {
-    if (filas[i].Clave === clave) return filas[i].Valor;
+  if (!_configMapa) {
+    _configMapa = {};
+    _leerHojaComoObjetos(HOJAS.CONFIGURACION).forEach(function (f) {
+      _configMapa[f.Clave] = f.Valor;
+    });
   }
-  return null;
+  return (clave in _configMapa) ? _configMapa[clave] : null;
 }
 
 /**
@@ -1671,7 +1693,26 @@ function cancelarReserva(id, motivo, esHotel) {
   }
 
   registrarLog('Cancelar reserva', id + ' -> ' + nuevoEstado, reserva.Habitacion);
+
+  // Aviso al personal: una cancelacion importa tanto como una reserva nueva,
+  // sobre todo en el restaurant, que ya podia estar preparando la mesa.
+  var nombreServicio = _nombreServicio(reserva.ServicioID);
+  var msg = 'RES|' + reserva.Habitacion + '|' + nombreServicio + '|' +
+            _fechaISO(reserva.Fecha) + '|' + _horaATexto(reserva.HoraInicio) + '|' + nuevoEstado;
+  _crearNotificacion('cancelacion', msg, 'RECEPCION', reserva.Habitacion,
+                     reserva.ServicioID, _fechaISO(reserva.Fecha));
+
   return { success: true, mensaje: 'Reserva cancelada.' };
+}
+
+/** Nombre legible de un servicio a partir de su ID. */
+function _nombreServicio(servicioID) {
+  if (!servicioID) return 'Servicio';
+  var servicios = _leerHojaComoObjetos(HOJAS.SERVICIOS);
+  for (var i = 0; i < servicios.length; i++) {
+    if (String(servicios[i].ID) === String(servicioID)) return String(servicios[i].Nombre || servicioID);
+  }
+  return String(servicioID);
 }
 
 /**
@@ -1690,19 +1731,28 @@ function _finalizarReservasVencidas() {
   try {
     var hoja = _hoja(HOJAS.RESERVAS);
     var datos = _leerHojaComoObjetos(HOJAS.RESERVAS);
+    if (!datos.length) return;
     var colEstado = _indiceColumna(hoja, 'Estado') + 1;
     var hoy = _fechaISO(new Date());
     var ahora = _minutosAhoraLocal();
     var activos = [ESTADOS.SOLICITADA, ESTADOS.PENDIENTE, ESTADOS.CONFIRMADA, ESTADOS.EN_CURSO];
 
-    datos.forEach(function (r) {
-      if (activos.indexOf(r.Estado) === -1) return;
+    // Se marcan en memoria y se escribe la columna de una sola vez. Antes se
+    // hacia un setValue por reserva vencida: con varias vencidas juntas eran
+    // decenas de viajes al Sheet, y cada viaje cuesta.
+    var primera = datos[0]._fila;
+    var columna = hoja.getRange(primera, colEstado, datos.length, 1).getValues();
+    var cambios = 0;
+
+    for (var i = 0; i < datos.length; i++) {
+      var r = datos[i];
+      if (activos.indexOf(r.Estado) === -1) continue;
       var fecha = _fechaISO(r.Fecha);
       var vencida = fecha < hoy || (fecha === hoy && _horaAMinutos(r.HoraFin) < ahora);
-      if (vencida) {
-        hoja.getRange(r._fila, colEstado).setValue(ESTADOS.FINALIZADA);
-      }
-    });
+      if (vencida) { columna[i][0] = ESTADOS.FINALIZADA; cambios++; }
+    }
+
+    if (cambios) hoja.getRange(primera, colEstado, datos.length, 1).setValues(columna);
   } catch (e) { /* la limpieza nunca debe romper una lectura */ }
 }
 
@@ -2315,16 +2365,31 @@ function _generarAlertasCapacidad(reservasDelDia, servicios) {
  * @param {boolean} soloNoLeidas
  * @return {Array<Object>}
  */
+var MAX_NOTIFICACIONES_ENVIADAS = 60;
+
 function obtenerNotificaciones(rol, habitacion, soloNoLeidas) {
   // Lectura liviana de UNA hoja: apta para consultarse por polling cada 20s.
   // (Las alertas de capacidad ya se muestran en el Centro de Operaciones.)
   _purgarNotificacionesAntiguas(); // mantiene la hoja chica (auto-limpieza)
-  return _leerHojaComoObjetos(HOJAS.NOTIFICACIONES).filter(function (n) {
+
+  var filtradas = _leerHojaComoObjetos(HOJAS.NOTIFICACIONES).filter(function (n) {
     if (soloNoLeidas && _aBooleano(n.Leida)) return false;
     if (rol && !_esNotifParaRol(n, rol)) return false;
     if (habitacion && n.Habitacion && String(n.Habitacion) !== String(habitacion)) return false;
     return true;
-  }).map(function (n) {
+  });
+
+  // Se ordena por la fecha REAL (no por el texto ya formateado) y se recorta
+  // ANTES de formatear: se mandaban 30 dias de avisos cada 20 segundos a cada
+  // dispositivo, y formatear fechas es lo caro de este endpoint.
+  filtradas.sort(function (a, b) {
+    return _msDeFecha(b.Timestamp) - _msDeFecha(a.Timestamp);
+  });
+  if (filtradas.length > MAX_NOTIFICACIONES_ENVIADAS) {
+    filtradas = filtradas.slice(0, MAX_NOTIFICACIONES_ENVIADAS);
+  }
+
+  return filtradas.map(function (n) {
     return {
       ID: n.ID,
       Timestamp: _fechaHoraTexto(n.Timestamp),
@@ -2336,7 +2401,14 @@ function obtenerNotificaciones(rol, habitacion, soloNoLeidas) {
       Leida: _aBooleano(n.Leida),
       FechaReferencia: _fechaISO(n.FechaReferencia)
     };
-  }).sort(function (a, b) { return a.Timestamp < b.Timestamp ? 1 : -1; });
+  });
+}
+
+/** Milisegundos de un valor de celda que puede venir como Date o como texto. */
+function _msDeFecha(valor) {
+  if (valor instanceof Date) return valor.getTime();
+  var d = new Date(valor);
+  return isNaN(d.getTime()) ? 0 : d.getTime();
 }
 
 /**
@@ -2520,7 +2592,11 @@ function _formatearMensajePush(tipo, mensaje, habitacion) {
     lineas.push('🛎️ ' + (p[2] || 'Servicio') + (p[4] ? '  ·  ' + p[4] + ' hrs' : ''));
     lineas.push('📅 ' + _fechaLegiblePush(p[3]));
     if (p[5]) lineas.push(_emojiEstado(p[5]) + ' ' + p[5]);
-    return { titulo: '🔔 NUEVA RESERVA', cuerpo: lineas.join('\n') };
+    var esCancelacion = String(tipo || '').toLowerCase() === 'cancelacion';
+    return {
+      titulo: esCancelacion ? '❌ RESERVA CANCELADA' : '🔔 NUEVA RESERVA',
+      cuerpo: lineas.join('\n')
+    };
   }
 
   var encabezados = {
