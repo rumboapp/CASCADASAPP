@@ -2356,7 +2356,7 @@ function _crearNotificacion(tipo, mensaje, destinatarioRol, habitacion, servicio
   ]);
   // Aviso REAL al telefono (suena aunque la app este cerrada). Ver bloque
   // "PUSH EXTERNO" mas abajo. Nunca puede romper la reserva: va en try/catch.
-  _enviarPushExterno(tipo, mensaje, destinatarioRol, habitacion);
+  _enviarPushExterno(tipo, mensaje, destinatarioRol, habitacion, servicioID);
 }
 
 // ===========================================================================
@@ -2382,7 +2382,7 @@ function _crearNotificacion(tipo, mensaje, destinatarioRol, habitacion, servicio
 /** Claves de Configuracion que usa el push, con su valor por defecto. */
 var CLAVES_PUSH = [
   ['PUSH_ACTIVO', 'FALSE', 'Envia los avisos al telefono aunque la app este cerrada (Telegram / ntfy)'],
-  ['PUSH_ROLES', 'TODOS', 'Roles que disparan el aviso al telefono. TODOS, o lista: RESTAURANT,COCINA'],
+  ['PUSH_ROLES', 'TODOS', 'Que avisos se envian al telefono: TODOS, GASTRONOMIA o NO_GASTRONOMIA'],
   ['PUSH_TELEGRAM_TOKEN', '', 'Token del bot de Telegram (te lo da @BotFather)'],
   ['PUSH_TELEGRAM_CHAT', '', 'ID del chat o grupo de Telegram. Varios separados por coma'],
   ['PUSH_NTFY_TOPIC', '', 'Nombre del canal en ntfy.sh (usa algo largo y dificil de adivinar)']
@@ -2410,17 +2410,10 @@ function _asegurarClavesPush() {
  * Envia el aviso a los canales configurados. Silencioso ante cualquier fallo:
  * un problema de red jamas debe impedir que se guarde una reserva.
  */
-function _enviarPushExterno(tipo, mensaje, destinatarioRol, habitacion) {
+function _enviarPushExterno(tipo, mensaje, destinatarioRol, habitacion, servicioID) {
   try {
     if (String(_obtenerConfigValor('PUSH_ACTIVO') || '').toUpperCase() !== 'TRUE') return;
-
-    // Filtro por rol: permite avisar solo al restaurant, por ejemplo.
-    var roles = String(_obtenerConfigValor('PUSH_ROLES') || 'TODOS').toUpperCase().trim();
-    if (roles && roles !== 'TODOS') {
-      var destino = String(destinatarioRol || 'TODOS').toUpperCase();
-      var permitidos = roles.split(',').map(function (s) { return s.trim(); });
-      if (destino !== 'TODOS' && permitidos.indexOf(destino) === -1) return;
-    }
+    if (!_avisoPasaFiltro(_obtenerConfigValor('PUSH_ROLES'), tipo, servicioID)) return;
 
     var aviso = _formatearMensajePush(tipo, mensaje, habitacion);
     _pushTelegram(aviso.titulo, aviso.cuerpo);
@@ -2428,6 +2421,50 @@ function _enviarPushExterno(tipo, mensaje, destinatarioRol, habitacion) {
   } catch (e) {
     /* nunca romper el flujo de reservas/pedidos */
   }
+}
+
+/**
+ * Decide si un aviso pasa el filtro elegido en Configuracion.
+ *
+ * OJO: NO se puede filtrar por DestinatarioRol. Todas las reservas se generan
+ * con rol RECEPCION sin importar el servicio (ver crearReserva), asi que
+ * filtrar por rol dejaba fuera absolutamente todas las reservas. Se filtra por
+ * la categoria real del servicio, que es lo que una persona entiende cuando
+ * dice "solo los del restaurant".
+ *
+ * @param {string} filtro Valor de PUSH_ROLES
+ * @param {string} tipo   'reserva' | 'pedido' | ...
+ * @param {string} servicioID
+ * @return {boolean}
+ */
+function _avisoPasaFiltro(filtro, tipo, servicioID) {
+  var f = String(filtro || 'TODOS').toUpperCase().trim();
+
+  // Valores de la primera version, cuando el filtro era por rol. Se traducen
+  // para que nadie quede sin avisos despues de actualizar.
+  if (f === 'RESTAURANT' || f === 'COCINA' || f === 'RESTAURANT,COCINA') f = 'GASTRONOMIA';
+  if (f === 'RECEPCION' || f === '') f = 'TODOS';
+
+  if (f === 'TODOS') return true;
+
+  var esComida = (String(tipo || '').toLowerCase() === 'pedido') || _servicioEsGastronomia(servicioID);
+  if (f === 'GASTRONOMIA') return esComida;
+  if (f === 'NO_GASTRONOMIA') return !esComida;
+  return true; // filtro desconocido: mejor avisar de mas que de menos
+}
+
+/** True si el servicio pertenece a la categoria Gastronomia. */
+function _servicioEsGastronomia(servicioID) {
+  if (!servicioID) return false;
+  try {
+    var servicios = _leerHojaComoObjetos(HOJAS.SERVICIOS);
+    for (var i = 0; i < servicios.length; i++) {
+      if (String(servicios[i].ID) === String(servicioID)) {
+        return String(servicios[i].Categoria || '').toLowerCase().indexOf('gastronom') === 0;
+      }
+    }
+  } catch (e) { /* si no se puede leer, no se bloquea el aviso */ }
+  return false;
 }
 
 /**
@@ -2558,7 +2595,13 @@ function enviarPushDePrueba(email) {
     _pushNtfy('Prueba de aviso', 'Si ves esto en tu telefono, los avisos del Concierge estan funcionando.');
     canales.push('ntfy');
   }
-  return { success: true, mensaje: 'Aviso de prueba enviado por ' + canales.join(' y ') + '.' };
+
+  // La prueba se salta el filtro a proposito (comprueba el canal). Si el filtro
+  // esta acotado hay que decirlo, o el "funciono" da una falsa seguridad.
+  var f = _avisoPasaFiltro(_obtenerConfigValor('PUSH_ROLES'), 'reserva', null) &&
+          _avisoPasaFiltro(_obtenerConfigValor('PUSH_ROLES'), 'pedido', null);
+  var nota = f ? '' : ' Ojo: tienes un filtro activo, asi que no todas las reservas van a avisar.';
+  return { success: true, mensaje: 'Aviso de prueba enviado por ' + canales.join(' y ') + '.' + nota };
 }
 
 /** Envia la prueba por Telegram devolviendo el error real si algo falla. */

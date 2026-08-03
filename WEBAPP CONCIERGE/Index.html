@@ -4952,7 +4952,11 @@ function campoOpciones(etiqueta, clave, valorActual, opciones, ayuda) {
 function pintarAvisosTelefono() {
   var c = APP.config || {};
   var activo = String(c.PUSH_ACTIVO || 'FALSE').toUpperCase() === 'TRUE';
-  var rolesActual = String(c.PUSH_ROLES || 'TODOS').toUpperCase();
+  // Traduce los valores de la primera version (el filtro era por rol) para que
+  // el selector no muestre una opcion distinta a la que esta guardada.
+  var rolesActual = String(c.PUSH_ROLES || 'TODOS').toUpperCase().trim();
+  if (rolesActual === 'RESTAURANT' || rolesActual === 'COCINA' || rolesActual === 'RESTAURANT,COCINA') rolesActual = 'GASTRONOMIA';
+  if (rolesActual === 'RECEPCION' || rolesActual === '') rolesActual = 'TODOS';
 
   var contenido =
     '<p class="text-xs opacity-60 mb-3">Con esto el aviso llega al celular <b>aunque la app este minimizada, cerrada o el telefono bloqueado</b>. ' +
@@ -4963,10 +4967,9 @@ function pintarAvisosTelefono() {
 
     campoOpciones('Que avisos se envian', 'PUSH_ROLES', rolesActual,
       [['TODOS', 'Todos los avisos'],
-       ['RESTAURANT', 'Solo los del restaurant'],
-       ['RESTAURANT,COCINA', 'Restaurant y cocina'],
-       ['RECEPCION', 'Solo los de recepcion']],
-      'Los avisos dirigidos a "todos" siempre se envian.') +
+       ['GASTRONOMIA', 'Solo restaurant (comida y pedidos)'],
+       ['NO_GASTRONOMIA', 'Todo menos restaurant']],
+      'Si dudas, deja "Todos los avisos". Con un filtro puesto, las reservas que queden fuera no avisan al telefono (igual aparecen en la campana).') +
 
     // ---- Canal 1: Telegram ----
     '<div class="mt-4 pt-4 border-t" style="border-color:var(--borde)">' +
