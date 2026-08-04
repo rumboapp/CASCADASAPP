@@ -746,7 +746,7 @@
           opts = opts || {}; var p = P(x, y);
           doc.setTextColor(col[0], col[1], col[2]);
           doc.setFont(opts.font || 'helvetica', opts.style || 'normal');
-          doc.setFontSize(size * S);
+          doc.setFontSize(size * S * FUENTE_ESCALA);
           var align = opts.align || 'center';
           var cs = opts.charSpace ? opts.charSpace * S : 0;
           // jsPDF calcula el centrado de "align:center" SIN contar el ancho extra
@@ -837,7 +837,11 @@
     }
 
     // Corta el mensaje (con \n propios) en lineas que quepan (~maxch caracteres).
+    // El corte es por cantidad de caracteres, no por ancho medido: por eso al
+    // subir FUENTE_ESCALA hay que dejar MENOS caracteres por linea en la misma
+    // proporcion, o el texto se sale de la tarjeta.
     function wrapTexto(txt, maxch) {
+      maxch = Math.max(6, Math.round(maxch / FUENTE_ESCALA));
       var out = [];
       String(txt).split('\n').forEach(function (par) {
         if (par === '') { out.push(''); return; }
@@ -1086,11 +1090,23 @@
       }
 
       var lineas = wrapTexto(mensaje, 25);
-      var lh = 6.1;
+
+      // El cupon es bajito (66mm) y el mensaje lo escribe el hotel, asi que
+      // puede venir de cualquier largo. En vez de dejar que se salga por
+      // abajo, el interlineado y la letra se achican lo justo para que quepa
+      // el mensaje completo: un mensaje normal se ve igual que siempre y uno
+      // muy largo se aprieta en lugar de cortarse.
+      var lhBase = 6.1;
+      var disponible = H - 26;                       // deja aire arriba y abajo
+      var lh = Math.min(lhBase, disponible / Math.max(1, lineas.length));
+      var razon = Math.max(0.62, lh / lhBase);       // no achicar hasta lo ilegible
+      lh = lhBase * razon;
+
       var y = Math.max(14, H / 2 - (lineas.length - 1) * lh / 2);
       lineas.forEach(function (l) {
         var esFirma = /^(una cortesía|a courtesy)/i.test(l);
-        p.text(l, xTerm, y, esFirma ? 6.6 : 6.9, esFirma ? acc : CREMA, { font: 'times', style: esFirma ? 'italic' : 'normal' });
+        p.text(l, xTerm, y, (esFirma ? 6.6 : 6.9) * razon, esFirma ? acc : CREMA,
+               { font: 'times', style: esFirma ? 'italic' : 'normal' });
         y += (l === '' ? lh * 0.5 : lh);
       });
     }
@@ -1379,6 +1395,18 @@
     }
     // "pen" para SVG (misma interfaz que penFor, coordenadas directas)
     var SVGNS = 'http://www.w3.org/2000/svg';
+
+    // Los tamaños de letra estan expresados como en jsPDF, que SIEMPRE usa
+    // PUNTOS aunque el documento este en milimetros. El SVG, en cambio, mide
+    // en las unidades de su viewBox, que aqui son milimetros: si se copia el
+    // numero tal cual, la letra sale 72/25.4 = 2.8 veces mas grande y se
+    // desborda de la tarjeta. Por eso se convierte punto -> milimetro.
+    var PT_A_MM = 25.4 / 72;
+
+    // Sube el tamaño de TODA la letra de las tarjetas de una sola vez, tanto
+    // en el PDF como en el PNG/JPEG. wrapTexto lo compensa cortando antes las
+    // lineas, asi el texto crece sin salirse.
+    var FUENTE_ESCALA = 1.12;
     function rgb(c) { return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; }
     function rectSVG(x, y, w, h, fill) { var e = document.createElementNS(SVGNS, 'rect'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('width', w); e.setAttribute('height', h); e.setAttribute('fill', fill); return e; }
     function penSVG(svg, sys) {
@@ -1397,7 +1425,7 @@
         rect: function (x, y, w, h, col, lw, dash) { var e = document.createElementNS(SVGNS, 'rect'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('width', w); e.setAttribute('height', h); e.setAttribute('fill', 'none'); e.setAttribute('stroke', rgb(col)); e.setAttribute('stroke-width', lw || .4); if (dash) e.setAttribute('stroke-dasharray', dash.join(' ')); svg.appendChild(e); },
         bg: function (x, y, w, h, col) { svg.appendChild(rectSVG(x, y, w, h, rgb(col))); },
         image: function (dataUrl, x, y, w, h) { var e = document.createElementNS(SVGNS, 'image'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('width', w); e.setAttribute('height', h); e.setAttributeNS('http://www.w3.org/1999/xlink', 'href', dataUrl); svg.appendChild(e); },
-        text: function (str, x, y, size, col, opts) { opts = opts || {}; var e = document.createElementNS(SVGNS, 'text'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('text-anchor', opts.align === 'left' ? 'start' : 'middle'); e.setAttribute('font-size', size); e.setAttribute('fill', rgb(col)); e.setAttribute('font-family', opts.font === 'times' ? famSerif : famSans); if (opts.style === 'italic') e.setAttribute('font-style', 'italic'); if (opts.style === 'bold') e.setAttribute('font-weight', '600'); if (opts.charSpace) e.setAttribute('letter-spacing', opts.charSpace); e.textContent = str; svg.appendChild(e); }
+        text: function (str, x, y, size, col, opts) { opts = opts || {}; var e = document.createElementNS(SVGNS, 'text'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('text-anchor', opts.align === 'left' ? 'start' : 'middle'); e.setAttribute('font-size', (size * FUENTE_ESCALA * PT_A_MM).toFixed(3)); e.setAttribute('fill', rgb(col)); e.setAttribute('font-family', opts.font === 'times' ? famSerif : famSans); if (opts.style === 'italic') e.setAttribute('font-style', 'italic'); if (opts.style === 'bold') e.setAttribute('font-weight', '600'); if (opts.charSpace) e.setAttribute('letter-spacing', opts.charSpace); e.textContent = str; svg.appendChild(e); }
       };
     }
 
